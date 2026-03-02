@@ -28,10 +28,24 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
+  // Estados para el teléfono con código de país
+  const [phoneCountryCode, setPhoneCountryCode] = useState("591");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
   const updateStore = useUpdateStore();
 
   useEffect(() => {
     setFormData(store);
+    
+    // Extraer código de país y número del teléfono almacenado
+    const storedPhone = store.config?.contact?.phone || "";
+    if (storedPhone.includes("-")) {
+      const [code, number] = storedPhone.split("-");
+      setPhoneCountryCode(code);
+      setPhoneNumber(number);
+    } else {
+      setPhoneNumber(storedPhone);
+    }
   }, [store]);
 
   const handleInputChange = (field: keyof Store, value: any) => {
@@ -182,6 +196,33 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
     { value: "USD", label: "USD - Dólares" },
     { value: "EUR", label: "EUR - Euros" }
   ];
+
+  // Códigos de país para teléfono
+  const countryCodes = [
+    { value: "591", label: "🇧🇴 +591", country: "Bolivia" },
+    { value: "54", label: "🇦🇷 +54", country: "Argentina" },
+    { value: "56", label: "🇨🇱 +56", country: "Chile" },
+    { value: "57", label: "🇨🇴 +57", country: "Colombia" },
+    { value: "593", label: "🇪🇨 +593", country: "Ecuador" },
+    { value: "51", label: "🇵🇪 +51", country: "Perú" },
+    { value: "52", label: "🇲🇽 +52", country: "México" },
+    { value: "1", label: "🇺🇸 +1", country: "USA" },
+    { value: "34", label: "🇪🇸 +34", country: "España" },
+  ];
+
+  // Manejar cambio de código de país
+  const handlePhoneCountryCodeChange = (code: string) => {
+    setPhoneCountryCode(code);
+    const fullPhone = phoneNumber ? `${code}-${phoneNumber}` : "";
+    handleConfigChange("contact", "phone", fullPhone);
+  };
+
+  // Manejar cambio de número de teléfono
+  const handlePhoneNumberChange = (number: string) => {
+    setPhoneNumber(number);
+    const fullPhone = number ? `${phoneCountryCode}-${number}` : "";
+    handleConfigChange("contact", "phone", fullPhone);
+  };
 
   return (
     <div className="space-y-6">
@@ -686,12 +727,30 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Teléfono</Label>
-                <Input
-                  id="phone"
-                  value={formData.config?.contact?.phone || ""}
-                  onChange={(e) => handleConfigChange("contact", "phone", e.target.value)}
-                  placeholder="70123456"
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={phoneCountryCode}
+                    onValueChange={handlePhoneCountryCodeChange}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryCodes.map((code) => (
+                        <SelectItem key={code.value} value={code.value}>
+                          {code.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    value={phoneNumber}
+                    onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                    placeholder="71890091"
+                    className="flex-1"
+                  />
+                </div>
               </div>
 
               <div>

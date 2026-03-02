@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/shared/ui/sidebar"
@@ -10,7 +11,9 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
+  MessageCircle,
 } from "lucide-react"
+import { WhatsAppLinkModal } from "@/features/whatsapp"
 
 
 
@@ -25,6 +28,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const [showWhatsAppModal, setShowWhatsAppModal] = React.useState(false)
 
   return (
     <SidebarMenu>
@@ -85,6 +89,10 @@ export function NavUser({
                 <Bell />
                 Notifications
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowWhatsAppModal(true)}>
+                <MessageCircle />
+                Vincular WhatsApp
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
@@ -94,6 +102,12 @@ export function NavUser({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+
+      {/* Modal de vinculación de WhatsApp */}
+      <WhatsAppLinkModal 
+        open={showWhatsAppModal} 
+        onOpenChange={setShowWhatsAppModal} 
+      />
     </SidebarMenu>
   )
 }
