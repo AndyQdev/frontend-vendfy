@@ -109,4 +109,5 @@ export interface OrderQueryParams {
   value?: string;
   storeId?: string;
   dateFilter?: 'day' | 'week' | 'month' | 'year';
+  status?: string;
 }

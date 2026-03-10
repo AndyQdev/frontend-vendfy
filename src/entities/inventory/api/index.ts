@@ -7,6 +7,8 @@ import type {
   InventoryMovement,
   MovementResponse,
   CreateMovementParams,
+  MovementQueryParams,
+  MovementKpis,
 } from "../model/types";
 
 export function useInventory(params: InventoryQueryParams) {
@@ -81,6 +83,50 @@ export function useCreateMovement() {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["movements"] });
+    },
+  });
+}
+
+// Hook para obtener KPIs financieros (ventas, compras, ganancias)
+export function useMovementKpis(storeId?: string) {
+  const searchParams = new URLSearchParams();
+  if (storeId) searchParams.append("storeId", storeId);
+
+  return useQuery<{ statusCode: number; data: MovementKpis }>({
+    queryKey: ["movement-kpis", storeId],
+    queryFn: async () => {
+      const response = await apiFetch<MovementKpis>(
+        `/api/inventory-movements/kpis?${searchParams.toString()}`
+      );
+      return {
+        statusCode: response.statusCode,
+        data: response.data!,
+      };
+    },
+  });
+}
+
+// Hook para obtener movimientos con filtros generales (storeId, type, etc.)
+export function useMovements(params: MovementQueryParams) {
+  const searchParams = new URLSearchParams();
+  if (params.limit) searchParams.append("limit", params.limit.toString());
+  if (params.offset !== undefined) searchParams.append("offset", params.offset.toString());
+  if (params.order) searchParams.append("order", params.order);
+  if (params.inventoryId) searchParams.append("inventoryId", params.inventoryId);
+  if (params.type) searchParams.append("type", params.type);
+  if (params.storeId) searchParams.append("storeId", params.storeId);
+
+  return useQuery<MovementResponse>({
+    queryKey: ["movements", params],
+    queryFn: async () => {
+      const response = await apiFetch<InventoryMovement[]>(
+        `/api/inventory-movements?${searchParams.toString()}`
+      );
+      return {
+        statusCode: response.statusCode,
+        data: response.data || [],
+        countData: response.countData || 0,
+      };
     },
   });
 }

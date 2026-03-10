@@ -15,6 +15,7 @@ export function useOrders(params: OrderQueryParams = {}) {
     queryParams.append('attr', params.attr);
     queryParams.append('value', params.value);
   }
+  if (params.status) queryParams.append('status', params.status);
 
   return useQuery<OrdersResponse>({
     queryKey: ["orders", params],

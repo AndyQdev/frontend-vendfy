@@ -75,3 +75,18 @@ export interface CreateMovementParams {
   unitCost?: number;
   notes?: string;
 }
+
+export interface MovementKpis {
+  totalVentas: number;
+  totalCompras: number;
+  ganancias: number;
+}
+
+export interface MovementQueryParams {
+  limit?: number;
+  offset?: number;
+  order?: 'ASC' | 'DESC';
+  inventoryId?: string;
+  type?: MovementType;
+  storeId?: string;
+}
