@@ -1,6 +1,13 @@
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/shared/api/client";
-import type { Inventory, InventoryResponse, InventoryQueryParams } from "../model/types";
+import type {
+  Inventory,
+  InventoryResponse,
+  InventoryQueryParams,
+  InventoryMovement,
+  MovementResponse,
+  CreateMovementParams,
+} from "../model/types";
 
 export function useInventory(params: InventoryQueryParams) {
   const searchParams = new URLSearchParams();
@@ -54,5 +61,44 @@ export function useInfiniteInventory(params: Omit<InventoryQueryParams, 'offset'
       return totalFetched < lastPage.countData ? allPages.length : undefined;
     },
     initialPageParam: 0,
+  });
+}
+
+// Hook para crear un movimiento de inventario
+export function useCreateMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: CreateMovementParams) => {
+      const response = await apiFetch<InventoryMovement>("/api/inventory-movements", {
+        method: "POST",
+        body: params,
+      });
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidar queries de inventario para refrescar stock
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["movements"] });
+    },
+  });
+}
+
+// Hook para obtener movimientos de un inventario específico
+export function useMovementsByInventory(inventoryId: string | null) {
+  return useQuery<MovementResponse>({
+    queryKey: ["movements", inventoryId],
+    queryFn: async () => {
+      const response = await apiFetch<InventoryMovement[]>(
+        `/api/inventory-movements/inventory/${inventoryId}`
+      );
+      return {
+        statusCode: response.statusCode,
+        data: response.data || [],
+        countData: response.countData || 0,
+      };
+    },
+    enabled: !!inventoryId,
   });
 }

@@ -75,9 +75,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Store,
     },
     {
-      title: "Reportes",
+      title: "Estadísticas",
       url: "/reports",
       icon: BarChart3,
+      items: [
+        {
+          title: "Movimientos",
+          url: "/reports/movements",
+        },
+      ],
     },
     {
       title: "Configuración",

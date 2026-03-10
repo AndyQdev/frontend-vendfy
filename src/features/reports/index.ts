@@ -1,0 +1,10 @@
+export { Reports } from "./ui/reports";
+export { KPICards } from "./ui/kpi-cards";
+export { SalesChart } from "./ui/sales-chart";
+export { OrderChannelsChart } from "./ui/order-channels-chart";
+export { OrdersStatusChart } from "./ui/orders-status-chart";
+export { TopProductsChart } from "./ui/top-products-chart";
+export { SalesByCategoryChart } from "./ui/sales-by-category-chart";
+export { LowStockTable } from "./ui/low-stock-table";
+export { FrequentCustomers } from "./ui/frequent-customers";
+export { SalesByDay } from "./ui/sales-by-day";

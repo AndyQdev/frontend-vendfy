@@ -14,6 +14,7 @@ import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
+import MovementPage from "@/pages/reports/movements";
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -54,6 +55,7 @@ export default function AppRouter() {
           <Route path="/stores" element={<StoresPage />} />
           <Route path="/stores/:id" element={<StoreConfigPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/movements" element={<MovementPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           
           {/* Redirección por defecto a Caja */}
