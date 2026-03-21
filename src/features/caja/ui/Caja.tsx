@@ -52,11 +52,12 @@ import {
 } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
 import { toast } from "sonner";
-import { useCustomers, useCreateCustomer, type Customer } from "@/entities/customer";
+import { useCustomers, useCreateCustomer, useAddCustomerAddress, type Customer } from "@/entities/customer";
 import { useInfiniteInventory } from "@/entities/inventory/api";
 import { useCategories } from "@/entities/product/api";
 import { useCreateOrder, OrderType } from "@/entities/order";
 import { useStore } from "@/app/providers/auth";
+import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 
 // Función helper para obtener ícono basado en el nombre de la categoría
@@ -196,6 +197,20 @@ export default function Caja() {
     deliveryCost: '',
     notes: '',
   });
+  const [selectedAddrIdx, setSelectedAddrIdx] = useState(-1);
+  const [deliveryDistance, setDeliveryDistance] = useState<number | null>(null);
+  const [showAddAddr, setShowAddAddr] = useState(false);
+  const [newAddrName, setNewAddrName] = useState('');
+  const [newAddrLat, setNewAddrLat] = useState('');
+  const [newAddrLng, setNewAddrLng] = useState('');
+
+  // Store detail for delivery config
+  const storeDetailId = selectedStore === "all" ? undefined : selectedStore?.id;
+  const { data: storeDetail } = useStoreDetail(storeDetailId);
+  const deliveryConfig = storeDetail?.config?.delivery;
+  const storeCoords = storeDetail?.config?.contact?.coordinates;
+  const deliveryType = deliveryConfig?.type ?? "fixed";
+  const addAddressMutation = useAddCustomerAddress();
 
   // Hooks de clientes
   const { data: customersData, isLoading: isLoadingClients } = useCustomers({
@@ -475,24 +490,63 @@ export default function Caja() {
     }
   };
   
+  // Haversine distance
+  const calcDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+  const calcDeliveryCost = (km: number) => Math.round(5 + km * 2);
+
+  // Auto-select first address when delivery modal opens
+  useEffect(() => {
+    if (showDeliveryModal && selectedClient) {
+      const addrs = selectedClient.addresses ?? [];
+      if (addrs.length > 0 && selectedAddrIdx < 0) {
+        setSelectedAddrIdx(0);
+      } else if (addrs.length === 0) {
+        setShowAddAddr(true);
+      }
+      // Set cost based on type
+      if (deliveryType === "free") setDeliveryData(p => ({ ...p, deliveryCost: '0' }));
+      else if (deliveryType === "fixed") setDeliveryData(p => ({ ...p, deliveryCost: String(deliveryConfig?.value ?? 0) }));
+      else if (deliveryType === "pending") setDeliveryData(p => ({ ...p, deliveryCost: '0' }));
+    }
+  }, [showDeliveryModal, selectedClient, deliveryType]);
+
+  // Calculate distance when address changes
+  useEffect(() => {
+    const addrs = selectedClient?.addresses ?? [];
+    if (selectedAddrIdx < 0 || !addrs[selectedAddrIdx] || !storeCoords) { setDeliveryDistance(null); return; }
+    const addr = addrs[selectedAddrIdx];
+    const dist = calcDistance(storeCoords.latitude, storeCoords.longitude, addr.latitude, addr.longitude);
+    setDeliveryDistance(dist);
+    setDeliveryData(p => ({ ...p, address: addr.name }));
+    if (deliveryType === "calculated") {
+      setDeliveryData(p => ({ ...p, deliveryCost: String(calcDeliveryCost(dist)) }));
+    }
+  }, [selectedAddrIdx, storeCoords, selectedClient]);
+
   // Procesar venta con delivery
   const processDeliverySale = async () => {
     if (!deliveryData.address.trim()) {
-      toast.error("Ingresa la dirección de entrega");
+      toast.error("Selecciona o agrega una dirección");
       return;
     }
-    const deliveryCost = parseFloat(deliveryData.deliveryCost);
-    if (!deliveryCost || deliveryCost <= 0) {
-      toast.error("Ingresa el costo de delivery");
+    const deliveryCost = deliveryType === "pending" ? 0 : parseFloat(deliveryData.deliveryCost);
+    if (deliveryType !== "pending" && deliveryType !== "free" && (!deliveryCost || deliveryCost <= 0)) {
+      toast.error("El costo de delivery es requerido");
       return;
     }
-    
+
     if (!selectedClient || !selectedStore || selectedStore === "all") {
       toast.error("Selecciona un cliente y tienda válidos");
       return;
     }
-    
-    const totalWithDelivery = total + deliveryCost;
+
+    const totalWithDelivery = total + (deliveryCost || 0);
 
     try {
       await createOrderMutation.mutateAsync({
@@ -503,13 +557,13 @@ export default function Caja() {
         totalReceived: totalWithDelivery,
         deliveryInfo: {
           address: deliveryData.address,
-          cost: deliveryCost,
+          cost: deliveryCost || 0,
           notes: deliveryData.notes || undefined,
         },
         storeId: selectedStore.id,
         customerId: selectedClient.id,
         items: cart.map(item => ({
-          storeProductId: item.storeProductId, // ID del StoreProduct desde inventory
+          storeProductId: item.storeProductId,
           quantity: item.quantity,
           price: item.price,
         })),
@@ -519,15 +573,28 @@ export default function Caja() {
       setCart([]);
       setSelectedClient(null);
       setShowDeliveryModal(false);
-      setDeliveryData({
-        address: '',
-        deliveryCost: '',
-        notes: '',
-      });
+      setSelectedAddrIdx(-1);
+      setDeliveryDistance(null);
+      setDeliveryData({ address: '', deliveryCost: '', notes: '' });
     } catch (error) {
-      // El error ya se muestra en el hook useCreateOrder
       console.error('Error en venta con delivery:', error);
     }
+  };
+
+  const handleAddNewAddress = async () => {
+    if (!selectedClient || !newAddrName.trim() || !newAddrLat || !newAddrLng) {
+      toast.error("Completa nombre, latitud y longitud");
+      return;
+    }
+    try {
+      await addAddressMutation.mutateAsync({
+        customerId: selectedClient.id,
+        address: { name: newAddrName.trim(), latitude: parseFloat(newAddrLat), longitude: parseFloat(newAddrLng) },
+      });
+      toast.success("Dirección agregada");
+      setShowAddAddr(false);
+      setNewAddrName(''); setNewAddrLat(''); setNewAddrLng('');
+    } catch { toast.error("Error al agregar dirección"); }
   };
   
   // Calcular monto de cuota cuando cambia el pago inicial o número de cuotas
@@ -1117,97 +1184,145 @@ export default function Caja() {
       
       {/* Modal de Delivery */}
       <Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-emerald-600" />
               Pedido con Delivery
             </DialogTitle>
             <DialogDescription>
-              Completa la información de entrega
+              Tipo: {deliveryType === "free" ? "Gratis" : deliveryType === "fixed" ? "Fijo" : deliveryType === "calculated" ? "Calculado por distancia" : "Por definir"}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            {/* Total del Pedido */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-emerald-900">Total del pedido</span>
-                <span className="text-lg font-bold text-emerald-600">Bs. {total.toFixed(2)}</span>
-              </div>
+
+          <div className="space-y-4 py-2">
+            {/* Total */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
+              <span className="text-sm font-medium text-emerald-900">Total del pedido</span>
+              <span className="text-lg font-bold text-emerald-600">Bs. {total.toFixed(2)}</span>
             </div>
-            
-            {/* Dirección de Entrega */}
+
+            {/* Direcciones del cliente */}
             <div className="space-y-2">
-              <Label htmlFor="address" className="flex items-center gap-1.5">
+              <Label className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
-                Dirección de Entrega
+                Dirección de entrega
               </Label>
-              <Input
-                id="address"
-                placeholder="Calle, número, zona..."
-                value={deliveryData.address}
-                onChange={(e) => setDeliveryData(prev => ({ ...prev, address: e.target.value }))}
-              />
-            </div>
-            
-            {/* Costo de Delivery */}
-            <div className="space-y-2">
-              <Label htmlFor="deliveryCost" className="flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5" />
-                Costo de Delivery
-              </Label>
-              <Input
-                id="deliveryCost"
-                type="number"
-                placeholder="0.00"
-                value={deliveryData.deliveryCost}
-                onChange={(e) => setDeliveryData(prev => ({ ...prev, deliveryCost: e.target.value }))}
-                step="0.01"
-                min="0"
-              />
-            </div>
-            
-            {/* Notas Adicionales */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas Adicionales (Opcional)</Label>
-              <Input
-                id="notes"
-                placeholder="Referencias, instrucciones..."
-                value={deliveryData.notes}
-                onChange={(e) => setDeliveryData(prev => ({ ...prev, notes: e.target.value }))}
-              />
-            </div>
-            
-            {/* Total con Delivery */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>Bs. {total.toFixed(2)}</span>
+              {(selectedClient?.addresses ?? []).length > 0 && (
+                <div className="space-y-1.5">
+                  {(selectedClient?.addresses ?? []).map((addr, i) => (
+                    <button key={i} type="button"
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${selectedAddrIdx === i ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-200'}`}
+                      onClick={() => { setSelectedAddrIdx(i); setShowAddAddr(false); }}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedAddrIdx === i ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}>
+                        <MapPin className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${selectedAddrIdx === i ? 'text-emerald-800' : ''}`}>{addr.name}</p>
+                        <p className="text-xs text-muted-foreground">{addr.latitude.toFixed(4)}, {addr.longitude.toFixed(4)}</p>
+                      </div>
+                      {selectedAddrIdx === i && <div className="text-emerald-500">✓</div>}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Delivery</span>
-                  <span>Bs. {(parseFloat(deliveryData.deliveryCost) || 0).toFixed(2)}</span>
+              )}
+
+              {/* Add address */}
+              <button type="button" className="flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 py-1"
+                onClick={() => setShowAddAddr(!showAddAddr)}>
+                <span className="text-lg">+</span> {showAddAddr ? "Cancelar" : "Agregar nueva dirección"}
+              </button>
+
+              {showAddAddr && (
+                <div className="space-y-2 p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">
+                  <Input placeholder="Nombre (Casa, Oficina...)" value={newAddrName} onChange={(e) => setNewAddrName(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Latitud" type="number" step="any" value={newAddrLat} onChange={(e) => setNewAddrLat(e.target.value)} />
+                    <Input placeholder="Longitud" type="number" step="any" value={newAddrLng} onChange={(e) => setNewAddrLng(e.target.value)} />
+                  </div>
+                  <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleAddNewAddress} disabled={addAddressMutation.isPending}>
+                    {addAddressMutation.isPending ? "Guardando..." : "Guardar Dirección"}
+                  </Button>
                 </div>
-                <Separator className="my-1" />
+              )}
+            </div>
+
+            {/* Distance + map */}
+            {deliveryDistance != null && storeCoords && selectedClient?.addresses?.[selectedAddrIdx] && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Distancia:</span>
+                  <span className="font-bold text-emerald-600">{deliveryDistance.toFixed(1)} km</span>
+                </div>
+                <div className="rounded-lg overflow-hidden border">
+                  <img
+                    src={`https://maps.googleapis.com/maps/api/staticmap?size=640x200&scale=2&maptype=roadmap&style=feature:all|element:geometry|color:0xf5f5f5&style=feature:road|element:geometry|color:0xffffff&style=feature:water|element:geometry|color:0xc9e8fc&markers=color:0x172554|label:T|${storeCoords.latitude},${storeCoords.longitude}&markers=color:0x10b981|label:C|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&path=color:0x10b981cc|weight:5|geodesic:true|${storeCoords.latitude},${storeCoords.longitude}|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`}
+                    alt="Ruta" className="w-full h-[180px] object-cover" />
+                </div>
+              </div>
+            )}
+
+            {/* Delivery cost info by type */}
+            {deliveryType === "free" && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
+                <span className="text-sm font-semibold text-emerald-800">Envío gratuito</span>
+                <span className="font-bold text-emerald-600">Bs. 0</span>
+              </div>
+            )}
+            {deliveryType === "fixed" && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between items-center">
+                <span className="text-sm font-semibold">Costo fijo de envío</span>
+                <span className="font-bold text-emerald-600">Bs. {(deliveryConfig?.value ?? 0).toFixed(2)}</span>
+              </div>
+            )}
+            {deliveryType === "pending" && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex justify-between items-center">
+                <span className="text-sm font-semibold text-yellow-800">Costo por definir</span>
+                <span className="font-bold text-yellow-600">Pendiente</span>
+              </div>
+            )}
+            {deliveryType === "calculated" && deliveryDistance != null && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Total</span>
-                  <span className="text-xl font-bold text-emerald-600">
-                    Bs. {(total + (parseFloat(deliveryData.deliveryCost) || 0)).toFixed(2)}
-                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">Costo calculado</p>
+                    <p className="text-xs text-muted-foreground">Base Bs. 5 + {deliveryDistance.toFixed(1)} km × Bs. 2</p>
+                  </div>
+                  <span className="text-lg font-bold text-emerald-600">Bs. {(parseFloat(deliveryData.deliveryCost) || 0).toFixed(2)}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notas Adicionales (Opcional)</Label>
+              <Input placeholder="Referencias, instrucciones..." value={deliveryData.notes}
+                onChange={(e) => setDeliveryData(prev => ({ ...prev, notes: e.target.value }))} />
+            </div>
+
+            {/* Summary */}
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>Bs. {total.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery</span>
+                <span>{deliveryType === "pending" ? "Por definir" : `Bs. ${(parseFloat(deliveryData.deliveryCost) || 0).toFixed(2)}`}</span>
+              </div>
+              <Separator className="my-1" />
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total</span>
+                <span className="text-xl font-bold text-emerald-600">
+                  Bs. {(total + (parseFloat(deliveryData.deliveryCost) || 0)).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
-          
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowDeliveryModal(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={processDeliverySale} className="bg-emerald-600 hover:bg-emerald-700">
-              Confirmar Pedido
-            </Button>
+            <Button variant="outline" onClick={() => setShowDeliveryModal(false)}>Cancelar</Button>
+            <Button onClick={processDeliverySale} className="bg-emerald-600 hover:bg-emerald-700">Confirmar Pedido</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

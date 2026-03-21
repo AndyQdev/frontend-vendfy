@@ -60,6 +60,22 @@ export function useUpdateCustomer() {
   });
 }
 
+export function useAddCustomerAddress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ customerId, address }: { customerId: string; address: { name: string; latitude: number; longitude: number } }) => {
+      const response = await apiFetch<Customer>(`/api/customer/${customerId}/address`, {
+        method: 'PATCH',
+        body: address,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+}
+
 export function useDeleteCustomer() {
   const queryClient = useQueryClient();
 

@@ -10,98 +10,51 @@ import { SalesByDay } from "./sales-by-day";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { type DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-
-// Mock Data
-const mockKPIData = {
-  totalSales: 45750,
-  totalOrders: 128,
-  averageTicket: 357,
-  lowStockProducts: 8,
-  pendingOrders: 12,
-};
-
-const mockSalesData = [
-  { date: "Lun", sales: 4200, previousPeriod: 3800 },
-  { date: "Mar", sales: 3800, previousPeriod: 4100 },
-  { date: "Mié", sales: 5100, previousPeriod: 4500 },
-  { date: "Jue", sales: 4700, previousPeriod: 4200 },
-  { date: "Vie", sales: 6300, previousPeriod: 5800 },
-  { date: "Sáb", sales: 7200, previousPeriod: 6500 },
-  { date: "Dom", sales: 5400, previousPeriod: 4900 },
-];
-
-const mockOrdersStatusData = [
-  { status: "Pendiente", count: 12, color: "#fbbf24" },
-  { status: "En Proceso", count: 18, color: "#3b82f6" },
-  { status: "En Camino", count: 25, color: "#8b5cf6" },
-  { status: "Completado", count: 73, color: "#10b981" },
-  { status: "Cancelado", count: 5, color: "#ef4444" },
-];
-
-const mockTopProductsData = [
-  { name: "iPhone 15 Pro", quantity: 45, revenue: 135000 },
-  { name: "MacBook Air M2", quantity: 32, revenue: 256000 },
-  { name: "AirPods Pro", quantity: 78, revenue: 156000 },
-  { name: "iPad Air", quantity: 28, revenue: 112000 },
-  { name: "Apple Watch S9", quantity: 56, revenue: 224000 },
-  { name: "Magic Keyboard", quantity: 34, revenue: 68000 },
-  { name: "AirTag Pack", quantity: 89, revenue: 44500 },
-  { name: "HomePod Mini", quantity: 23, revenue: 46000 },
-  { name: "MagSafe Charger", quantity: 67, revenue: 33500 },
-  { name: "USB-C Cable", quantity: 156, revenue: 31200 },
-];
-
-const mockCategoryData = [
-  { category: "Electrónica", sales: 285000 },
-  { category: "Ropa", sales: 145000 },
-  { category: "Hogar", sales: 98000 },
-  { category: "Deportes", sales: 67000 },
-  { category: "Belleza", sales: 54000 },
-  { category: "Juguetes", sales: 43000 },
-];
-
-const mockLowStockData = [
-  { id: "3", name: "Perfume Chanel N°5", currentStock: 1, minStock: 8, category: "Belleza" },
-  { id: "8", name: "Reloj Casio G-Shock", currentStock: 1, minStock: 6, category: "Accesorios" },
-  { id: "1", name: "iPhone 15 Pro Max 256GB", currentStock: 2, minStock: 10, category: "Electrónica" },
-  { id: "4", name: "Smart TV Samsung 55\"", currentStock: 2, minStock: 5, category: "Electrónica" },
-  { id: "7", name: "Licuadora Oster Pro", currentStock: 2, minStock: 8, category: "Hogar" },
-  { id: "2", name: "Zapatillas Nike Air Max", currentStock: 3, minStock: 15, category: "Deportes" },
-  { id: "6", name: "Auriculares Sony WH-1000XM5", currentStock: 3, minStock: 10, category: "Electrónica" },
-];
-
-const mockFrequentCustomersData = [
-  { id: "1", name: "María González", email: "maria@email.com", totalOrders: 23, totalSpent: 45600 },
-  { id: "2", name: "Juan Pérez", email: "juan@email.com", totalOrders: 19, totalSpent: 38200 },
-  { id: "3", name: "Ana Rodríguez", email: "ana@email.com", totalOrders: 17, totalSpent: 34100 },
-  { id: "4", name: "Carlos López", email: "carlos@email.com", totalOrders: 15, totalSpent: 29800 },
-  { id: "5", name: "Laura Martínez", email: "laura@email.com", totalOrders: 14, totalSpent: 28400 },
-];
-
-const mockSalesByDayData = [
-  { day: "Lunes", sales: 4200 },
-  { day: "Martes", sales: 3800 },
-  { day: "Miércoles", sales: 5100 },
-  { day: "Jueves", sales: 4700 },
-  { day: "Viernes", sales: 6300 },
-  { day: "Sábado", sales: 7200 },
-  { day: "Domingo", sales: 5400 },
-];
-
-const mockOrderChannelsData = [
-  { channel: "Sistema", count: 68, color: "#3b82f6" },
-  { channel: "Web", count: 42, color: "#10b981" },
-  { channel: "App", count: 18, color: "#f59e0b" },
-];
+import { useStore } from "@/app/providers/auth";
+import { Loader2 } from "lucide-react";
+import {
+  useReportKpis,
+  useReportSalesOverTime,
+  useReportSalesByCategory,
+  useReportOrdersByStatus,
+  useReportOrderChannels,
+  useReportTopProducts,
+  useReportLowStock,
+  useReportFrequentCustomers,
+  useReportSalesByDay,
+} from "../api";
+import type { ReportQueryParams } from "../model/types";
 
 export function Reports() {
   const [period, setPeriod] = useState("7days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [customDateOpen, setCustomDateOpen] = useState(false);
+  const { selectedStore } = useStore();
+
+  const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
+
+  const queryParams: ReportQueryParams = useMemo(() => {
+    const params: ReportQueryParams = { period, storeId };
+    if (period === "custom" && dateRange?.from && dateRange?.to) {
+      params.startDate = format(dateRange.from, "yyyy-MM-dd");
+      params.endDate = format(dateRange.to, "yyyy-MM-dd");
+    }
+    return params;
+  }, [period, dateRange, storeId]);
+
+  const kpis = useReportKpis(queryParams);
+  const salesOverTime = useReportSalesOverTime(queryParams);
+  const salesByCategory = useReportSalesByCategory(queryParams);
+  const ordersByStatus = useReportOrdersByStatus(queryParams);
+  const orderChannels = useReportOrderChannels(queryParams);
+  const topProducts = useReportTopProducts(queryParams);
+  const lowStock = useReportLowStock(storeId);
+  const frequentCustomers = useReportFrequentCustomers(queryParams);
+  const salesByDay = useReportSalesByDay(queryParams);
 
   const periods = [
     { value: "today", label: "Hoy" },
@@ -164,33 +117,82 @@ export function Reports() {
           ))}
         </div>
       </div>
-      
+
       {/* Bloque 1: KPIs Principales */}
-      <KPICards data={mockKPIData} />
+      {kpis.isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : kpis.data ? (
+        <KPICards data={kpis.data} />
+      ) : null}
 
       {/* Bloque 2: Gráficas de Ventas */}
       <div className="grid gap-6 md:grid-cols-2">
-        <SalesChart data={mockSalesData} />
-        <SalesByCategoryChart data={mockCategoryData} />
+        {salesOverTime.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <SalesChart data={salesOverTime.data || []} />
+        )}
+        {salesByCategory.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <SalesByCategoryChart data={salesByCategory.data || []} />
+        )}
       </div>
 
       {/* Bloque 3: Análisis de Pedidos */}
       <div className="grid gap-6 md:grid-cols-2">
-        <OrdersStatusChart data={mockOrdersStatusData} />
-        <OrderChannelsChart data={mockOrderChannelsData} />
+        {ordersByStatus.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <OrdersStatusChart data={ordersByStatus.data || []} />
+        )}
+        {orderChannels.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <OrderChannelsChart data={orderChannels.data || []} />
+        )}
       </div>
 
       {/* Bloque 4: Productos e Inventario */}
       <div className="grid gap-6 md:grid-cols-2">
-        <TopProductsChart data={mockTopProductsData} />
-        <LowStockTable data={mockLowStockData} />
+        {topProducts.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <TopProductsChart data={topProducts.data || []} />
+        )}
+        {lowStock.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <LowStockTable data={lowStock.data || []} />
+        )}
       </div>
 
       {/* Bloque 5: Información Estratégica */}
       <div className="grid gap-6 md:grid-cols-2">
-        <FrequentCustomers data={mockFrequentCustomersData} />
-        <SalesByDay data={mockSalesByDayData} />
+        {frequentCustomers.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <FrequentCustomers data={frequentCustomers.data || []} />
+        )}
+        {salesByDay.isLoading ? (
+          <LoadingCard />
+        ) : (
+          <SalesByDay
+            data={salesByDay.data?.salesByDay || []}
+            hourlyData={salesByDay.data?.salesByHour || []}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+function LoadingCard() {
+  return (
+    <div className="flex items-center justify-center rounded-lg border bg-card p-12">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
   );
 }

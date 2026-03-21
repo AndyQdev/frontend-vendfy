@@ -1,3 +1,9 @@
+export interface CustomerAddress {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -6,6 +12,7 @@ export interface Customer {
   country?: string;
   birthDate?: string;
   gender?: 'male' | 'female' | 'other';
+  addresses?: CustomerAddress[];
   enabled: boolean;
   created_at: string;
   updated_at: string;
