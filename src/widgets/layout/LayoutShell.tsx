@@ -1,6 +1,8 @@
-import { Outlet, useLocation } from "react-router-dom";
-import { Moon, Sun } from "lucide-react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun, Bot } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useStore } from "@/app/providers/auth";
+import { useWhatsAppStatus } from "@/entities/whatsapp/api";
 import { AppSidebar } from "@/widgets/layout/app-sidebar";
 import {
   Breadcrumb,
@@ -12,6 +14,7 @@ import {
 } from "@/shared/ui/breadcrumb";
 import { Separator } from "@/shared/ui/separator";
 import { Button } from "@/shared/ui/button";
+import { ButtonMagic } from "@/shared/ui/button-magic";
 import {
   SidebarInset,
   SidebarProvider,
@@ -22,7 +25,13 @@ import { useTheme } from "@/app/providers/theme";
 export default function LayoutShell() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { selectedStore } = useStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  const storeId = selectedStore && selectedStore !== "all" ? (selectedStore as any).id : undefined;
+  const { data: whatsappData } = useWhatsAppStatus(storeId);
+  const isWhatsAppConnected = whatsappData?.status === "connected";
 
   useEffect(() => {
     const handleResize = () => {
@@ -71,8 +80,30 @@ export default function LayoutShell() {
               </Breadcrumb>
             </div>
             
-            {/* Theme Toggle */}
+            {/* Actions */}
             <div className="flex items-center gap-2 px-4">
+              {/* Bot WhatsApp Button */}
+              {isWhatsAppConnected ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate("/whatsapp")}
+                  className="h-9 w-9 relative"
+                >
+                  <Bot className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                </Button>
+              ) : (
+                <ButtonMagic
+                  onClick={() => navigate("/whatsapp")}
+                  className="text-xs"
+                >
+                  <Bot className="h-4 w-4" />
+                  <span className="hidden sm:inline">Conectar Bot</span>
+                </ButtonMagic>
+              )}
+
+              {/* Theme Toggle */}
               <Button
                 variant="ghost"
                 size="icon"

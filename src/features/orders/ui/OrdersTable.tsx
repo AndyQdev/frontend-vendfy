@@ -27,10 +27,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { Button } from "@/shared/ui/button";
 
 import { toast } from "sonner";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailsModal } from "./OrderDetails";
+import { WhatsAppTemplatesModal } from "@/features/whatsapp/ui/WhatsAppTemplatesModal";
+import { Bell } from "lucide-react";
 
 type DateFilter = "day" | "week" | "month" | "year";
 
@@ -214,6 +217,7 @@ export default function OrdersTable() {
   const [activeColumnId, setActiveColumnId] = useState<OrderStatus | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const updateOrderMutation = useUpdateOrder();
   const queryClient = useQueryClient();
 
@@ -407,10 +411,15 @@ export default function OrdersTable() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          {/* <Badge variant="outline" className="text-sm">
-            <Package className="w-4 h-4 mr-1" />
-            {allOrders.length} {allOrders.length === 1 ? "orden" : "órdenes"}
-          </Badge> */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWhatsappModalOpen(true)}
+            className="gap-2 text-xs"
+          >
+            <Bell className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Notificaciones</span>
+          </Button>
         </div>
       </div>
 
@@ -454,10 +463,17 @@ export default function OrdersTable() {
       </DndContext>
 
       {/* Modal de detalles */}
-      <OrderDetailsModal 
-        order={selectedOrder} 
-        open={detailsModalOpen} 
-        onClose={() => setDetailsModalOpen(false)} 
+      <OrderDetailsModal
+        order={selectedOrder}
+        open={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+      />
+
+      {/* Modal de notificaciones WhatsApp */}
+      <WhatsAppTemplatesModal
+        open={whatsappModalOpen}
+        onOpenChange={setWhatsappModalOpen}
+        storeId={storeId}
       />
     </div>
   );

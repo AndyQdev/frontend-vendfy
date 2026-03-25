@@ -160,6 +160,80 @@
     animation: collapsible-up 200ms ease-out;
   }
 
+  /* ButtonMagic - glowing border animation */
+  @keyframes glowing {
+    0% {
+      background-position: 0 0;
+    }
+    50% {
+      background-position: 400% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
+  }
+
+  .btn-magic {
+    background: hsl(222, 47%, 14%);
+  }
+
+  .btn-magic::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      45deg,
+      hsl(222, 80%, 30%),
+      hsl(199, 89%, 48%),
+      hsl(262, 80%, 50%),
+      hsl(199, 89%, 48%),
+      hsl(222, 80%, 30%),
+      hsl(199, 89%, 48%),
+      hsl(262, 80%, 50%),
+      hsl(199, 89%, 48%)
+    );
+    background-size: 800%;
+    border-radius: 12px;
+    filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    animation: glowing 20s linear infinite;
+  }
+
+  .btn-magic::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    background: hsl(222, 47%, 14%);
+    border-radius: 10px;
+    z-index: -1;
+  }
+
+  .btn-magic:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-magic:hover::before {
+    opacity: 1;
+    filter: blur(12px);
+  }
+
+  .btn-magic:active {
+    transform: translateY(0);
+  }
+
+  .dark .btn-magic {
+    background: hsl(222, 47%, 12%);
+  }
+
+  .dark .btn-magic::after {
+    background: hsl(222, 47%, 12%);
+  }
+
   /* Forzar que el carrusel respete el ancho del contenedor padre */
   [role="region"][aria-roledescription="carousel"] {
     max-width: 100% !important;
