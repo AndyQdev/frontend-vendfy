@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
 import type { Product } from "@/entities/product/model/types";
+import { ButtonMagic } from "@/shared/ui/button-magic";
+import { AiGenerateModal } from "./AiGenerateModal";
+import { Sparkles } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -48,6 +51,7 @@ export function ProductsDataTable() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1); // Cambiado a base 1
   const [pageSize, setPageSize] = useState(10); // Ahora es mutable
   const [currentImageIndexes, setCurrentImageIndexes] = useState<Record<string, number>>({});
@@ -143,10 +147,16 @@ export function ProductsDataTable() {
             Gestiona tu catálogo de productos
           </p>
         </div>
-        <Button onClick={() => navigate("/products/create")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Crear Producto
-        </Button>
+        <div className="flex items-center gap-3">
+          <ButtonMagic onClick={() => setAiModalOpen(true)}>
+            <Sparkles className="h-4 w-4" />
+            Crear con IA
+          </ButtonMagic>
+          <Button onClick={() => navigate("/products/create")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Crear Producto
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards - Para Inventario */}
@@ -576,6 +586,9 @@ export function ProductsDataTable() {
           />
         </div>
       )}
+
+      {/* AI Generate Modal */}
+      <AiGenerateModal open={aiModalOpen} onOpenChange={setAiModalOpen} />
     </div>
   );
 }

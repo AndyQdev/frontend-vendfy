@@ -7,9 +7,11 @@ import { Button } from "@/shared/ui/button";
 export function StoreConfigPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: store, isLoading, refetch } = useStore(id!);
+  const isCreateMode = id === "new";
 
-  if (isLoading) {
+  const { data: store, isLoading, refetch } = useStore(isCreateMode ? undefined : id);
+
+  if (!isCreateMode && isLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
@@ -20,7 +22,7 @@ export function StoreConfigPage() {
     );
   }
 
-  if (!store) {
+  if (!isCreateMode && !store) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
@@ -34,9 +36,17 @@ export function StoreConfigPage() {
     );
   }
 
+  if (isCreateMode) {
+    return (
+      <div className="">
+        <StoreConfigForm mode="create" />
+      </div>
+    );
+  }
+
   return (
     <div className="">
-      <StoreConfigForm store={store} onUpdate={refetch} />
+      <StoreConfigForm store={store} mode="edit" onUpdate={refetch} />
     </div>
   );
 }

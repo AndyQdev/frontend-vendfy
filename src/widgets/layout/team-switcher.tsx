@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { getStores } from "@/entities/store/api"
 import { Store } from "@/entities/store/model/types"
 import { useStore } from "@/app/providers/auth"
+import { useNavigate } from "react-router-dom"
 
 import {
   DropdownMenu,
@@ -24,6 +25,7 @@ import { Skeleton } from "@/shared/ui/skeleton"
 export function StoreSwitcher() {
   const { isMobile } = useSidebar()
   const { selectedStore, setSelectedStore } = useStore()
+  const navigate = useNavigate()
 
   const { data: stores = [], isLoading } = useQuery({
     queryKey: ["stores"],
@@ -47,7 +49,29 @@ export function StoreSwitcher() {
     )
   }
 
-  if (!selectedStore || stores.length === 0) {
+  if (!selectedStore && stores.length === 0) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="lg"
+            onClick={() => navigate("/stores/new")}
+            className="cursor-pointer"
+          >
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg border border-dashed">
+              <Plus className="size-4" />
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold">Crear Tienda</span>
+              <span className="truncate text-xs text-muted-foreground">Configura tu primera tienda</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+
+  if (!selectedStore) {
     return null
   }
 
@@ -123,7 +147,10 @@ export function StoreSwitcher() {
 
             <DropdownMenuSeparator />
             
-            <DropdownMenuItem className="gap-2 p-2 cursor-pointer">
+            <DropdownMenuItem
+              onClick={() => navigate("/stores/new")}
+              className="gap-2 p-2 cursor-pointer"
+            >
               <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                 <Plus className="size-4" />
               </div>

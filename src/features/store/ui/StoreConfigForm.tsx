@@ -7,20 +7,34 @@ import { Card } from "@/shared/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Textarea } from "@/shared/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
-import { useUpdateStore } from "@/entities/store/api";
+import { useUpdateStore, useCreateStore } from "@/entities/store/api";
 import { apiFetch } from "@/shared/api/client";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
 import { toast } from "sonner";
 import { LocationPicker } from "@/shared/ui/LocationPicker";
+import { useNavigate } from "react-router-dom";
 
 interface StoreConfigFormProps {
-  store: Store;
-  onUpdate: () => void;
+  store?: Store;
+  mode?: "create" | "edit";
+  onUpdate?: () => void;
 }
 
-export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
-  const [formData, setFormData] = useState<Store>(store);
-  const [isEditing, setIsEditing] = useState(false);
+const emptyStore: Store = {
+  id: "",
+  name: "",
+  slug: "",
+  description: "",
+  config: {},
+  created_at: "",
+  updated_at: "",
+  enabled: true,
+};
+
+export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigFormProps) {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState<Store>(store || emptyStore);
+  const [isEditing, setIsEditing] = useState(mode === "create");
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
@@ -33,12 +47,13 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
 
   const updateStore = useUpdateStore();
+  const createStore = useCreateStore();
 
   useEffect(() => {
-    setFormData(store);
-    
+    if (store) setFormData(store);
+
     // Extraer código de país y número del teléfono almacenado
-    const storedPhone = store.config?.contact?.phone || "";
+    const storedPhone = store?.config?.contact?.phone || "";
     if (storedPhone.includes("-")) {
       const [code, number] = storedPhone.split("-");
       setPhoneCountryCode(code);
@@ -79,17 +94,40 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
     setIsEditing(true);
   };
 
+  const isSaving = updateStore.isPending || createStore.isPending;
+
   const handleSave = async () => {
-    try {
-      await updateStore.mutateAsync({ id: store.id, data: formData });
-      setIsEditing(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-      onUpdate();
-      toast.success("Tienda actualizada correctamente");
-    } catch (error) {
-      console.error("Error updating store:", error);
-      toast.error("Error al actualizar la tienda");
+    if (mode === "create") {
+      if (!formData.name.trim() || !formData.slug.trim()) {
+        toast.error("El nombre y el slug son obligatorios");
+        return;
+      }
+      try {
+        const created = await createStore.mutateAsync({
+          name: formData.name,
+          slug: formData.slug,
+          description: formData.description,
+          config: formData.config,
+        });
+        toast.success("Tienda creada correctamente");
+        navigate(`/stores/${created.id}`);
+      } catch (error: any) {
+        console.error("Error creating store:", error);
+        const msg = error?.message?.includes("slug") ? "El slug ya existe, elige otro" : "Error al crear la tienda";
+        toast.error(msg);
+      }
+    } else {
+      try {
+        await updateStore.mutateAsync({ id: store!.id, data: formData });
+        setIsEditing(false);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+        onUpdate?.();
+        toast.success("Tienda actualizada correctamente");
+      } catch (error) {
+        console.error("Error updating store:", error);
+        toast.error("Error al actualizar la tienda");
+      }
     }
   };
 
@@ -229,8 +267,12 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Configuración de Tienda</h1>
-          <p className="text-muted-foreground mt-1">Personaliza todos los aspectos de tu tienda online</p>
+          <h1 className="text-2xl font-semibold">
+            {mode === "create" ? "Crear Nueva Tienda" : "Configuración de Tienda"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {mode === "create" ? "Completa los datos para crear tu nueva tienda" : "Personaliza todos los aspectos de tu tienda online"}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {showSuccess && (
@@ -239,17 +281,13 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
               <span className="text-sm">Guardado exitosamente</span>
             </div>
           )}
-          {/* <Button variant="outline">
-            <Eye className="h-4 w-4 mr-2" />
-            Vista Previa
-          </Button> */}
-          <Button onClick={handleSave} disabled={!isEditing || updateStore.isPending}>
-            {updateStore.isPending ? (
+          <Button onClick={handleSave} disabled={!isEditing || isSaving}>
+            {isSaving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {updateStore.isPending ? "Guardando..." : "Guardar Cambios"}
+            {isSaving ? "Guardando..." : mode === "create" ? "Crear Tienda" : "Guardar Cambios"}
           </Button>
         </div>
       </div>
@@ -306,8 +344,39 @@ export function StoreConfigForm({ store, onUpdate }: StoreConfigFormProps) {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
+                onChange={(e) => {
+                  handleInputChange("name", e.target.value);
+                  if (mode === "create") {
+                    const slug = e.target.value
+                      .toLowerCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                      .replace(/[^a-z0-9]+/g, "-")
+                      .replace(/^-|-$/g, "");
+                    handleInputChange("slug", slug);
+                  }
+                }}
+                placeholder="Mi Tienda"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="slug">Slug (URL)</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">tienda.com/</span>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => {
+                    const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                    handleInputChange("slug", slug);
+                  }}
+                  placeholder="mi-tienda"
+                  disabled={mode === "edit"}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {mode === "create" ? "Solo letras minúsculas, números y guiones. Se genera automáticamente del nombre." : "El slug no se puede modificar después de crear la tienda."}
+              </p>
             </div>
 
             <div>
