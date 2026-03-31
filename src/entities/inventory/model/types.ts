@@ -80,6 +80,9 @@ export interface MovementKpis {
   totalVentas: number;
   totalCompras: number;
   ganancias: number;
+  costoDeVentas: number;
+  gananciaReal: number;
+  margen: number;
 }
 
 export interface MovementQueryParams {

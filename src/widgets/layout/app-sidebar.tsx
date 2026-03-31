@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Store,
   DollarSign,
+  Truck,
 } from "lucide-react"
 
 import { NavMain } from "@/widgets/layout/nav-main"
@@ -60,6 +61,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {
           title: "Inventario",
           url: "/inventory",
+        },
+        {
+          title: "Compras",
+          url: "/purchases",
         },
       ],
     },

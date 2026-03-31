@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag } from "lucide-react";
+import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -89,6 +90,16 @@ export default function CreateProduct() {
 
   const categories = categoriesData || [];
   const brands = brandsData || [];
+
+  // Context for AI buttons - always up to date with form state
+  const aiContext = useMemo(() => ({
+    name: formData.name,
+    description: formData.description,
+    tags: formData.metadata?.tags,
+    specifications: formData.metadata?.specifications,
+    categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+    brandName: brands.find(b => b.id === formData.brandId)?.name,
+  }), [formData, categories, brands]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -214,11 +225,19 @@ export default function CreateProduct() {
     }
     console.log("Form data is valid, proceeding to save.");
     try {
+      // Clean empty strings so backend doesn't validate them as UUIDs
+      const payload = {
+        ...formData,
+        brandId: formData.brandId || undefined,
+        categoryId: formData.categoryId || undefined,
+        sku: formData.sku || undefined,
+      };
+
       if (isEditMode && productId) {
-        await updateProduct.mutateAsync({ id: productId, data: formData });
+        await updateProduct.mutateAsync({ id: productId, data: payload });
         toast.success("Producto actualizado correctamente");
       } else {
-        await createProduct.mutateAsync(formData);
+        await createProduct.mutateAsync(payload);
         toast.success("Producto creado correctamente");
       }
       navigate("/products");
@@ -291,7 +310,15 @@ export default function CreateProduct() {
             </div>
 
             <div>
-              <Label htmlFor="description">Descripción</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="description">Descripción</Label>
+                <AiFieldButton
+                  storeId={formData.storeId}
+                  field="description"
+                  currentValues={aiContext}
+                  onResult={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                />
+              </div>
               <textarea
                 id="description"
                 name="description"
@@ -349,8 +376,22 @@ export default function CreateProduct() {
 
           {/* Specifications */}
           <Card className="p-6 space-y-4">
-            <h2 className="text-lg font-semibold">Especificaciones</h2>
-            
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">Especificaciones</h2>
+              <AiFieldButton
+                storeId={formData.storeId}
+                field="specifications"
+                currentValues={aiContext}
+                onResult={(value) => setFormData(prev => ({
+                  ...prev,
+                  metadata: {
+                    ...prev.metadata,
+                    specifications: { ...(prev.metadata?.specifications || {}), ...value }
+                  }
+                }))}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <Input
                 value={specificationKey}
@@ -529,8 +570,22 @@ export default function CreateProduct() {
 
           {/* Tags */}
           <Card className="p-6 space-y-4">
-            <h2 className="text-lg font-semibold">Etiquetas</h2>
-            
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">Etiquetas</h2>
+              <AiFieldButton
+                storeId={formData.storeId}
+                field="tags"
+                currentValues={aiContext}
+                onResult={(value) => {
+                  if (Array.isArray(value)) {
+                    const existing = formData.metadata?.tags || [];
+                    const merged = [...new Set([...existing, ...value])];
+                    setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, tags: merged } }));
+                  }
+                }}
+              />
+            </div>
+
             <div className="flex gap-2">
               <Input
                 value={tagInput}

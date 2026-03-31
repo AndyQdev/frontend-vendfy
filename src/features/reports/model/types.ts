@@ -11,6 +11,16 @@ export interface KPIData {
   averageTicket: number;
   lowStockProducts: number;
   pendingOrders: number;
+  totalCompras: number;
+  gananciaReal: number;
+  margen: number;
+}
+
+export interface FinancialComparisonItem {
+  date: string;
+  ventas: number;
+  compras: number;
+  ganancia: number;
 }
 
 export interface SalesOverTimeItem {

@@ -4,18 +4,19 @@ import { OrderChannelsChart } from "./order-channels-chart";
 import { OrdersStatusChart } from "./orders-status-chart";
 import { TopProductsChart } from "./top-products-chart";
 import { SalesByCategoryChart } from "./sales-by-category-chart";
-import { LowStockTable } from "./low-stock-table";
+import { FinancialChart } from "./financial-chart";
 import { FrequentCustomers } from "./frequent-customers";
 import { SalesByDay } from "./sales-by-day";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { Skeleton } from "@/shared/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { useMemo, useState } from "react";
 import { type DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useStore } from "@/app/providers/auth";
-import { Loader2 } from "lucide-react";
 import {
   useReportKpis,
   useReportSalesOverTime,
@@ -23,9 +24,9 @@ import {
   useReportOrdersByStatus,
   useReportOrderChannels,
   useReportTopProducts,
-  useReportLowStock,
   useReportFrequentCustomers,
   useReportSalesByDay,
+  useReportFinancialComparison,
 } from "../api";
 import type { ReportQueryParams } from "../model/types";
 
@@ -52,7 +53,7 @@ export function Reports() {
   const ordersByStatus = useReportOrdersByStatus(queryParams);
   const orderChannels = useReportOrderChannels(queryParams);
   const topProducts = useReportTopProducts(queryParams);
-  const lowStock = useReportLowStock(storeId);
+  const financialComparison = useReportFinancialComparison(queryParams);
   const frequentCustomers = useReportFrequentCustomers(queryParams);
   const salesByDay = useReportSalesByDay(queryParams);
 
@@ -120,64 +121,69 @@ export function Reports() {
 
       {/* Bloque 1: KPIs Principales */}
       {kpis.isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2"><Skeleton className="h-4 w-20" /></CardHeader>
+              <CardContent><Skeleton className="h-8 w-28 mb-1" /><Skeleton className="h-3 w-32" /></CardContent>
+            </Card>
+          ))}
         </div>
       ) : kpis.data ? (
         <KPICards data={kpis.data} />
       ) : null}
 
-      {/* Bloque 2: Gráficas de Ventas */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {salesOverTime.isLoading ? (
-          <LoadingCard />
-        ) : (
-          <SalesChart data={salesOverTime.data || []} />
-        )}
-        {salesByCategory.isLoading ? (
-          <LoadingCard />
-        ) : (
-          <SalesByCategoryChart data={salesByCategory.data || []} />
-        )}
-      </div>
+      {/* Bloque 2: Gráfica de Ventas */}
+      {salesOverTime.isLoading ? (
+        <ChartSkeleton />
+      ) : (
+        <SalesChart data={salesOverTime.data || []} />
+      )}
 
       {/* Bloque 3: Análisis de Pedidos */}
       <div className="grid gap-6 md:grid-cols-2">
         {ordersByStatus.isLoading ? (
-          <LoadingCard />
+          <ChartSkeleton />
         ) : (
           <OrdersStatusChart data={ordersByStatus.data || []} />
         )}
         {orderChannels.isLoading ? (
-          <LoadingCard />
+          <ChartSkeleton />
         ) : (
           <OrderChannelsChart data={orderChannels.data || []} />
         )}
       </div>
 
-      {/* Bloque 4: Productos e Inventario */}
+      {/* Bloque 4: Comparación Financiera */}
+      {financialComparison.isLoading ? (
+        <ChartSkeleton />
+      ) : (
+        <FinancialChart data={financialComparison.data || []} />
+      )}
+
+      {/* Bloque 4b: Productos Top */}
       <div className="grid gap-6 md:grid-cols-2">
         {topProducts.isLoading ? (
-          <LoadingCard />
+          <ChartSkeleton />
         ) : (
           <TopProductsChart data={topProducts.data || []} />
         )}
-        {lowStock.isLoading ? (
-          <LoadingCard />
+        {salesByCategory.isLoading ? (
+          <ChartSkeleton />
         ) : (
-          <LowStockTable data={lowStock.data || []} />
+          <SalesByCategoryChart data={salesByCategory.data || []} />
         )}
       </div>
 
       {/* Bloque 5: Información Estratégica */}
       <div className="grid gap-6 md:grid-cols-2">
         {frequentCustomers.isLoading ? (
-          <LoadingCard />
+          <ChartSkeleton />
         ) : (
           <FrequentCustomers data={frequentCustomers.data || []} />
         )}
         {salesByDay.isLoading ? (
-          <LoadingCard />
+          <ChartSkeleton />
         ) : (
           <SalesByDay
             data={salesByDay.data?.salesByDay || []}
@@ -189,10 +195,20 @@ export function Reports() {
   );
 }
 
-function LoadingCard() {
+function ChartSkeleton() {
   return (
-    <div className="flex items-center justify-center rounded-lg border bg-card p-12">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-5 w-40 mb-1" />
+        <Skeleton className="h-3 w-56" />
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-2 h-[300px] pt-8">
+          {[40, 65, 45, 80, 55, 70, 50, 60, 75, 45, 85, 55].map((h, i) => (
+            <Skeleton key={i} className="flex-1 rounded-t" style={{ height: `${h}%` }} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

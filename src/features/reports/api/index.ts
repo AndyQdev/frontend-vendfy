@@ -11,6 +11,7 @@ import type {
   LowStockItem,
   FrequentCustomerItem,
   SalesByDayAndHour,
+  FinancialComparisonItem,
 } from "../model/types";
 
 function buildQueryString(params: ReportQueryParams): string {
@@ -109,6 +110,16 @@ export function useReportSalesByDay(params: ReportQueryParams) {
     queryFn: async () => {
       const response = await apiFetch<SalesByDayAndHour>(`/api/reports/sales-by-day?${buildQueryString(params)}`);
       return response.data!;
+    },
+  });
+}
+
+export function useReportFinancialComparison(params: ReportQueryParams) {
+  return useQuery<FinancialComparisonItem[]>({
+    queryKey: ["reports", "financial-comparison", params],
+    queryFn: async () => {
+      const response = await apiFetch<FinancialComparisonItem[]>(`/api/reports/financial-comparison?${buildQueryString(params)}`);
+      return response.data || [];
     },
   });
 }

@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Moon, Sun, Bot } from "lucide-react";
+import { Moon, Sun, Bot, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useStore } from "@/app/providers/auth";
 import { useWhatsAppStatus } from "@/entities/whatsapp/api";
@@ -82,6 +82,22 @@ export default function LayoutShell() {
             
             {/* Actions */}
             <div className="flex items-center gap-2 px-4">
+              {/* Web Store Button */}
+              {selectedStore && selectedStore !== "all" && (selectedStore as any).slug && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  aria-label="Ver tienda web"
+                  onClick={() => window.open(
+                    `${import.meta.env.VITE_URL_PUBLIC || 'https://compras.vendfy.shop'}/${(selectedStore as any).slug}`,
+                    '_blank'
+                  )}
+                >
+                  <Globe className="h-[1.2rem] w-[1.2rem]" />
+                </Button>
+              )}
+
               {/* Bot WhatsApp Button */}
               {isWhatsAppConnected ? (
                 <Button

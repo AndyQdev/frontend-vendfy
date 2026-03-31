@@ -46,9 +46,16 @@ interface AiGeneratedProduct {
   specifications?: Record<string, string>;
 }
 
-interface AiGenerateResponse {
+interface PrepareResponse {
+  chunks: string[];
+  totalChunks: number;
+  categories: string[];
+  isImage: boolean;
+  imageBase64?: string;
+}
+
+interface ChunkResponse {
   products: AiGeneratedProduct[];
-  categoriesCreated: Array<{ name: string }>;
 }
 
 interface AiGenerateModalProps {
@@ -70,15 +77,16 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [generatedProducts, setGeneratedProducts] = useState<AiGeneratedProduct[]>([]);
   const [newCategories, setNewCategories] = useState<string[]>([]);
-  const [step, setStep] = useState<"upload" | "review">("upload");
+  const [step, setStep] = useState<"upload" | "processing" | "review">("upload");
+
+  // Progress state
+  const [progress, setProgress] = useState({ current: 0, total: 0, productsFound: 0 });
 
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-    }
+    if (selected) setFile(selected);
   };
 
   const handleRemoveFile = () => {
@@ -98,31 +106,77 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
     }
 
     setIsGenerating(true);
+    setStep("processing");
+    setProgress({ current: 0, total: 0, productsFound: 0 });
+    setGeneratedProducts([]);
+
     try {
+      // Step 1: Prepare - upload file, get chunks
       const formData = new FormData();
       formData.append("file", file);
-      if (userPrompt.trim()) {
-        formData.append("prompt", userPrompt.trim());
-      }
 
-      const response = await apiFetch<AiGenerateResponse>("/api/product/ai/generate", {
+      const prepareRes = await apiFetch<PrepareResponse>("/api/product/ai/prepare", {
         method: "POST",
         body: formData,
       });
 
-      const data = response.data;
-      if (!data?.products || data.products.length === 0) {
+      const prepData = prepareRes.data;
+      if (!prepData) throw new Error("Error al preparar archivo");
+
+      const { chunks, totalChunks, categories, isImage, imageBase64 } = prepData;
+      setProgress({ current: 0, total: totalChunks, productsFound: 0 });
+
+      // Step 2: Process chunks one by one
+      let allProducts: AiGeneratedProduct[] = [];
+
+      for (let i = 0; i < totalChunks; i++) {
+        setProgress(prev => ({ ...prev, current: i + 1 }));
+
+        const chunkRes = await apiFetch<ChunkResponse>("/api/product/ai/process-chunk", {
+          method: "POST",
+          body: {
+            chunk: isImage ? undefined : chunks[i],
+            imageBase64: isImage ? imageBase64 : undefined,
+            isImage,
+            chunkIndex: i,
+            totalChunks,
+            categories,
+            prompt: userPrompt.trim() || undefined,
+          },
+        });
+
+        const chunkProducts = (chunkRes.data?.products || []).map(p => ({
+          ...p,
+          price: p.price > 0 ? p.price : 1,
+        }));
+        allProducts = [...allProducts, ...chunkProducts];
+        setProgress(prev => ({ ...prev, productsFound: allProducts.length }));
+      }
+
+      if (allProducts.length === 0) {
         toast.error("No se encontraron productos en el archivo");
+        setStep("upload");
         return;
       }
 
-      setGeneratedProducts(data.products);
-      setNewCategories(data.categoriesCreated?.map(c => c.name) || []);
+      // Detect new categories
+      const catLower = categories.map(c => c.toLowerCase());
+      const newCats = [...new Set(
+        allProducts
+          .map(p => p.categoryName)
+          .filter((name): name is string =>
+            !!name && !catLower.includes(name.toLowerCase())
+          )
+      )];
+
+      setGeneratedProducts(allProducts);
+      setNewCategories(newCats);
       setStep("review");
-      toast.success(`${data.products.length} productos generados`);
+      toast.success(`${allProducts.length} productos generados`);
     } catch (error: any) {
       console.error("Error generating products:", error);
       toast.error(error?.message || "Error al generar productos con IA");
+      setStep("upload");
     } finally {
       setIsGenerating(false);
     }
@@ -148,22 +202,20 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
 
     setIsCreating(true);
     try {
-      // 1. Create new categories first
       const categoryMap: Record<string, string> = {};
 
+      // 1. Create new categories in batch (single request)
       if (newCategories.length > 0 && user?.id) {
-        for (const catName of newCategories) {
-          try {
-            const res = await apiFetch<{ id: string }>("/api/category", {
-              method: "POST",
-              body: { name: catName, userId: user.id },
-            });
-            if (res.data?.id) {
-              categoryMap[catName.toLowerCase()] = res.data.id;
-            }
-          } catch {
-            // Category might already exist, continue
-          }
+        try {
+          await apiFetch("/api/category/batch", {
+            method: "POST",
+            body: {
+              userId: user.id,
+              categories: newCategories.map(name => ({ name })),
+            },
+          });
+        } catch {
+          // Some categories might already exist, continue
         }
       }
 
@@ -174,12 +226,12 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
         categoryMap[cat.name.toLowerCase()] = cat.id;
       }
 
-      // 3. Create products batch
+      // 3. Create products batch - ensure price > 0 (backend requires positive)
       const products: ProductInput[] = generatedProducts.map(p => ({
         name: p.name,
         description: p.description,
         imageUrls: [DEFAULT_IMAGE],
-        price: p.price,
+        price: p.price > 0 ? p.price : 1,
         initialStock: p.stockQuantity || 0,
         storeId,
         categoryId: p.categoryName ? categoryMap[p.categoryName.toLowerCase()] : undefined,
@@ -207,15 +259,19 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
   };
 
   const handleClose = () => {
+    if (isGenerating) return; // Don't close while processing
     setFile(null);
     setUserPrompt("");
     setGeneratedProducts([]);
     setNewCategories([]);
     setStep("upload");
+    setProgress({ current: 0, total: 0, productsFound: 0 });
     setIsGenerating(false);
     setIsCreating(false);
     onOpenChange(false);
   };
+
+  const progressPercent = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -226,15 +282,15 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
             Crear Productos con IA
           </DialogTitle>
           <DialogDescription>
-            {step === "upload"
-              ? "Sube un archivo o imagen y la IA generará productos automáticamente"
-              : `${generatedProducts.length} productos generados. Revisa y edita antes de crear.`}
+            {step === "upload" && "Sube un archivo o imagen y la IA generará productos automáticamente"}
+            {step === "processing" && "Procesando archivo con IA..."}
+            {step === "review" && `${generatedProducts.length} productos generados. Revisa y edita antes de crear.`}
           </DialogDescription>
         </DialogHeader>
 
+        {/* ===== STEP: UPLOAD ===== */}
         {step === "upload" && (
           <div className="space-y-5">
-            {/* File Upload Area */}
             <div>
               <Label className="text-sm font-medium">Archivo o imagen</Label>
               <div
@@ -254,10 +310,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveFile();
-                      }}
+                      onClick={(e) => { e.stopPropagation(); handleRemoveFile(); }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -265,9 +318,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                 ) : (
                   <div>
                     <Upload className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      Click para seleccionar archivo
-                    </p>
+                    <p className="text-sm text-muted-foreground">Click para seleccionar archivo</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       PDF, Word, Excel, CSV, TXT o Imagen (JPG, PNG, WEBP)
                     </p>
@@ -283,7 +334,6 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               />
             </div>
 
-            {/* User Prompt */}
             <div>
               <Label htmlFor="ai-prompt" className="text-sm font-medium">
                 Instrucciones para la IA (opcional)
@@ -309,31 +359,69 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               </div>
             )}
 
-            {/* Generate Button */}
             <Button
               onClick={handleGenerate}
               disabled={!file || isGenerating}
               className="w-full"
               size="lg"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analizando con IA...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generar Productos
-                </>
-              )}
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generar Productos
             </Button>
           </div>
         )}
 
+        {/* ===== STEP: PROCESSING (Progress) ===== */}
+        {step === "processing" && (
+          <div className="py-8 space-y-6">
+            <div className="text-center">
+              <div className="relative inline-flex items-center justify-center mb-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <Sparkles className="h-5 w-5 text-primary absolute" />
+              </div>
+              <h3 className="text-lg font-semibold">
+                {progress.total === 0
+                  ? "Preparando archivo..."
+                  : `Analizando con IA...`
+                }
+              </h3>
+              {progress.total > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Procesando parte {progress.current} de {progress.total}
+                </p>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {progress.total > 0 && (
+              <div className="space-y-2 max-w-md mx-auto">
+                <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{progressPercent}%</span>
+                  <span>
+                    {progress.productsFound > 0
+                      ? `${progress.productsFound} productos encontrados`
+                      : "Buscando productos..."
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-center text-muted-foreground">
+              Esto puede tomar unos segundos por cada parte del archivo
+            </p>
+          </div>
+        )}
+
+        {/* ===== STEP: REVIEW ===== */}
         {step === "review" && (
           <div className="space-y-4">
-            {/* New categories info */}
             {newCategories.length > 0 && (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
@@ -347,7 +435,6 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               </div>
             )}
 
-            {/* Products Table */}
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -394,24 +481,15 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {product.tags?.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs py-0">
-                              {tag}
-                            </Badge>
+                            <Badge key={tag} variant="outline" className="text-xs py-0">{tag}</Badge>
                           ))}
                           {(product.tags?.length || 0) > 2 && (
-                            <Badge variant="outline" className="text-xs py-0">
-                              +{product.tags!.length - 2}
-                            </Badge>
+                            <Badge variant="outline" className="text-xs py-0">+{product.tags!.length - 2}</Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleRemoveProduct(index)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveProduct(index)}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </TableCell>
@@ -428,7 +506,6 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex items-center justify-between pt-2">
               <Button variant="outline" onClick={() => setStep("upload")}>
                 Volver

@@ -96,8 +96,8 @@ export default function MovementsView() {
 
       {/* KPI Cards */}
       {isLoadingKpis ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-card border rounded-lg p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-muted rounded-lg animate-pulse w-10 h-10" />
@@ -110,50 +110,67 @@ export default function MovementsView() {
           ))}
         </div>
       ) : kpis ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Ventas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Ingresos por Ventas */}
           <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                 <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Ventas</p>
+                <p className="text-sm text-muted-foreground">Ingresos</p>
                 <p className="text-2xl font-semibold text-green-600">
                   Bs. {kpis.totalVentas.toFixed(2)}
                 </p>
+                <p className="text-xs text-muted-foreground">Total facturado en ventas</p>
               </div>
             </div>
           </div>
 
-          {/* Compras */}
+          {/* Total Invertido en Compras */}
           <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
                 <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Compras</p>
+                <p className="text-sm text-muted-foreground">Invertido</p>
                 <p className="text-2xl font-semibold text-red-600">
                   Bs. {kpis.totalCompras.toFixed(2)}
                 </p>
+                <p className="text-xs text-muted-foreground">Total gastado en compras</p>
               </div>
             </div>
           </div>
 
-          {/* Ganancias */}
+          {/* Ganancia Neta */}
           <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
                 <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Ganancias</p>
-                <p
-                  className={`text-2xl font-semibold ${kpis.ganancias >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                >
-                  Bs. {kpis.ganancias.toFixed(2)}
+                <p className="text-sm text-muted-foreground">Ganancia Neta</p>
+                <p className={`text-2xl font-semibold ${kpis.gananciaReal >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  Bs. {kpis.gananciaReal.toFixed(2)}
                 </p>
+                <p className="text-xs text-muted-foreground">Ingresos − costo de lo vendido</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Margen */}
+          <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${kpis.margen >= 30 ? 'bg-emerald-100 dark:bg-emerald-900/20' : kpis.margen >= 10 ? 'bg-yellow-100 dark:bg-yellow-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
+                <TrendingUp className={`h-5 w-5 ${kpis.margen >= 30 ? 'text-emerald-600 dark:text-emerald-400' : kpis.margen >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Margen</p>
+                <p className={`text-2xl font-semibold ${kpis.margen >= 30 ? "text-emerald-600" : kpis.margen >= 10 ? "text-yellow-600" : "text-red-600"}`}>
+                  {kpis.margen.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">Rentabilidad sobre ventas</p>
               </div>
             </div>
           </div>

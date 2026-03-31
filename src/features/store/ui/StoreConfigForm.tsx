@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Monitor, Tablet, Smartphone } from "lucide-react";
+import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -62,6 +63,17 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
       setPhoneNumber(storedPhone);
     }
   }, [store]);
+
+  // Context for AI buttons - all current store form values
+  const storeAiContext = useMemo(() => ({
+    name: formData.name,
+    slug: formData.slug,
+    description: formData.description,
+    category: formData.config?.category,
+    aboutUs: formData.config?.aboutUs,
+    heroTitle: formData.config?.branding?.heroTitle,
+    city: formData.config?.contact?.city,
+  }), [formData]);
 
   const handleInputChange = (field: keyof Store, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -359,28 +371,33 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
               />
             </div>
 
-            <div>
-              <Label htmlFor="slug">Slug (URL)</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">tienda.com/</span>
-                <Input
-                  id="slug"
-                  value={formData.slug}
-                  onChange={(e) => {
-                    const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
-                    handleInputChange("slug", slug);
-                  }}
-                  placeholder="mi-tienda"
-                  disabled={mode === "edit"}
-                />
+            {formData.slug && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Tu tienda web</Label>
+                <div className="flex items-center gap-2 mt-1 px-3 py-2 bg-muted/50 rounded-lg border">
+                  <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <a
+                    href={`${import.meta.env.VITE_URL_PUBLIC || 'https://compras.vendfy.shop'}/${formData.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline truncate"
+                  >
+                    {import.meta.env.VITE_URL_PUBLIC || 'https://compras.vendfy.shop'}/{formData.slug}
+                  </a>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {mode === "create" ? "Solo letras minúsculas, números y guiones. Se genera automáticamente del nombre." : "El slug no se puede modificar después de crear la tienda."}
-              </p>
-            </div>
+            )}
 
             <div>
-              <Label htmlFor="description">Descripción</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="description">Descripción</Label>
+                <AiFieldButton
+                  field="store_description"
+                  currentValues={storeAiContext}
+                  onResult={(value) => { handleInputChange("description", value); }}
+                  skipNameCheck
+                />
+              </div>
               <Textarea
                 id="description"
                 value={formData.description || ""}
@@ -483,7 +500,15 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
             </div>
 
             <div>
-              <Label htmlFor="aboutUs">Sobre Nosotros</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="aboutUs">Sobre Nosotros</Label>
+                <AiFieldButton
+                  field="store_aboutUs"
+                  currentValues={storeAiContext}
+                  onResult={(value) => { handleConfigFieldChange("aboutUs", value); }}
+                  skipNameCheck
+                />
+              </div>
               <Textarea
                 id="aboutUs"
                 value={formData.config?.aboutUs || ""}
@@ -776,7 +801,15 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
 
             <div className="grid grid-cols-1 gap-4 w-full">
               <div>
-                <Label htmlFor="heroTitle">Título Hero (aparece en el banner)</Label>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="heroTitle">Título Hero (aparece en el banner)</Label>
+                  <AiFieldButton
+                    field="store_heroTitle"
+                    currentValues={storeAiContext}
+                    onResult={(value) => { handleConfigChange("branding", "heroTitle", value); }}
+                    skipNameCheck
+                  />
+                </div>
                 <Input
                   id="heroTitle"
                   value={formData.config?.branding?.heroTitle || ""}

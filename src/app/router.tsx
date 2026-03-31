@@ -16,6 +16,9 @@ import WhatsAppPage from "@/pages/whatsapp";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
 import MovementPage from "@/pages/reports/movements";
+import PurchasesPage from "@/pages/purchases";
+import PurchaseCreatePage from "@/pages/purchases/create";
+import PurchaseDetailPage from "@/pages/purchases/detail";
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -52,6 +55,9 @@ export default function AppRouter() {
           <Route path="/products/create" element={<CreateProductPage />} />
           <Route path="/products/:id" element={<CreateProductPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/purchases" element={<PurchasesPage />} />
+          <Route path="/purchases/new" element={<PurchaseCreatePage />} />
+          <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/stores" element={<StoresPage />} />
           <Route path="/stores/:id" element={<StoreConfigPage />} />
