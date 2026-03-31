@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Store body - Emerald -->
+  <rect x="13" y="48" width="82" height="58" rx="5" fill="#10B981"/>
+  <!-- Awning - Navy -->
+  <rect x="8" y="34" width="92" height="16" rx="4" fill="#0F172A"/>
+  <!-- Awning scallops - Navy -->
+  <path d="M8 50 Q18 60, 28 50 Q38 60, 48 50 Q58 60, 68 50 Q78 60, 88 50 Q96 60, 100 50" fill="#0F172A"/>
+  <!-- Door frame - Navy -->
+  <rect x="38" y="62" width="32" height="44" rx="5" fill="#0F172A"/>
+  <!-- Door inner - Light -->
+  <rect x="41" y="65" width="26" height="41" rx="3.5" fill="#ECFDF5"/>
+  <!-- Door handle -->
+  <circle cx="61" cy="86" r="2.2" fill="#0F172A"/>
+  <!-- AI Sparkle - Large -->
+  <path d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z" fill="#34D399"/>
+  <!-- AI Sparkle - Small -->
+  <path d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z" fill="#34D399" opacity="0.5"/>
+  <!-- AI Sparkle - Dot -->
+  <circle cx="84" cy="16" r="2" fill="#34D399" opacity="0.3"/>
+</svg>
