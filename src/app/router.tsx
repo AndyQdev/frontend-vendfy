@@ -19,20 +19,15 @@ import MovementPage from "@/pages/reports/movements";
 import PurchasesPage from "@/pages/purchases";
 import PurchaseCreatePage from "@/pages/purchases/create";
 import PurchaseDetailPage from "@/pages/purchases/detail";
+import VendfyLoader from "@/shared/loading/VendfyLoader";
 
 function Protected() {
   const { user, isLoading } = useAuth();
-  
-  // Mostrar loader mientras se verifica el token
+
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verificando sesión2...</p>
-        </div>
-      </div>
-    );
+    const stored = localStorage.getItem("theme");
+    const isDark = stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return <VendfyLoader theme={isDark ? "dark" : "light"} message="Verificando sesión..." />;
   }
   
   return user ? <Outlet /> : <Navigate to="/login" replace />;

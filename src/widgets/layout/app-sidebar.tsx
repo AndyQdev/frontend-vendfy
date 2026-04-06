@@ -22,19 +22,19 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/shared/ui/sidebar"
-import { useStore } from "@/app/providers/auth"
-
-// Datos de ejemplo para el usuario - Luego esto vendrá del backend
-const userData = {
-  user: {
-    name: "Usuario Demo",
-    email: "usuario@ecommerce.com",
-    avatar: "/avatars/user.jpg",
-  },
-}
+import { useStore, useAuth } from "@/app/providers/auth"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { selectedStore } = useStore()
+  const { user } = useAuth()
+
+  const userData = {
+    user: {
+      name: user?.name || "Usuario",
+      email: user?.email || "",
+      avatar: "",
+    },
+  }
 
   // Navegación principal según vistas.md (orden por frecuencia de uso)
   const navMain = [

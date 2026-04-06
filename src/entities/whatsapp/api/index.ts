@@ -2,35 +2,36 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiFetch, ApiError } from "@/shared/api/client"
 import { toast } from "sonner"
 import type {
-  WhatsAppKapsoInfo,
+  WhatsAppMetaInfo,
   CheckTemplatesResponse,
-  CreateConnectionResponse,
   WhatsAppInstanceResponse,
   CreateInstanceRequest,
 } from "../model/types"
 
-// === Hooks Kapso (API oficial) ===
+// === Hooks Meta Cloud API (oficial) ===
 
 export function useWhatsAppStatus(storeId: string | undefined) {
-  return useQuery<WhatsAppKapsoInfo | null>({
+  return useQuery<WhatsAppMetaInfo | null>({
     queryKey: ["whatsapp-status", storeId],
     queryFn: async () => {
       if (!storeId) return null
-      const response = await apiFetch<WhatsAppKapsoInfo>(`/api/kapso/status/${storeId}`)
+      const response = await apiFetch<WhatsAppMetaInfo>(`/api/whatsapp-meta/status/${storeId}`)
       return response.data ?? null
     },
     enabled: !!storeId,
   })
 }
 
-export function useCreateWhatsAppConnection() {
+export function useConnectWhatsAppMeta() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ storeId, businessName }: { storeId: string; businessName?: string }) => {
-      const response = await apiFetch<CreateConnectionResponse>("/api/kapso/connect", {
+    mutationFn: async ({ storeId, accessToken, wabaId, phoneNumberId }: {
+      storeId: string; accessToken: string; wabaId?: string; phoneNumberId?: string
+    }) => {
+      const response = await apiFetch<WhatsAppMetaInfo>("/api/whatsapp-meta/connect", {
         method: "POST",
-        body: { storeId, businessName },
+        body: { storeId, accessToken, wabaId, phoneNumberId },
       })
       return response.data!
     },
@@ -41,27 +42,47 @@ export function useCreateWhatsAppConnection() {
       if (error instanceof ApiError) {
         toast.error(error.message)
       } else {
-        toast.error("Error al crear la conexión WhatsApp")
+        toast.error("Error al conectar WhatsApp")
       }
     },
   })
 }
 
-export function useGenerateSetupLink() {
+export function useConnectManual() {
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (storeId: string) => {
-      const response = await apiFetch<{ setupUrl: string }>("/api/kapso/setup-link", {
+    mutationFn: async ({ storeId, phoneNumberId, wabaId, accessToken }: {
+      storeId: string; phoneNumberId: string; wabaId: string; accessToken: string
+    }) => {
+      const response = await apiFetch<WhatsAppMetaInfo>("/api/whatsapp-meta/connect-manual", {
         method: "POST",
-        body: { storeId },
+        body: { storeId, phoneNumberId, wabaId, accessToken },
       })
       return response.data!
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-status", variables.storeId] })
+      toast.success("WhatsApp conectado exitosamente")
     },
     onError: (error: Error) => {
       if (error instanceof ApiError) {
         toast.error(error.message)
       } else {
-        toast.error("Error al generar el enlace de configuración")
+        toast.error("Error al conectar WhatsApp")
       }
+    },
+  })
+}
+
+export function useCreateSingleTemplate() {
+  return useMutation({
+    mutationFn: async ({ storeId, templateName }: { storeId: string; templateName: string }) => {
+      const response = await apiFetch<any>("/api/whatsapp-meta/create-template", {
+        method: "POST",
+        body: { storeId, templateName },
+      })
+      return response.data
     },
   })
 }
@@ -70,14 +91,31 @@ export function useCheckTemplates(storeId: string | undefined, enabled = false) 
   return useQuery<CheckTemplatesResponse>({
     queryKey: ["whatsapp-templates", storeId],
     queryFn: async () => {
-      const response = await apiFetch<CheckTemplatesResponse>("/api/kapso/check-templates", {
+      const response = await apiFetch<CheckTemplatesResponse>("/api/whatsapp-meta/check-templates", {
         method: "POST",
         body: { storeId },
       })
       return response.data!
     },
     enabled: !!storeId && enabled,
-    refetchInterval: enabled ? 30000 : false, // Auto-refetch cada 30s cuando está habilitado
+    refetchInterval: enabled ? 30000 : false,
+  })
+}
+
+export function useDisconnectWhatsApp() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (storeId: string) => {
+      await apiFetch(`/api/whatsapp-meta/disconnect/${storeId}`, { method: "DELETE" })
+    },
+    onSuccess: (_, storeId) => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-status", storeId] })
+      toast.success("WhatsApp desconectado")
+    },
+    onError: () => {
+      toast.error("Error al desconectar")
+    },
   })
 }
 

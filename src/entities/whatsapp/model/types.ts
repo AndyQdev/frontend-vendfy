@@ -15,7 +15,7 @@ export interface CreateInstanceRequest {
   userId: string
 }
 
-// === Tipos Kapso (API oficial) ===
+// === Tipos Kapso (legacy, mantener por compatibilidad) ===
 export type WhatsAppKapsoStatus = 'pending' | 'connected' | 'disconnected'
 
 export interface WhatsAppKapsoInfo {
@@ -24,6 +24,18 @@ export interface WhatsAppKapsoInfo {
   status?: WhatsAppKapsoStatus
   templates_approved?: boolean
   connected_at?: string
+}
+
+// === Tipos Meta Cloud API (oficial) ===
+export type WhatsAppMetaStatus = 'pending' | 'connected' | 'disconnected' | 'error'
+
+export interface WhatsAppMetaInfo {
+  phone_number_id?: string
+  waba_id?: string
+  access_token?: string
+  status?: WhatsAppMetaStatus
+  connected_at?: string
+  templates_approved?: boolean
 }
 
 export interface WhatsAppTemplate {
@@ -37,26 +49,22 @@ export interface WhatsAppTemplate {
 export interface CheckTemplatesResponse {
   templates: WhatsAppTemplate[]
   allApproved: boolean
-  businessAccountId: string
-}
-
-export interface CreateConnectionResponse {
-  setupUrl: string
-  customer_id: string
+  wabaId?: string
+  businessAccountId?: string
 }
 
 export const WA_REQUIRED_TEMPLATES = [
-  'pedido_pendiente_v1',
-  'pedido_en_proceso_v1',
-  'pedido_en_camino_v1',
-  'pedido_completado_v1',
-  'pedido_cancelado_v1',
+  'pedido_pendiente_v1_1',
+  'pedido_en_proceso_v1_1',
+  'pedido_en_camino_v1_1',
+  'pedido_completado_v1_1',
+  'pedido_cancelado_v1_1',
 ]
 
 export const WA_TEMPLATE_LABELS: Record<string, string> = {
-  pedido_pendiente_v1: 'Pedido recibido',
-  pedido_en_proceso_v1: 'Pedido en proceso',
-  pedido_en_camino_v1: 'Pedido en camino',
-  pedido_completado_v1: 'Pedido completado',
-  pedido_cancelado_v1: 'Pedido cancelado',
+  'pedido_pendiente_v1_1': 'Pedido recibido',
+  'pedido_en_proceso_v1_1': 'Pedido en proceso',
+  'pedido_en_camino_v1_1': 'Pedido en camino',
+  'pedido_completado_v1_1': 'Pedido completado',
+  'pedido_cancelado_v1_1': 'Pedido cancelado',
 }

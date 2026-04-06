@@ -226,6 +226,11 @@
     transform: translateY(0);
   }
 
+  .btn-magic--active::before {
+    opacity: 1;
+    filter: blur(12px);
+  }
+
   .dark .btn-magic {
     background: hsl(222, 47%, 12%);
   }

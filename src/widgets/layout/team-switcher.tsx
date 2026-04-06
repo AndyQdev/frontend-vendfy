@@ -1,5 +1,7 @@
 import * as React from "react"
 import { ChevronsUpDown, Plus, Store as StoreIcon, Building2 } from "lucide-react"
+import { VendfyIcon } from "@/shared/ui/VendfyLogo"
+import { useTheme } from "@/app/providers/theme"
 import { useQuery } from "@tanstack/react-query"
 import { getStores } from "@/entities/store/api"
 import { Store } from "@/entities/store/model/types"
@@ -26,6 +28,7 @@ export function StoreSwitcher() {
   const { isMobile } = useSidebar()
   const { selectedStore, setSelectedStore } = useStore()
   const navigate = useNavigate()
+  const { theme } = useTheme()
 
   const { data: stores = [], isLoading } = useQuery({
     queryKey: ["stores"],
@@ -88,8 +91,8 @@ export function StoreSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {React.createElement(displayIcon, { className: "size-4" })}
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
+                <VendfyIcon size={28} dark={theme === "dark"} />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">

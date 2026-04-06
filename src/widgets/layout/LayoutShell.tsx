@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, Bot, Globe } from "lucide-react";
+import { VendfyIcon } from "@/shared/ui/VendfyLogo";
 import { useState, useEffect } from "react";
 import { useStore } from "@/app/providers/auth";
 import { useWhatsAppStatus } from "@/entities/whatsapp/api";
@@ -46,6 +47,24 @@ export default function LayoutShell() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  // Page name from path
+  const pageNames: Record<string, string> = {
+    '/caja': 'Caja',
+    '/orders': 'Pedidos',
+    '/sales': 'Ventas',
+    '/products': 'Productos',
+    '/products/create': 'Crear Producto',
+    '/inventory': 'Inventario',
+    '/purchases': 'Compras',
+    '/customers': 'Clientes',
+    '/stores': 'Tiendas',
+    '/reports': 'Estadísticas',
+    '/reports/movements': 'Movimientos',
+    '/settings': 'Configuración',
+    '/whatsapp': 'WhatsApp',
+  };
+  const currentPage = pageNames[location.pathname] || location.pathname.split('/').filter(Boolean).pop() || 'Inicio';
+
   // Detectar si estamos en la página de caja
   const isCajaPage = location.pathname === '/caja';
   
@@ -68,13 +87,14 @@ export default function LayoutShell() {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                      Sistema de Ventas
+                    <BreadcrumbLink href="/caja" className="text-muted-foreground hover:text-emerald-600 transition-colors flex items-center gap-1.5">
+                      {/* <VendfyIcon size={18} /> */}
+                      <span>Vendfy</span>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="font-semibold text-primary">Vista Actual</BreadcrumbPage>
+                    <BreadcrumbPage className="font-medium">{currentPage}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
