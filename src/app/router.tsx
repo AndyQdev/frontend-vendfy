@@ -6,6 +6,7 @@ import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
 import ProductsPage from "@/pages/products";
 import CreateProductPage from "@/pages/products/create";
+import ProductTaxonomiesPage from "@/pages/products/taxonomies";
 import InventoryPage from "@/pages/inventory";
 import CustomersPage from "@/pages/customers";
 import { StoresPage } from "@/pages/stores";
@@ -48,6 +49,7 @@ export default function AppRouter() {
           <Route path="/sales" element={<SalesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/create" element={<CreateProductPage />} />
+          <Route path="/products/taxonomies" element={<ProductTaxonomiesPage />} />
           <Route path="/products/:id" element={<CreateProductPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/purchases" element={<PurchasesPage />} />

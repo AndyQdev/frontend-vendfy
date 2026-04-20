@@ -148,7 +148,7 @@ export function ProductsDataTable() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <ButtonMagic onClick={() => setAiModalOpen(true)}>
+          <ButtonMagic onClick={() => setAiModalOpen(true)} alwaysActive>
             <Sparkles className="h-4 w-4" />
             Crear con IA
           </ButtonMagic>

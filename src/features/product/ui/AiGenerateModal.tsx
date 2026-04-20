@@ -31,6 +31,7 @@ import {
   Package,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CategoryIcon } from "@/shared/ui/category-icon";
 import { apiFetch } from "@/shared/api/client";
 import { useStore, useAuth } from "@/app/providers/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,8 +43,14 @@ interface AiGeneratedProduct {
   price: number;
   stockQuantity: number;
   categoryName?: string;
+  categoryIcon?: string;
   tags?: string[];
   specifications?: Record<string, string>;
+}
+
+interface NewCategory {
+  name: string;
+  icon?: string;
 }
 
 interface PrepareResponse {
@@ -76,7 +83,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [generatedProducts, setGeneratedProducts] = useState<AiGeneratedProduct[]>([]);
-  const [newCategories, setNewCategories] = useState<string[]>([]);
+  const [newCategories, setNewCategories] = useState<NewCategory[]>([]);
   const [step, setStep] = useState<"upload" | "processing" | "review">("upload");
 
   // Progress state
@@ -159,15 +166,19 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
         return;
       }
 
-      // Detect new categories
+      // Detect new categories con su ícono (el primero que mande la IA por categoría)
       const catLower = categories.map(c => c.toLowerCase());
-      const newCats = [...new Set(
-        allProducts
-          .map(p => p.categoryName)
-          .filter((name): name is string =>
-            !!name && !catLower.includes(name.toLowerCase())
-          )
-      )];
+      const newCatsMap = new Map<string, NewCategory>();
+      for (const p of allProducts) {
+        if (!p.categoryName) continue;
+        const lower = p.categoryName.toLowerCase();
+        if (catLower.includes(lower) || newCatsMap.has(lower)) continue;
+        newCatsMap.set(lower, {
+          name: p.categoryName,
+          icon: p.categoryIcon || undefined,
+        });
+      }
+      const newCats = Array.from(newCatsMap.values());
 
       setGeneratedProducts(allProducts);
       setNewCategories(newCats);
@@ -211,7 +222,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
             method: "POST",
             body: {
               userId: user.id,
-              categories: newCategories.map(name => ({ name })),
+              categories: newCategories.map((c) => ({ name: c.name, icon: c.icon })),
             },
           });
         } catch {
@@ -427,9 +438,12 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
                   Nuevas categorías que se crearán:
                 </p>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {newCategories.map((cat) => (
-                    <Badge key={cat} variant="secondary">{cat}</Badge>
+                    <Badge key={cat.name} variant="secondary" className="gap-1.5 py-1">
+                      <CategoryIcon name={cat.icon} size={14} />
+                      {cat.name}
+                    </Badge>
                   ))}
                 </div>
               </div>

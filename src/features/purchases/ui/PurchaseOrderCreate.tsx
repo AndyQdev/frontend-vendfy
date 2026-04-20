@@ -8,6 +8,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import { Card } from "@/shared/ui/card";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -166,7 +167,17 @@ export function PurchaseOrderCreate() {
           </div>
           <div className="flex-1 overflow-y-auto max-h-[500px]">
             {productsLoading ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">Cargando...</div>
+              <div className="divide-y">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 px-4 py-2.5">
+                    <Skeleton className="h-8 w-8 rounded flex-shrink-0" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3.5 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filteredProducts.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 {search ? "Sin resultados" : "Todos los productos fueron agregados"}

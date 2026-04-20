@@ -26,6 +26,8 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
+import { Skeleton } from "@/shared/ui/skeleton";
+import { Card } from "@/shared/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Button } from "@/shared/ui/button";
 
@@ -370,17 +372,6 @@ export default function OrdersTable() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando órdenes...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 pb-6">
       {/* Header */}
@@ -424,6 +415,33 @@ export default function OrdersTable() {
       </div>
 
       {/* Tablero Kanban */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, colIdx) => (
+            <div key={colIdx} className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-5 w-8 rounded-full" />
+              </div>
+              <div className="space-y-3 rounded-lg border border-dashed p-2 min-h-[400px]">
+                {Array.from({ length: colIdx === 0 ? 3 : colIdx === 3 ? 2 : 1 }).map((_, cardIdx) => (
+                  <Card key={cardIdx} className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <Skeleton className="h-4 w-32" />
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-5 w-24" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -461,6 +479,7 @@ export default function OrdersTable() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      )}
 
       {/* Modal de detalles */}
       <OrderDetailsModal

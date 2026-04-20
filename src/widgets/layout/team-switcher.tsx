@@ -91,8 +91,8 @@ export function StoreSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
-                <VendfyIcon size={28} dark={theme === "dark"} />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white/10">
+                <VendfyIcon size={28} dark />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">

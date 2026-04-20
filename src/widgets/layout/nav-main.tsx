@@ -17,7 +17,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/shared/ui/collapsible"
 
 export function NavMain({
@@ -53,7 +52,7 @@ export function NavMain({
   
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-wider text-[0.65rem]">Navegación</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const isActive = location.pathname === item.url
@@ -71,19 +70,19 @@ export function NavMain({
                 open={isOpen || hasActiveSubItem}
               >
                 <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    tooltip={item.title} 
-                    isActive={isActive} 
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={isActive}
                     asChild
                   >
-                    <Link 
-                      to={item.url} 
+                    <Link
+                      to={item.url}
                       onClick={() => toggleItem(item.title)}
-                      className="flex items-center"
+                      className="flex items-center transition-all duration-200"
                     >
-                      {item.icon && <item.icon />}
+                      {item.icon && <item.icon className={isActive ? "text-emerald-400" : ""} />}
                       <span className="flex-1">{item.title}</span>
-                      {/* <ChevronRight className="h-4 w-4 transition-transform duration-200 ease-in-out group-data-[state=open]/collapsible:rotate-90" /> */}
+                      {/* <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${isOpen || hasActiveSubItem ? 'rotate-90' : ''}`} /> */}
                     </Link>
                   </SidebarMenuButton>
                   <CollapsibleContent className="overflow-hidden transition-all duration-200 ease-in-out data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
@@ -93,10 +92,7 @@ export function NavMain({
                         return (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton asChild isActive={isSubActive}>
-                              <Link to={subItem.url} className="relative">
-                                {isSubActive && (
-                                  <ChevronRight className="absolute -left-4 h-3 w-3 text-primary animate-in slide-in-from-left-1 duration-200" />
-                                )}
+                              <Link to={subItem.url}>
                                 <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>
@@ -109,12 +105,12 @@ export function NavMain({
               </Collapsible>
             )
           }
-          
+
           return (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
-                <Link to={item.url} onClick={closeAllItems}>
-                  {item.icon && <item.icon />}
+                <Link to={item.url} onClick={closeAllItems} className="transition-all duration-200">
+                  {item.icon && <item.icon className={isActive ? "text-emerald-400" : ""} />}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

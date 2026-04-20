@@ -633,13 +633,11 @@ export default function CreateProduct() {
       <CreateBrandModal
         isOpen={isBrandModalOpen}
         onClose={() => setIsBrandModalOpen(false)}
-        storeId={formData.storeId}
       />
 
       <CreateCategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
-        storeId={formData.storeId}
       />
     </div>
   );

@@ -13,6 +13,7 @@ import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
 import { PaginationControls } from "@/shared/ui/pagination";
 import { Search, ShoppingCart, Package, DollarSign, Calendar, User, Store } from "lucide-react";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { OrderType, OrderStatus, Order } from "@/entities/order/model/types";
 import { formatMoney } from "@/shared/lib/money";
@@ -221,21 +222,15 @@ function OrdersTableContent({
   showInstallmentInfo,
   onOrderClick,
 }: OrdersTableContentProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
+  if (orders.length === 0 && !isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         No se encontraron órdenes
       </div>
     );
   }
+
+  const colCount = 8 + (showDeliveryInfo ? 1 : 0) + (showInstallmentInfo ? 1 : 0);
 
   return (
     <div className="border rounded-lg">
@@ -255,7 +250,23 @@ function OrdersTableContent({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {orders.map((order) => (
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <TableRow key={`skel-${i}`}>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                {showDeliveryInfo && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
+                {showInstallmentInfo && <TableCell><Skeleton className="h-4 w-16" /></TableCell>}
+              </TableRow>
+            ))
+          ) : (
+          orders.map((order) => (
             <TableRow 
               key={order.id}
               onClick={() => onOrderClick(order)}
@@ -301,7 +312,8 @@ function OrdersTableContent({
                 </TableCell>
               )}
             </TableRow>
-          ))}
+          ))
+          )}
         </TableBody>
       </Table>
     </div>

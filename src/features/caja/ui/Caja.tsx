@@ -3,20 +3,17 @@ import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
-import { Loader2 } from "lucide-react";
-import { 
-  Search, 
-  Plus, 
-  Minus, 
-  Trash2, 
-  Package, 
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Package,
   ShoppingCart,
   CreditCard,
   Banknote,
   Grid3x3,
-  Coffee,
   Soup,
-  UtensilsCrossed,
   Beef,
   Sandwich,
   QrCode,
@@ -39,6 +36,7 @@ import {
   DollarSign,
   type LucideIcon
 } from "lucide-react";
+import { getCategoryIcon as getCategoryIconByName, isValidIconName } from "@/shared/lib/category-icons";
 import { Separator } from "@/shared/ui/separator";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -60,18 +58,12 @@ import { useStore } from "@/app/providers/auth";
 import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 
-// Función helper para obtener ícono basado en el nombre de la categoría
+// Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre
 const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => {
-  // Si viene un icono del backend, intentar usarlo
-  if (iconName) {
-    const iconMap: Record<string, LucideIcon> = {
-      Package, Coffee, Sandwich, Beef, Soup, UtensilsCrossed, Grid3x3,
-      Apple, Milk, Droplets, Boxes, Sparkles, ShoppingBag, Cookie
-    };
-    if (iconMap[iconName]) return iconMap[iconName];
+  if (iconName && isValidIconName(iconName)) {
+    return getCategoryIconByName(iconName);
   }
 
-  // Sino, inferir del nombre
   const nameLower = name.toLowerCase();
   if (nameLower.includes('lácteo') || nameLower.includes('lacteo') || nameLower.includes('leche')) return Milk;
   if (nameLower.includes('pan') || nameLower.includes('panadería')) return Sandwich;
@@ -83,8 +75,7 @@ const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => 
   if (nameLower.includes('limpieza') || nameLower.includes('higiene')) return Sparkles;
   if (nameLower.includes('aceite') || nameLower.includes('condimento')) return Droplets;
   if (nameLower.includes('enlata')) return Package;
-  
-  // Por defecto
+
   return ShoppingBag;
 };
 
@@ -663,44 +654,58 @@ export default function Caja() {
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
 
-                        <div 
+                        <div
                             ref={categoriesRef}
                             className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth px-1 sm:px-10"
                         >
-                            {CATEGORIES.map((category) => {
-                            const Icon = category.icon;
-                            const isActive = selectedCategory === category.id;
-                            const productCount = getProductCountByCategory(category.id);
-
-                            return (
-                                <Card
-                                key={category.id}
-                                className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all ${
-                                    isActive
-                                    ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-300 shadow-md'
-                                    : 'hover:border-emerald-200 shadow-sm'
-                                }`}
-                                onClick={() => setSelectedCategory(category.id)}
-                                >
-                                <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
-                                    <div className={`p-1.5 sm:p-2 rounded-lg ${
-                                    isActive ? 'bg-emerald-200/50' : 'bg-emerald-100/50'
-                                    }`}>
-                                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                            {categoriesLoading ? (
+                              Array.from({ length: 6 }).map((_, i) => (
+                                <Card key={`cat-skel-${i}`} className="shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4">
+                                  <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+                                    <Skeleton className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg" />
+                                    <div className="w-full space-y-1">
+                                      <Skeleton className="h-3 w-16 sm:w-20 mx-auto" />
+                                      <Skeleton className="h-2.5 w-10 sm:w-14 mx-auto" />
                                     </div>
-
-                                    <div className="w-full">
-                                    <span className="text-[10px] sm:text-xs font-semibold block truncate">
-                                        {category.name}
-                                    </span>
-                                    <span className="text-[9px] sm:text-[10px] text-muted-foreground block mt-0.5">
-                                        {productCount} producto{productCount !== 1 ? 's' : ''}
-                                    </span>
-                                    </div>
-                                </div>
+                                  </div>
                                 </Card>
-                            );
-                            })}
+                              ))
+                            ) : (
+                              CATEGORIES.map((category) => {
+                                const Icon = category.icon;
+                                const isActive = selectedCategory === category.id;
+                                const productCount = getProductCountByCategory(category.id);
+
+                                return (
+                                  <Card
+                                    key={category.id}
+                                    className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all ${
+                                      isActive
+                                        ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-300 shadow-md'
+                                        : 'hover:border-emerald-200 shadow-sm'
+                                    }`}
+                                    onClick={() => setSelectedCategory(category.id)}
+                                  >
+                                    <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
+                                      <div className={`p-1.5 sm:p-2 rounded-lg ${
+                                        isActive ? 'bg-emerald-200/50' : 'bg-emerald-100/50'
+                                      }`}>
+                                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                                      </div>
+
+                                      <div className="w-full">
+                                        <span className="text-[10px] sm:text-xs font-semibold block truncate">
+                                          {category.name}
+                                        </span>
+                                        <span className="text-[9px] sm:text-[10px] text-muted-foreground block mt-0.5">
+                                          {productCount} producto{productCount !== 1 ? 's' : ''}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                );
+                              })
+                            )}
                         </div>
 
                         {/* Botón derecha */}
@@ -718,11 +723,20 @@ export default function Caja() {
             {/* Grid de productos */}
             <div className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {isLoadingInventory ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Loader2 className="h-12 w-12 text-emerald-600 mx-auto mb-4 animate-spin" />
-                    <p className="text-lg text-muted-foreground">Cargando productos...</p>
-                  </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={`prod-skel-${i}`} className="overflow-hidden">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-4/5" />
+                        <Skeleton className="h-3.5 w-3/5" />
+                        <div className="space-y-1 pt-1">
+                          <Skeleton className="h-6 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
             ) : filteredProducts.length === 0 ? (
                 <div className="flex items-center justify-center h-full">

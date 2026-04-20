@@ -74,10 +74,10 @@ export default function LayoutShell() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="main-content-bg">
         {/* Header sticky - En móvil siempre visible, en desktop oculto en caja */}
         {shouldShowHeader && (
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md shadow-[0_1px_0_0_hsl(var(--border)/0.4)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4 flex-1">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -133,6 +133,7 @@ export default function LayoutShell() {
                 <ButtonMagic
                   onClick={() => navigate("/whatsapp")}
                   className="text-xs"
+                  alwaysActive
                 >
                   <Bot className="h-4 w-4" />
                   <span className="hidden sm:inline">Conectar Bot</span>

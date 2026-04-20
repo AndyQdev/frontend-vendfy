@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import { Search, User, Mail, Phone, Calendar, Users, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { Customer } from "@/entities/customer/model/types";
 import { format } from "date-fns";
 import { CustomerFormModal } from "./CustomerFormModal";
@@ -138,11 +139,7 @@ export default function CustomersTable() {
       </div>
 
       {/* Table */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : customers.length === 0 ? (
+      {customers.length === 0 && !isLoading ? (
         <div className="text-center py-12 text-muted-foreground">
           No se encontraron clientes
         </div>
@@ -160,7 +157,19 @@ export default function CustomersTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={`skel-${i}`}>
+                    <TableCell><div className="flex items-center gap-2"><Skeleton className="h-4 w-4 rounded" /><Skeleton className="h-4 w-28" /></div></TableCell>
+                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-8 w-8 rounded-md mx-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+              customers.map((customer) => (
                 <TableRow 
                   key={customer.id}
                   onClick={() => handleCustomerClick(customer)}
@@ -208,7 +217,8 @@ export default function CustomersTable() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
         </div>

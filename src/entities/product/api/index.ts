@@ -104,9 +104,30 @@ export function useDeleteProduct() {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; description?: string; storeId: string }) => {
+    mutationFn: async (data: { name: string; description?: string; icon?: string | null; userId: string }) => {
       const response = await apiFetch<Category>("/api/category", { method: "POST", body: data });
       return response.data as Category;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] })
+  });
+}
+
+export function useUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string; icon?: string | null } }) => {
+      const response = await apiFetch<Category>(`/api/category/${id}`, { method: "PATCH", body: data });
+      return response.data as Category;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] })
+  });
+}
+
+export function useDeleteCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiFetch(`/api/category/${id}`, { method: "DELETE" });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] })
   });
@@ -115,9 +136,30 @@ export function useCreateCategory() {
 export function useCreateBrand() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; description?: string; storeId: string }) => {
+    mutationFn: async (data: { name: string; description?: string; userId: string }) => {
       const response = await apiFetch<Brand>("/api/brand", { method: "POST", body: data });
       return response.data as Brand;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["brands"] })
+  });
+}
+
+export function useUpdateBrand() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string } }) => {
+      const response = await apiFetch<Brand>(`/api/brand/${id}`, { method: "PATCH", body: data });
+      return response.data as Brand;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["brands"] })
+  });
+}
+
+export function useDeleteBrand() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiFetch(`/api/brand/${id}`, { method: "DELETE" });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["brands"] })
   });

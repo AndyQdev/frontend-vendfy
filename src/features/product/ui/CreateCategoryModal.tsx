@@ -1,132 +1,155 @@
-import { useState } from "react";
-import { X, FolderPlus, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FolderPlus, Save } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { useCreateCategory } from "@/entities/product/api";
+import { IconPicker } from "@/shared/ui/icon-picker";
+import { useCreateCategory, useUpdateCategory } from "@/entities/product/api";
+import type { Category } from "@/entities/product/model/types";
+import { useAuth } from "@/app/providers/auth";
 import { toast } from "sonner";
 
 interface CreateCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  storeId: string;
+  category?: Category | null;
 }
 
-export function CreateCategoryModal({ isOpen, onClose, storeId }: CreateCategoryModalProps) {
+export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategoryModalProps) {
+  const { user } = useAuth();
+  const isEditing = !!category;
+
   const [formData, setFormData] = useState({
     name: "",
-    description: ""
+    description: "",
+    icon: null as string | null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: category?.name ?? "",
+        description: category?.description ?? "",
+        icon: category?.icon ?? null,
+      });
+      setErrors({});
+    }
+  }, [isOpen, category]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "El nombre de la categoría es requerido";
-    }
-
-    if (formData.name.length > 100) {
-      newErrors.name = "El nombre no puede exceder 100 caracteres";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const next: Record<string, string> = {};
+    if (!formData.name.trim()) next.name = "El nombre de la categoría es requerido";
+    if (formData.name.length > 100) next.name = "El nombre no puede exceder 100 caracteres";
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
+    if (!validateForm()) return;
+    if (!user?.id) {
+      toast.error("Sesión no válida");
       return;
     }
 
     try {
-      await createCategory.mutateAsync({
-        name: formData.name,
-        description: formData.description || undefined,
-        storeId
-      });
-      
-      setFormData({ name: "", description: "" });
-      setErrors({});
-      toast.success("Categoría creada correctamente");
+      if (isEditing && category) {
+        await updateCategory.mutateAsync({
+          id: category.id,
+          data: {
+            name: formData.name,
+            description: formData.description || undefined,
+            icon: formData.icon,
+          },
+        });
+        toast.success("Categoría actualizada");
+      } else {
+        await createCategory.mutateAsync({
+          name: formData.name,
+          description: formData.description || undefined,
+          icon: formData.icon,
+          userId: user.id,
+        });
+        toast.success("Categoría creada");
+      }
       onClose();
     } catch (error) {
-      console.error("Error creating category:", error);
-      toast.error("Error al crear la categoría");
+      console.error("Error guardando categoría:", error);
+      toast.error(isEditing ? "Error al actualizar la categoría" : "Error al crear la categoría");
     }
   };
 
-  const handleClose = () => {
-    setFormData({ name: "", description: "" });
-    setErrors({});
-    onClose();
-  };
+  const isPending = createCategory.isPending || updateCategory.isPending;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <FolderPlus className="h-5 w-5 text-primary" />
-            <DialogTitle>Crear Nueva Categoría</DialogTitle>
+            <DialogTitle>{isEditing ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Category Name */}
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="category-name">
-              Nombre de la Categoría <span className="text-red-500">*</span>
+              Nombre <span className="text-destructive">*</span>
             </Label>
             <Input
               id="category-name"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className={errors.name ? "border-red-500" : ""}
+              className={errors.name ? "border-destructive" : ""}
               placeholder="Ej: Electrónicos, Ropa, Hogar..."
               maxLength={100}
             />
-            {errors.name && (
-              <p className="text-sm text-red-500 mt-1">{errors.name}</p>
-            )}
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
 
-          {/* Description */}
-          <div>
-            <Label htmlFor="category-description">Descripción (Opcional)</Label>
+          <div className="space-y-2">
+            <Label>Icono</Label>
+            <IconPicker
+              value={formData.icon}
+              onChange={(icon) => setFormData((prev) => ({ ...prev, icon }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se mostrará al lado del nombre en la tienda.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category-description">Descripción (opcional)</Label>
             <textarea
               id="category-description"
               name="description"
               value={formData.description}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none text-sm"
               placeholder="Describe la categoría..."
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={createCategory.isPending}>
+            <Button type="submit" disabled={isPending}>
               <Save className="h-4 w-4 mr-2" />
-              {createCategory.isPending ? "Guardando..." : "Crear Categoría"}
+              {isPending ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear"}
             </Button>
           </DialogFooter>
         </form>
