@@ -1,6 +1,11 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
 import { apiFetch } from "@/shared/api/client";
-import { useNavigate } from "react-router-dom";
+
+interface UserStoreRef {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 interface User {
   id: string;
@@ -12,6 +17,9 @@ interface User {
     id: string;
     name: string;
   };
+  onboardingBasic?: boolean;
+  onboardingSteps?: number[];
+  stores?: UserStoreRef[];
 }
 
 interface AuthResponse {
@@ -25,6 +33,7 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<User | null>;
 };
 
 interface RegisterData {
@@ -53,7 +62,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const userData = await apiFetch<User>(`/api/auth/checkToken?token=${token}`);
         setUser(userData.data);
-        // Actualizar usuario en localStorage
         localStorage.setItem("authUser", JSON.stringify(userData.data));
       } catch (error) {
         console.error("Token inválido o expirado:", error);
@@ -74,7 +82,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         body: { email, password },
       });
 
-      // Guardar token y usuario
       localStorage.setItem("authToken", response.data.accessToken);
       localStorage.setItem("authUser", JSON.stringify(response.data.User));
       setUser(response.data.User);
@@ -91,7 +98,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         body: data,
       });
 
-      // Guardar token y usuario
       localStorage.setItem("authToken", response.data.accessToken);
       localStorage.setItem("authUser", JSON.stringify(response.data.User));
       setUser(response.data.User);
@@ -107,8 +113,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(null);
   }
 
+  async function refreshUser(): Promise<User | null> {
+    const token = localStorage.getItem("authToken");
+    if (!token) return null;
+    try {
+      const userData = await apiFetch<User>(`/api/auth/checkToken?token=${token}`);
+      setUser(userData.data);
+      localStorage.setItem("authUser", JSON.stringify(userData.data));
+      return userData.data;
+    } catch (error) {
+      console.error("No se pudo refrescar usuario:", error);
+      return null;
+    }
+  }
+
   return (
-    <Ctx.Provider value={{ user, isLoading, login, register, logout }}>
+    <Ctx.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
       {children}
     </Ctx.Provider>
   );

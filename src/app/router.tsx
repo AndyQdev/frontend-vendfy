@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import OnboardingPage from "@/pages/onboarding";
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
@@ -21,6 +22,7 @@ import PurchasesPage from "@/pages/purchases";
 import PurchaseCreatePage from "@/pages/purchases/create";
 import PurchaseDetailPage from "@/pages/purchases/detail";
 import VendfyLoader from "@/shared/loading/VendfyLoader";
+import { OnboardingGuard } from "./guards/OnboardingGuard";
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -30,7 +32,7 @@ function Protected() {
     const isDark = stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
     return <VendfyLoader theme={isDark ? "dark" : "light"} message="Verificando sesión..." />;
   }
-  
+
   return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
@@ -40,34 +42,40 @@ export default function AppRouter() {
       {/* Rutas públicas */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      
-      {/* Rutas protegidas */}
-      <Route element={<Protected />}>
-        <Route element={<LayoutShell />}>
-          <Route path="/caja" element={<CajaPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/sales" element={<SalesPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/products/create" element={<CreateProductPage />} />
-          <Route path="/products/taxonomies" element={<ProductTaxonomiesPage />} />
-          <Route path="/products/:id" element={<CreateProductPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/purchases" element={<PurchasesPage />} />
-          <Route path="/purchases/new" element={<PurchaseCreatePage />} />
-          <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/stores" element={<StoresPage />} />
-          <Route path="/stores/:id" element={<StoreConfigPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/reports/movements" element={<MovementPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/whatsapp" element={<WhatsAppPage />} />
 
-          {/* Redirección por defecto a Caja */}
-          <Route path="/" element={<Navigate to="/caja" replace />} />
+      {/* Rutas protegidas (con auth) */}
+      <Route element={<Protected />}>
+        {/* Onboarding: requiere auth pero NO el guard (es donde el usuario va a "completarlo") */}
+        <Route element={<OnboardingGuard />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+
+          {/* Resto de la app: requiere onboarding completo */}
+          <Route element={<LayoutShell />}>
+            <Route path="/caja" element={<CajaPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/sales" element={<SalesPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/products/create" element={<CreateProductPage />} />
+            <Route path="/products/taxonomies" element={<ProductTaxonomiesPage />} />
+            <Route path="/products/:id" element={<CreateProductPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/purchases" element={<PurchasesPage />} />
+            <Route path="/purchases/new" element={<PurchaseCreatePage />} />
+            <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
+            <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/stores" element={<StoresPage />} />
+            <Route path="/stores/:id" element={<StoreConfigPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports/movements" element={<MovementPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/whatsapp" element={<WhatsAppPage />} />
+
+            {/* Redirección por defecto a Caja */}
+            <Route path="/" element={<Navigate to="/caja" replace />} />
+          </Route>
         </Route>
       </Route>
-      
+
       {/* Redirección para rutas no encontradas */}
       <Route path="*" element={<Navigate to="/caja" replace />} />
     </Routes>

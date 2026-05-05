@@ -2,17 +2,20 @@ import * as React from "react"
 import {
   ShoppingCart,
   Package,
-  ShoppingBag,
   Users,
   BarChart3,
   Settings,
   ClipboardList,
   Store,
   DollarSign,
+  Boxes,
   Truck,
+  Tags,
+  TrendingUp,
+  MessageCircle,
 } from "lucide-react"
 
-import { NavMain } from "@/widgets/layout/nav-main"
+import { NavMain, type NavSection } from "@/widgets/layout/nav-main"
 import { NavUser } from "@/widgets/layout/nav-user"
 import { StoreSwitcher } from "@/widgets/layout/team-switcher"
 import {
@@ -21,6 +24,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarSeparator,
 } from "@/shared/ui/sidebar"
 import { useStore, useAuth } from "@/app/providers/auth"
 
@@ -36,68 +40,56 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   }
 
-  // Navegación principal según vistas.md (orden por frecuencia de uso)
-  const navMain = [
+  const sections: NavSection[] = [
     {
-      title: "Caja",
-      url: "/caja",
-      icon: ShoppingCart,
+      label: "Operación",
+      items: [
+        { title: "Caja", url: "/caja", icon: ShoppingCart },
+        { title: "Pedidos", url: "/orders", icon: ClipboardList },
+        { title: "Ventas", url: "/sales", icon: DollarSign },
+      ],
     },
     {
-      title: "Pedidos",
-      url: "/orders",
-      icon: ClipboardList,
+      label: "Catálogo",
+      items: [
+        { title: "Productos", url: "/products", icon: Package },
+        { title: "Inventario", url: "/inventory", icon: Boxes },
+        { title: "Compras", url: "/purchases", icon: Truck },
+        { title: "Marcas y Categorías", url: "/products/taxonomies", icon: Tags },
+      ],
     },
     {
-      title: "Ventas",
-      url: "/sales",
-      icon: DollarSign,
+      label: "Clientes",
+      items: [{ title: "Clientes", url: "/customers", icon: Users }],
     },
     {
-      title: "Productos",
-      url: "/products",
-      icon: Package,
+      label: "Mi Tienda",
       items: [
         {
-          title: "Inventario",
-          url: "/inventory",
+          title: selectedStore === "all" ? "Tiendas" : "Tienda",
+          url:
+            selectedStore === "all"
+              ? "/stores"
+              : `/stores/${(selectedStore as any)?.id || ""}`,
+          icon: Store,
         },
+        { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
+      ],
+    },
+    {
+      label: "Análisis",
+      items: [
         {
-          title: "Compras",
-          url: "/purchases",
-        },
-        {
-          title: "Marcas y Categorías",
-          url: "/products/taxonomies",
+          title: "Estadísticas",
+          url: "/reports",
+          icon: BarChart3,
+          items: [{ title: "Movimientos", url: "/reports/movements" }],
         },
       ],
     },
     {
-      title: "Clientes",
-      url: "/customers",
-      icon: Users,
-    },
-    // Entrada dinámica para Tienda/Tiendas
-    {
-      title: selectedStore === "all" ? "Tiendas" : "Tienda",
-      url: selectedStore === "all" ? "/stores" : `/stores/${(selectedStore as any)?.id || ""}`,
-      icon: Store,
-    },
-    {
-      title: "Estadísticas",
-      url: "/reports",
-      icon: BarChart3,
-      items: [
-        {
-          title: "Movimientos",
-          url: "/reports/movements",
-        },
-      ],
-    },
-    {
-      title: "Configuración",
-      url: "/settings",
-      icon: Settings,
+      label: "Sistema",
+      items: [{ title: "Configuración", url: "/settings", icon: Settings }],
     },
   ]
 
@@ -106,8 +98,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <StoreSwitcher />
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={navMain} />
+      <SidebarSeparator className="my-1" />
+      <SidebarContent className="gap-0">
+        <NavMain sections={sections} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData.user} />
