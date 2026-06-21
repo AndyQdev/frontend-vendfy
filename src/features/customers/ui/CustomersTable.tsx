@@ -24,6 +24,7 @@ import {
 } from "@/shared/ui/alert-dialog";
 import { Search, User, Mail, Phone, Calendar, Users, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { EmptyState } from "@/shared/ui/empty-state";
 import { Customer } from "@/entities/customer/model/types";
 import { format } from "date-fns";
 import { CustomerFormModal } from "./CustomerFormModal";
@@ -140,9 +141,29 @@ export default function CustomersTable() {
 
       {/* Table */}
       {customers.length === 0 && !isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          No se encontraron clientes
-        </div>
+        searchTerm ? (
+          <EmptyState
+            icon={Users}
+            title="No encontramos clientes"
+            description="Prueba con otro nombre o limpia la búsqueda."
+            primaryAction={{
+              label: "Limpiar búsqueda",
+              variant: "outline",
+              onClick: () => setSearchTerm(""),
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon={Users}
+            title="Aún no tienes clientes"
+            description="Tus clientes se registran automáticamente cuando hacen una compra en caja o desde tu tienda online. También puedes agregarlos manualmente."
+            primaryAction={{
+              label: "Agregar cliente",
+              icon: Plus,
+              onClick: handleCreateCustomer,
+            }}
+          />
+        )
       ) : (
         <div className="border rounded-lg">
           <Table>

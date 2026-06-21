@@ -19,6 +19,12 @@ export function useInventory(params: InventoryQueryParams) {
   if (params.attr) searchParams.append("attr", params.attr);
   if (params.value) searchParams.append("value", params.value);
   if (params.storeId) searchParams.append("storeId", params.storeId);
+  if (params.categoryId) searchParams.append("categoryId", params.categoryId);
+  if (params.brandId) searchParams.append("brandId", params.brandId);
+  if (params.minPrice !== undefined) searchParams.append("minPrice", params.minPrice.toString());
+  if (params.maxPrice !== undefined) searchParams.append("maxPrice", params.maxPrice.toString());
+  if (params.inStock) searchParams.append("inStock", "true");
+  if (params.search) searchParams.append("search", params.search);
 
   return useQuery<InventoryResponse>({
     queryKey: ["inventory", params],

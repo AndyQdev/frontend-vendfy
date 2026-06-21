@@ -20,6 +20,15 @@ export interface Category {
   productCount?: number; // Conteo de productos de la categoría
 }
 
+export interface StoreProductInfo {
+  id: string;
+  price: number;
+  store?: {
+    id: string;
+    name: string;
+  };
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -32,6 +41,10 @@ export interface Product {
   enabled: boolean;
   created_at: string;
   updated_at: string;
+  // Precio plano cuando se filtra por una tienda específica
+  price?: number;
+  // Listado de precios por tienda (siempre presente cuando no se filtra por tienda)
+  storeProducts?: StoreProductInfo[];
 }
 
 export interface ProductsResponse {
@@ -48,4 +61,5 @@ export interface ProductQueryParams {
   value?: string;
   categoryId?: string;
   brandId?: string;
+  storeId?: string;
 }

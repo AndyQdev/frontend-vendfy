@@ -1,6 +1,10 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useInventory, useCreateMovement, useMovementsByInventory } from "@/entities/inventory/api";
+import { useCategories, useBrands } from "@/entities/product/api";
+import { EmptyState } from "@/shared/ui/empty-state";
+import { Truck as TruckIcon, Package as PackageIcon } from "lucide-react";
 import { useStore } from "@/app/providers/auth";
 import type { Inventory, MovementType } from "@/entities/inventory/model/types";
 import {
@@ -44,7 +48,9 @@ import {
   ShoppingCart,
   ArrowUpDown,
   History,
+  X,
 } from "lucide-react";
+import { Switch } from "@/shared/ui/switch";
 import { toast } from "sonner";
 
 const MOVEMENT_TYPE_CONFIG: Record<
@@ -78,10 +84,27 @@ const MOVEMENT_TYPE_CONFIG: Record<
 };
 
 export default function InventoryTable() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedBrand, setSelectedBrand] = useState("all");
+  const [minPriceInput, setMinPriceInput] = useState("");
+  const [maxPriceInput, setMaxPriceInput] = useState("");
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState("");
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState("");
+  const [onlyInStock, setOnlyInStock] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const { selectedStore } = useStore();
+
+  // Categorías y marcas para los selectores
+  const storeIdForFilters =
+    selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
+  const { data: categoriesData } = useCategories(storeIdForFilters);
+  const { data: brandsData } = useBrands();
+  const categories = categoriesData || [];
+  const brands = brandsData || [];
 
   // Modal de movimiento
   const [movementDialogOpen, setMovementDialogOpen] = useState(false);
@@ -97,12 +120,50 @@ export default function InventoryTable() {
 
   const storeId = selectedStore === "all" ? "all" : (selectedStore?.id || "all");
 
+  // Convertir inputs de precio a número (sólo si son válidos)
+  const minPriceNum =
+    debouncedMinPrice && !isNaN(Number(debouncedMinPrice))
+      ? Number(debouncedMinPrice)
+      : undefined;
+  const maxPriceNum =
+    debouncedMaxPrice && !isNaN(Number(debouncedMaxPrice))
+      ? Number(debouncedMaxPrice)
+      : undefined;
+
   const queryParams = {
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     order: "DESC" as const,
     storeId,
-    ...(searchTerm && { attr: "product.name", value: searchTerm }),
+    // Búsqueda multi-campo (nombre, descripción, tags) — más potente que attr/value
+    ...(debouncedSearch && { search: debouncedSearch }),
+    ...(selectedCategory !== "all" && { categoryId: selectedCategory }),
+    ...(selectedBrand !== "all" && { brandId: selectedBrand }),
+    ...(minPriceNum !== undefined && { minPrice: minPriceNum }),
+    ...(maxPriceNum !== undefined && { maxPrice: maxPriceNum }),
+    ...(onlyInStock && { inStock: true }),
+  };
+
+  // Hay algún filtro activo (excluyendo búsqueda y stock)?
+  const hasActiveFilters =
+    !!debouncedSearch ||
+    selectedCategory !== "all" ||
+    selectedBrand !== "all" ||
+    !!minPriceNum ||
+    !!maxPriceNum ||
+    onlyInStock;
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setSelectedCategory("all");
+    setSelectedBrand("all");
+    setMinPriceInput("");
+    setMaxPriceInput("");
+    setDebouncedMinPrice("");
+    setDebouncedMaxPrice("");
+    setOnlyInStock(false);
+    setCurrentPage(1);
   };
 
   const { data: inventoryResponse, isLoading } = useInventory(queryParams);
@@ -115,12 +176,29 @@ export default function InventoryTable() {
   const { data: movementsResponse, isLoading: isLoadingMovements } =
     useMovementsByInventory(historyInventoryId);
 
+  // Debounce: search (500ms)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
       setCurrentPage(1);
     }, 500);
-    return () => clearTimeout(timeoutId);
+    return () => clearTimeout(t);
   }, [searchTerm]);
+
+  // Debounce: precios (600ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedMinPrice(minPriceInput);
+      setDebouncedMaxPrice(maxPriceInput);
+      setCurrentPage(1);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [minPriceInput, maxPriceInput]);
+
+  // Filtros instantáneos (cambian de página inmediatamente)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedBrand, onlyInStock]);
 
   const handlePageChange = (page: number) => setCurrentPage(page);
   const handlePageSizeChange = (newPageSize: number) => {
@@ -277,16 +355,119 @@ export default function InventoryTable() {
         </div>
       ) : null}
 
-      {/* Search */}
-      <div className="bg-card border rounded-lg p-4">
+      {/* Filtros */}
+      <div className="bg-card border rounded-lg p-4 space-y-3">
+        {/* Búsqueda */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar productos en inventario..."
+            placeholder="Buscar por nombre, descripción o etiqueta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-9"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Fila de filtros */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Categoría */}
+          <div className="w-full sm:w-44">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Marca */}
+          <div className="w-full sm:w-44">
+            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+              <SelectTrigger>
+                <SelectValue placeholder="Marca" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las marcas</SelectItem>
+                {brands.map((brand) => (
+                  <SelectItem key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Rango de precio */}
+          <div className="flex items-center gap-1.5 px-2.5 h-10 rounded-md border bg-background">
+            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={minPriceInput}
+              onChange={(e) => setMinPriceInput(e.target.value)}
+              placeholder="Min"
+              className="w-20 h-8 px-2 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <span className="text-muted-foreground text-sm">–</span>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={maxPriceInput}
+              onChange={(e) => setMaxPriceInput(e.target.value)}
+              placeholder="Max"
+              className="w-20 h-8 px-2 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </div>
+
+          {/* Solo con stock */}
+          <div className="flex items-center gap-2 px-3 h-10 rounded-md border bg-background">
+            <Boxes className="h-3.5 w-3.5 text-muted-foreground" />
+            <label
+              htmlFor="inv-instock"
+              className="text-sm whitespace-nowrap cursor-pointer select-none"
+            >
+              Solo con stock
+            </label>
+            <Switch
+              id="inv-instock"
+              checked={onlyInStock}
+              onCheckedChange={setOnlyInStock}
+            />
+          </div>
+
+          {/* Reset */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="h-10 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Limpiar filtros
+            </Button>
+          )}
         </div>
       </div>
 
@@ -343,15 +524,35 @@ export default function InventoryTable() {
           </Table>
         </div>
       ) : inventories.length === 0 ? (
-        <div className="text-center py-12 bg-card border rounded-lg">
-          <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No hay inventarios</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchTerm
-              ? "No se encontraron productos con los filtros aplicados."
-              : "No hay productos registrados en el inventario."}
-          </p>
-        </div>
+        hasActiveFilters ? (
+          <EmptyState
+            icon={PackageIcon}
+            title="No encontramos resultados"
+            description="No hay productos que coincidan con los filtros aplicados. Prueba ajustando los criterios."
+            primaryAction={{
+              label: "Limpiar filtros",
+              variant: "outline",
+              onClick: handleResetFilters,
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon={PackageIcon}
+            title="Tu inventario está vacío"
+            description="Cuando crees productos y registres compras, aparecerán aquí con su stock disponible. La forma correcta de cargar stock es desde Compras — así queda registrado en tus reportes."
+            primaryAction={{
+              label: "Crear producto",
+              icon: Plus,
+              onClick: () => navigate("/products/create"),
+            }}
+            secondaryAction={{
+              label: "Registrar compra",
+              icon: TruckIcon,
+              variant: "outline",
+              onClick: () => navigate("/purchases/new"),
+            }}
+          />
+        )
       ) : (
         <div className="border rounded-lg">
           <Table>

@@ -1,7 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, Bot, Globe } from "lucide-react";
 import { VendfyIcon } from "@/shared/ui/VendfyLogo";
-import { useState, useEffect } from "react";
 import { useStore } from "@/app/providers/auth";
 import { useWhatsAppStatus } from "@/entities/whatsapp/api";
 import { AppSidebar } from "@/widgets/layout/app-sidebar";
@@ -22,27 +21,19 @@ import {
   SidebarTrigger,
 } from "@/shared/ui/sidebar";
 import { useTheme } from "@/app/providers/theme";
+import { OnboardingChecklist } from "@/widgets/onboarding/OnboardingChecklist";
+import { OnboardingHeaderButton } from "@/widgets/onboarding/OnboardingHeaderButton";
 
 export default function LayoutShell() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedStore } = useStore();
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   const storeId = selectedStore && selectedStore !== "all" ? (selectedStore as any).id : undefined;
   const { data: whatsappData } = useWhatsAppStatus(storeId);
   const isWhatsAppConnected = whatsappData?.status === "connected";
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
@@ -65,19 +56,15 @@ export default function LayoutShell() {
   };
   const currentPage = pageNames[location.pathname] || location.pathname.split('/').filter(Boolean).pop() || 'Inicio';
 
-  // Detectar si estamos en la página de caja
+  // Detectar si estamos en la página de caja (para padding ajustado)
   const isCajaPage = location.pathname === '/caja';
-  
-  // En móvil (< 1024px) mostrar header siempre, en desktop ocultarlo en caja
-  const shouldShowHeader = !isCajaPage || isMobile;
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="main-content-bg">
-        {/* Header sticky - En móvil siempre visible, en desktop oculto en caja */}
-        {shouldShowHeader && (
-          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md shadow-[0_1px_0_0_hsl(var(--border)/0.4)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        {/* Header sticky siempre visible */}
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md shadow-[0_1px_0_0_hsl(var(--border)/0.4)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4 flex-1">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -102,6 +89,9 @@ export default function LayoutShell() {
             
             {/* Actions */}
             <div className="flex items-center gap-2 px-4">
+              {/* Onboarding progress / re-open checklist */}
+              <OnboardingHeaderButton />
+
               {/* Web Store Button */}
               {selectedStore && selectedStore !== "all" && (selectedStore as any).slug && (
                 <Button
@@ -153,8 +143,7 @@ export default function LayoutShell() {
               </Button>
             </div>
           </header>
-        )}
-        
+
         {/* Main content area con overflow y padding superior */}
         <main className="flex-1 min-w-0 overflow-auto">
           <div
@@ -166,6 +155,7 @@ export default function LayoutShell() {
           </div>
         </main>
       </SidebarInset>
+      <OnboardingChecklist />
     </SidebarProvider>
   );
 }

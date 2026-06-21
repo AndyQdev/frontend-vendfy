@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag } from "lucide-react";
+import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
 import { ImageUploadModal } from "@/shared/ui/image-upload-modal";
 import { CreateBrandModal } from "@/features/product/ui/CreateBrandModal";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
@@ -248,6 +249,7 @@ export default function CreateProduct() {
   };
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -284,9 +286,14 @@ export default function CreateProduct() {
             <h2 className="text-lg font-semibold">Información Básica</h2>
             
             <div>
-              <Label htmlFor="name">
-                Nombre del Producto <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="name">
+                  Nombre del Producto <span className="text-red-500">*</span>
+                </Label>
+                <HintIcon>
+                  Es como tus clientes verán el producto en tu tienda online y en caja. Sé claro y específico (ej: "Camisa blanca algodón M").
+                </HintIcon>
+              </div>
               <Input
                 id="name"
                 name="name"
@@ -299,7 +306,12 @@ export default function CreateProduct() {
             </div>
 
             <div>
-              <Label htmlFor="sku">SKU (Opcional)</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="sku">SKU (Opcional)</Label>
+                <HintIcon>
+                  Es el código único del producto. Si tienes lector de códigos de barras, escanéalo aquí. Si no, puedes inventarlo (ej: CAMI-001). Te servirá para encontrarlo rápido en caja.
+                </HintIcon>
+              </div>
               <Input
                 id="sku"
                 name="sku"
@@ -312,6 +324,9 @@ export default function CreateProduct() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="description">Descripción</Label>
+                <HintIcon>
+                  Cuéntale al cliente qué hace especial a tu producto: materiales, tallas, beneficios. Aparece en la ficha del producto en tu tienda online. Pulsa <span className="font-medium">IA</span> para que te ayudemos.
+                </HintIcon>
                 <AiFieldButton
                   storeId={formData.storeId}
                   field="description"
@@ -378,6 +393,9 @@ export default function CreateProduct() {
           <Card className="p-6 space-y-4">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold">Especificaciones</h2>
+              <HintIcon>
+                Datos técnicos del producto en formato clave-valor (ej: "Talla: M", "Material: 100% algodón"). Aparecen como tabla en la ficha del producto y ayudan al cliente a decidir.
+              </HintIcon>
               <AiFieldButton
                 storeId={formData.storeId}
                 field="specifications"
@@ -450,7 +468,12 @@ export default function CreateProduct() {
             <h2 className="text-lg font-semibold">Organización</h2>
             
             <div>
-              <Label htmlFor="category">Categoría</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="category">Categoría</Label>
+                <HintIcon>
+                  Agrupa productos del mismo tipo (ej: "Camisas", "Pantalones"). Tus clientes pueden filtrar por categoría en tu tienda online. Crea una nueva con el botón +.
+                </HintIcon>
+              </div>
               <div className="flex gap-2">
                 <Select
                   value={formData.categoryId}
@@ -479,7 +502,12 @@ export default function CreateProduct() {
             </div>
 
             <div>
-              <Label htmlFor="brand">Marca</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="brand">Marca</Label>
+                <HintIcon>
+                  Es el fabricante o casa del producto (ej: "Apple", "Adidas"). Útil para diferenciar productos similares. Opcional.
+                </HintIcon>
+              </div>
               <div className="flex gap-2">
                 <Select
                   value={formData.brandId}
@@ -508,9 +536,14 @@ export default function CreateProduct() {
             </div>
 
             <div>
-              <Label htmlFor="price">
-                Precio <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="price">
+                  Precio <span className="text-red-500">*</span>
+                </Label>
+                <HintIcon>
+                  Es lo que cobras al cliente final. El costo (lo que pagas tú al proveedor) se registra aparte en Compras y se usa para calcular tu ganancia.
+                </HintIcon>
+              </div>
               <Input
                 id="price"
                 name="price"
@@ -526,7 +559,12 @@ export default function CreateProduct() {
             </div>
 
             <div>
-              <Label htmlFor="initialStock">Stock Inicial</Label>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="initialStock">Stock Inicial</Label>
+                <HintIcon>
+                  Cuántas unidades tienes ahora mismo. Cuando vendas, el stock baja automáticamente. Cuando recargues, hazlo desde <span className="font-medium">Compras</span> para que quede registrado en tus reportes.
+                </HintIcon>
+              </div>
               <Input
                 id="initialStock"
                 name="initialStock"
@@ -537,7 +575,7 @@ export default function CreateProduct() {
                 placeholder="Ej: 10"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Cantidad inicial de productos en inventario (por defecto 0)
+                Lo que tienes hoy. Si no tienes stock todavía, déjalo en 0.
               </p>
             </div>
           </Card>
@@ -545,11 +583,16 @@ export default function CreateProduct() {
           {/* Featured */}
           <Card className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">Producto Destacado</h3>
-                <p className="text-sm text-muted-foreground">
-                  Aparecerá en la página principal
-                </p>
+              <div className="flex items-start gap-2">
+                <div>
+                  <h3 className="font-semibold">Producto Destacado</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Aparecerá en la portada de tu tienda online
+                  </p>
+                </div>
+                <HintIcon>
+                  Los productos destacados se muestran al inicio de tu tienda online, en la sección hero. Úsalos para tus mejores ofertas o lanzamientos.
+                </HintIcon>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -572,6 +615,9 @@ export default function CreateProduct() {
           <Card className="p-6 space-y-4">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold">Etiquetas</h2>
+              <HintIcon>
+                Palabras clave que describen tu producto (ej: "verano", "algodón", "unisex"). Cuando un cliente busca en tu tienda online, las etiquetas ayudan a que encuentre el producto. Mientras más relevantes, mejor.
+              </HintIcon>
               <AiFieldButton
                 storeId={formData.storeId}
                 field="tags"
@@ -640,5 +686,19 @@ export default function CreateProduct() {
         onClose={() => setIsCategoryModalOpen(false)}
       />
     </div>
+    </TooltipProvider>
+  );
+}
+
+function HintIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger type="button" tabIndex={-1}>
+        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs text-xs leading-relaxed">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }

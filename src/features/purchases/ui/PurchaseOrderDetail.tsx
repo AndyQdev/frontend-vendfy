@@ -143,40 +143,77 @@ export function PurchaseOrderDetail() {
 
       {/* Items */}
       <Card className="overflow-hidden">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-semibold flex items-center gap-2">
             <Package className="h-4 w-4" />
             Productos ({po.items?.length || 0})
           </h3>
+          <span className="text-xs text-muted-foreground">
+            {po.items?.reduce((s, i) => s + i.quantity, 0) || 0} unidades
+          </span>
         </div>
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/40">
+              <TableHead className="w-[60px]"></TableHead>
               <TableHead>Producto</TableHead>
-              <TableHead className="text-right">Cantidad</TableHead>
-              <TableHead className="text-right">Costo Unit.</TableHead>
-              <TableHead className="text-right">Subtotal</TableHead>
+              <TableHead className="text-center w-[100px]">Cantidad</TableHead>
+              <TableHead className="text-right w-[140px]">Costo unit.</TableHead>
+              <TableHead className="text-right w-[140px]">Subtotal</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {po.items?.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.product?.name || "Producto"}</TableCell>
-                <TableCell className="text-right">{item.quantity}</TableCell>
-                <TableCell className="text-right">Bs. {Number(item.unitCost).toFixed(2)}</TableCell>
-                <TableCell className="text-right font-semibold">
-                  Bs. {Number(item.subtotal).toFixed(2)}
-                </TableCell>
-              </TableRow>
-            ))}
-            <TableRow>
-              <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
-              <TableCell className="text-right text-lg font-bold text-red-600">
-                Bs. {Number(po.totalAmount).toFixed(2)}
-              </TableCell>
-            </TableRow>
+            {po.items?.map((item) => {
+              const imageUrl = item.product?.imageUrls?.[0];
+              return (
+                <TableRow key={item.id} className="align-middle">
+                  <TableCell>
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={item.product?.name}
+                        className="h-11 w-11 rounded-md object-cover border"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-md bg-muted border flex items-center justify-center">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium leading-tight">
+                      {item.product?.name || "Producto"}
+                    </p>
+                    {item.product?.sku && (
+                      <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                        {item.product.sku}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center font-medium">
+                    {item.quantity}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    Bs. {Number(item.unitCost).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                    Bs. {Number(item.subtotal).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
+
+        {/* Footer con total destacado */}
+        <div className="flex items-center justify-end gap-6 border-t bg-muted/30 px-4 py-3">
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Total de la compra</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              Bs. {Number(po.totalAmount).toFixed(2)}
+            </p>
+          </div>
+        </div>
       </Card>
     </div>
   );

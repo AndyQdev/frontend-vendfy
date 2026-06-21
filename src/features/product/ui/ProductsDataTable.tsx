@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
+import { useStore } from "@/app/providers/auth";
+import { EmptyState } from "@/shared/ui/empty-state";
+import { Tag, Boxes, Barcode, ShoppingCart as CartIcon, Copy } from "lucide-react";
 import type { Product } from "@/entities/product/model/types";
 import { ButtonMagic } from "@/shared/ui/button-magic";
 import { AiGenerateModal } from "./AiGenerateModal";
+import { CopyProductModal } from "./CopyProductModal";
 import { Sparkles } from "lucide-react";
 import {
   Table,
@@ -47,6 +51,9 @@ import { toast } from "sonner";
 
 export function ProductsDataTable() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isWelcome = searchParams.get("welcome") === "1";
+  const { selectedStore } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
@@ -55,12 +62,19 @@ export function ProductsDataTable() {
   const [currentPage, setCurrentPage] = useState(1); // Cambiado a base 1
   const [pageSize, setPageSize] = useState(10); // Ahora es mutable
   const [currentImageIndexes, setCurrentImageIndexes] = useState<Record<string, number>>({});
+  const [copyingProduct, setCopyingProduct] = useState<Product | null>(null);
+
+  // ID de la tienda activa (o "all" si está en modo todas las tiendas)
+  const activeStoreId =
+    selectedStore && selectedStore !== "all" ? selectedStore.id : "all";
+  const isSingleStoreView = activeStoreId !== "all";
 
   // Query params para el backend (convertir a base 0 para offset)
   const queryParams = {
     limit: pageSize,
     offset: (currentPage - 1) * pageSize, // Convertir de base 1 a offset
     order: "DESC" as const,
+    storeId: activeStoreId,
     ...(searchTerm && { attr: "name", value: searchTerm }),
     ...(selectedCategory && selectedCategory !== "all" && { categoryId: selectedCategory }),
     ...(selectedBrand && selectedBrand !== "all" && { brandId: selectedBrand }),
@@ -136,6 +150,46 @@ export function ProductsDataTable() {
   };
 
   const totalPages = Math.ceil(totalProducts / pageSize);
+
+  // Renderiza el precio según el modo (tienda única vs todas las tiendas)
+  const renderPrice = (product: Product) => {
+    // Modo tienda única: el backend devuelve `price` plano
+    if (isSingleStoreView) {
+      const price = typeof product.price === "number"
+        ? product.price
+        : product.storeProducts?.[0]?.price ?? 0;
+      return (
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+          Bs. {price.toFixed(2)}
+        </span>
+      );
+    }
+
+    // Modo "todas las tiendas": mostrar rango si hay varios precios distintos
+    const prices = (product.storeProducts ?? []).map((sp) => sp.price);
+    if (prices.length === 0) {
+      return <span className="text-muted-foreground text-xs">Sin precio</span>;
+    }
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    if (min === max) {
+      return (
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+          Bs. {min.toFixed(2)}
+        </span>
+      );
+    }
+    return (
+      <div className="flex flex-col items-end">
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+          Bs. {min.toFixed(2)} – {max.toFixed(2)}
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          {prices.length} tiendas
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -320,7 +374,13 @@ export function ProductsDataTable() {
                       <div className="h-4 bg-muted rounded w-20 animate-pulse" />
                     </TableCell>
                     <TableCell>
+                      <div className="h-4 bg-muted rounded w-20 animate-pulse ml-auto" />
+                    </TableCell>
+                    <TableCell>
                       <div className="h-6 bg-muted rounded w-16 animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-8 w-8 bg-muted rounded animate-pulse mx-auto" />
                     </TableCell>
                     <TableCell>
                       <div className="h-8 w-8 bg-muted rounded animate-pulse" />
@@ -332,20 +392,80 @@ export function ProductsDataTable() {
           </div>
         )
       ) : products.length === 0 ? (
-        /* Empty State */
-        <div className="text-center py-12 bg-card border rounded-lg">
-          <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No hay productos</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchTerm || selectedCategory !== "all" || selectedBrand !== "all"
-              ? "No se encontraron productos con los filtros aplicados."
-              : "Comienza creando tu primer producto."}
-          </p>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Crear Producto
-          </Button>
-        </div>
+        searchTerm || selectedCategory !== "all" || selectedBrand !== "all" ? (
+          <EmptyState
+            icon={Package}
+            title="No encontramos productos"
+            description="Prueba con otro término o quita los filtros aplicados."
+            primaryAction={{
+              label: "Limpiar filtros",
+              variant: "outline",
+              onClick: () => {
+                setSearchTerm("");
+                setSelectedCategory("all");
+                setSelectedBrand("all");
+              },
+            }}
+          />
+        ) : isWelcome ? (
+          <EmptyState
+            variant="welcome"
+            badge="🎉 ¡Tu tienda está lista!"
+            icon={Package}
+            title="Agreguemos tu primer producto"
+            description={
+              <>
+                Esto es lo que vas a vender en tu <span className="font-medium">caja</span> y en tu{" "}
+                <span className="font-medium">tienda online</span>. Toma menos de 2 minutos.
+              </>
+            }
+            primaryAction={{
+              label: "Crear mi primer producto",
+              icon: Plus,
+              onClick: () => navigate("/products/create"),
+            }}
+            secondaryAction={{
+              label: "Crear con IA",
+              icon: Sparkles,
+              variant: "outline",
+              onClick: () => setAiModalOpen(true),
+            }}
+            faqs={[
+              {
+                icon: Barcode,
+                title: "¿Qué es el SKU?",
+                body: "Es el código único del producto. Si tienes lector de barras, escanéalo. Si no, puedes inventarlo (ej: CAMI-001).",
+              },
+              {
+                icon: Tag,
+                title: "Etiquetas y categorías",
+                body: "Ayudan a tus clientes a encontrar el producto cuando buscan en tu tienda online. Mientras más relevantes, mejor.",
+              },
+              {
+                icon: Boxes,
+                title: "Stock e inventario",
+                body: "Cada producto se enlaza a tu inventario. Para recargar stock más adelante, usa la sección Compras.",
+              },
+            ]}
+          />
+        ) : (
+          <EmptyState
+            icon={Package}
+            title="Aún no tienes productos"
+            description="Crea tu primer producto para empezar a venderlo en caja y en tu tienda online."
+            primaryAction={{
+              label: "Crear producto",
+              icon: Plus,
+              onClick: () => navigate("/products/create"),
+            }}
+            secondaryAction={{
+              label: "Crear con IA",
+              icon: Sparkles,
+              variant: "outline",
+              onClick: () => setAiModalOpen(true),
+            }}
+          />
+        )
       ) : viewMode === "grid" ? (
         /* GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -422,13 +542,17 @@ export function ProductsDataTable() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between text-sm mb-3">
+                <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-muted-foreground">
                     {product.category?.name || "Sin categoría"}
                   </span>
                   <span className="text-muted-foreground">
                     {product.brand?.name || "Sin marca"}
                   </span>
+                </div>
+
+                <div className="mb-3">
+                  {renderPrice(product)}
                 </div>
 
                 {/* Actions */}
@@ -465,7 +589,9 @@ export function ProductsDataTable() {
                 <TableHead>SKU</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Marca</TableHead>
+                <TableHead className="text-right">Precio</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead className="w-[60px] text-center">Copiar</TableHead>
                 <TableHead className="w-[80px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -520,12 +646,26 @@ export function ProductsDataTable() {
                       )}
                     </span>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {renderPrice(product)}
+                  </TableCell>
                   <TableCell>
                     {product.metadata?.isFeatured ? (
                       <Badge>Destacado</Badge>
                     ) : (
                       <Badge variant="secondary">Normal</Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Duplicar producto"
+                      onClick={() => setCopyingProduct(product)}
+                      className="hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -589,6 +729,13 @@ export function ProductsDataTable() {
 
       {/* AI Generate Modal */}
       <AiGenerateModal open={aiModalOpen} onOpenChange={setAiModalOpen} />
+
+      {/* Copy Product Modal */}
+      <CopyProductModal
+        isOpen={!!copyingProduct}
+        onClose={() => setCopyingProduct(null)}
+        sourceProduct={copyingProduct}
+      />
     </div>
   );
 }

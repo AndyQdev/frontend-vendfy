@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/shared/api/client";
 import { toast } from "sonner";
 import type { Order, OrdersResponse, OrderQueryParams, CreateOrderInput } from "../model/types";
+import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
 export function useOrders(params: OrderQueryParams = {}) {
   const queryParams = new URLSearchParams();
@@ -43,6 +44,7 @@ export function useCreateOrder() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      markOnboardingStep(ONBOARDING_STEPS.FIRST_SALE);
     },
     onError: (error: Error) => {
       // Mostrar el mensaje de error del backend automáticamente

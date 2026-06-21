@@ -35,12 +35,24 @@ export function StoreSwitcher() {
     queryFn: getStores,
   })
 
-  // Establecer la primera tienda como activa cuando se cargan los datos
+  // Selección automática:
+  // 1. Si no hay tienda seleccionada y existen tiendas → seleccionar la primera
+  // 2. Si solo hay una tienda y el usuario tenía "all" → forzar esa única tienda
+  //    ("Todas las tiendas" no tiene sentido con una sola tienda)
   React.useEffect(() => {
-    if (stores.length > 0 && !selectedStore) {
+    if (stores.length === 0) return
+
+    if (!selectedStore) {
+      setSelectedStore(stores[0])
+      return
+    }
+
+    if (stores.length === 1 && selectedStore === "all") {
       setSelectedStore(stores[0])
     }
   }, [stores, selectedStore, setSelectedStore])
+
+  const showAllOption = stores.length > 1
 
   if (isLoading) {
     return (
@@ -115,21 +127,25 @@ export function StoreSwitcher() {
               Mis Tiendas
             </DropdownMenuLabel>
             
-            {/* Opción: Todas las tiendas */}
-            <DropdownMenuItem
-              onClick={() => setSelectedStore("all")}
-              className="gap-2 p-2 cursor-pointer"
-            >
-              <div className="flex size-6 items-center justify-center rounded-sm border">
-                <Building2 className="size-4 shrink-0" />
-              </div>
-              <div className="flex flex-col flex-1">
-                <span className="text-sm font-medium">Todas las tiendas</span>
-                <span className="text-xs text-muted-foreground">Gestionar todas</span>
-              </div>
-            </DropdownMenuItem>
+            {/* Opción: Todas las tiendas (solo si hay más de una tienda) */}
+            {showAllOption && (
+              <>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStore("all")}
+                  className="gap-2 p-2 cursor-pointer"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-sm border">
+                    <Building2 className="size-4 shrink-0" />
+                  </div>
+                  <div className="flex flex-col flex-1">
+                    <span className="text-sm font-medium">Todas las tiendas</span>
+                    <span className="text-xs text-muted-foreground">Gestionar todas</span>
+                  </div>
+                </DropdownMenuItem>
 
-            <DropdownMenuSeparator />
+                <DropdownMenuSeparator />
+              </>
+            )}
 
             {/* Lista de tiendas individuales */}
             {stores.map((store) => (

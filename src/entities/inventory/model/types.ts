@@ -40,6 +40,11 @@ export interface InventoryQueryParams {
   value?: string;
   storeId?: string;
   categoryId?: string; // Filtrar por categoría
+  brandId?: string; // Filtrar por marca
+  minPrice?: number; // Precio mínimo (>= )
+  maxPrice?: number; // Precio máximo (<=)
+  inStock?: boolean; // Solo productos con stock disponible (> 0)
+  search?: string; // Búsqueda multi-campo (nombre, descripción, tags)
 }
 
 // Tipos de movimiento de inventario

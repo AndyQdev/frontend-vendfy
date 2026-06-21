@@ -19,6 +19,8 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { EmptyState } from "@/shared/ui/empty-state";
+import { Truck as TruckIcon, Package as PackageIcon, BarChart3 as ChartIcon, DollarSign as DollarIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,17 +152,33 @@ export function PurchaseOrdersTable() {
           </Table>
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-12 bg-card border rounded-lg">
-          <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No hay compras registradas</h3>
-          <p className="text-muted-foreground mb-4">
-            Registra tu primera compra por lote para controlar costos y stock.
-          </p>
-          <Button onClick={() => navigate("/purchases/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Compra
-          </Button>
-        </div>
+        <EmptyState
+          icon={TruckIcon}
+          title="Aún no registras compras"
+          description="Cada vez que reabasteces, registra la compra aquí. Así actualizas el stock automáticamente y mantienes el control de costos para tus reportes."
+          primaryAction={{
+            label: "Registrar compra",
+            icon: Plus,
+            onClick: () => navigate("/purchases/new"),
+          }}
+          faqs={[
+            {
+              icon: PackageIcon,
+              title: "¿Qué pasa con el stock?",
+              body: "Al confirmar una compra, las unidades entran al inventario automáticamente. No tienes que ajustar nada manualmente.",
+            },
+            {
+              icon: DollarIcon,
+              title: "¿Cómo afecta al costo?",
+              body: "El costo unitario de cada compra se promedia con el existente. Tu margen real se calcula con este costo.",
+            },
+            {
+              icon: ChartIcon,
+              title: "¿Aparece en reportes?",
+              body: "Sí. Cada compra queda en Movimientos y suma a tus estadísticas de gasto y rotación.",
+            },
+          ]}
+        />
       ) : (
         <div className="border rounded-lg">
           <Table>

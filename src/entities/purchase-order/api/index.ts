@@ -5,6 +5,7 @@ import type {
   CreatePurchaseOrderInput,
   PurchaseOrderQueryParams,
 } from "../model/types";
+import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
 export function usePurchaseOrders(params: PurchaseOrderQueryParams = {}) {
   const searchParams = new URLSearchParams();
@@ -49,7 +50,10 @@ export function useCreatePurchaseOrder() {
       });
       return response.data as PurchaseOrder;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      markOnboardingStep(ONBOARDING_STEPS.FIRST_PURCHASE);
+    },
   });
 }
 

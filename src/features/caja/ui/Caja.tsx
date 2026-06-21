@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
@@ -57,6 +58,7 @@ import { useCreateOrder, OrderType } from "@/entities/order";
 import { useStore } from "@/app/providers/auth";
 import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
+import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 
 // Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre
 const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => {
@@ -98,10 +100,12 @@ interface CartItem {
 export default function Caja() {
   // Ref para el observador de intersección
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { selectedStore } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   // Fetch de categorías del backend con filtro por tienda
   const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories(
@@ -607,7 +611,7 @@ export default function Caja() {
   };
 
   return (
-    <div className="relative h-[calc(100vh-2rem)] lg:h-[calc(100vh-2rem)] min-w-0 overflow-hidden">
+    <div className="relative h-[calc(100vh-5.5rem)] min-w-0 overflow-hidden">
       {/* Layout: Catálogo + Carrito */}
         <div className="grid h-full gap-4 grid-cols-1 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_420px]">
             <div className="flex flex-col gap-3 sm:gap-4 min-w-0 h-full overflow-hidden">
@@ -681,23 +685,33 @@ export default function Caja() {
                                     key={category.id}
                                     className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all ${
                                       isActive
-                                        ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-300 shadow-md'
-                                        : 'hover:border-emerald-200 shadow-sm'
+                                        ? 'bg-emerald-100 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800 shadow-md'
+                                        : 'hover:border-emerald-200 dark:hover:border-emerald-800 shadow-sm'
                                     }`}
                                     onClick={() => setSelectedCategory(category.id)}
                                   >
                                     <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
                                       <div className={`p-1.5 sm:p-2 rounded-lg ${
-                                        isActive ? 'bg-emerald-200/50' : 'bg-emerald-100/50'
+                                        isActive
+                                          ? 'bg-emerald-200/50 dark:bg-emerald-900/40'
+                                          : 'bg-emerald-100/50 dark:bg-emerald-900/20'
                                       }`}>
-                                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
                                       </div>
 
                                       <div className="w-full">
-                                        <span className="text-[10px] sm:text-xs font-semibold block truncate">
+                                        <span className={`text-[10px] sm:text-xs font-semibold block truncate ${
+                                          isActive
+                                            ? 'text-emerald-900 dark:text-emerald-100'
+                                            : 'text-foreground'
+                                        }`}>
                                           {category.name}
                                         </span>
-                                        <span className="text-[9px] sm:text-[10px] text-muted-foreground block mt-0.5">
+                                        <span className={`text-[9px] sm:text-[10px] block mt-0.5 ${
+                                          isActive
+                                            ? 'text-emerald-700/80 dark:text-emerald-300/80'
+                                            : 'text-muted-foreground'
+                                        }`}>
                                           {productCount} producto{productCount !== 1 ? 's' : ''}
                                         </span>
                                       </div>
@@ -705,6 +719,29 @@ export default function Caja() {
                                   </Card>
                                 );
                               })
+                            )}
+
+                            {/* Card "+" para crear nueva categoría */}
+                            {!categoriesLoading && (
+                              <Card
+                                className="shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all border-2 border-dashed border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-emerald-900/40 dark:hover:bg-emerald-950/20"
+                                onClick={() => setShowCategoryModal(true)}
+                                title="Crear nueva categoría"
+                              >
+                                <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
+                                  <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-100/60 dark:bg-emerald-900/30">
+                                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
+                                  </div>
+                                  <div className="w-full">
+                                    <span className="text-[10px] sm:text-xs font-semibold block truncate text-emerald-700 dark:text-emerald-300">
+                                      Nueva
+                                    </span>
+                                    <span className="text-[9px] sm:text-[10px] text-muted-foreground block mt-0.5">
+                                      categoría
+                                    </span>
+                                  </div>
+                                </div>
+                              </Card>
                             )}
                         </div>
 
@@ -739,13 +776,49 @@ export default function Caja() {
                   ))}
                 </div>
             ) : filteredProducts.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                    <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <p className="text-lg text-muted-foreground">No se encontraron productos</p>
-                    <p className="text-sm text-muted-foreground mt-1">Intenta con otro filtro o búsqueda</p>
-                </div>
-                </div>
+                (() => {
+                  const hasActiveFilters = !!debouncedSearch || selectedCategory !== "all" || showOnlyInStock;
+                  const isInventoryEmpty = !hasActiveFilters && allProducts.length === 0;
+
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center max-w-sm px-4">
+                        {isInventoryEmpty ? (
+                          <>
+                            <div className="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/20 w-fit mx-auto mb-4">
+                              <Package className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold mb-1.5">¡Empieza a vender ahora!</h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                              Aún no tienes productos en tu inventario. Crea tu primer producto para empezar a registrar ventas en la caja.
+                            </p>
+                            <Button
+                              onClick={() => navigate("/products/create")}
+                              size="lg"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Crear mi primer producto
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                            <p className="text-lg text-muted-foreground">No se encontraron productos</p>
+                            <p className="text-sm text-muted-foreground mt-1 mb-4">Intenta con otro filtro o búsqueda</p>
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate("/products/create")}
+                              className="border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Crear nuevo producto
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
             ) : (
                 <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-4">
                 {filteredProducts.map(product => {
@@ -843,9 +916,9 @@ export default function Caja() {
         </div>
 
         {/* Panel del Carrito */}
-        <div className="bg-white border-l rounded-tl-3xl rounded-bl-3xl overflow-hidden hidden lg:block relative">
+        <div className="bg-card text-card-foreground border-l border-border rounded-tl-3xl rounded-bl-3xl overflow-hidden hidden lg:block relative">
             {/* Tabs de tipo de venta - Pegados arriba */}
-            <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b px-2 pt-2 pb-1 rounded-tl-3xl">
+            <div className="absolute top-0 left-0 right-0 z-10 bg-card border-b border-border px-2 pt-2 pb-1 rounded-tl-3xl">
               <Tabs value={saleType} onValueChange={(value) => setSaleType(value as any)}>
                 <TabsList className="grid w-full grid-cols-3 h-9">
                   <TabsTrigger value="quick" className="text-xs px-2">
@@ -866,7 +939,7 @@ export default function Caja() {
             
             <div className="h-full flex flex-col overflow-hidden pt-12">
             {/* Header del carrito */}
-            <div className="px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-white">
+            <div className="px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-card">
                 {/* Select de cliente con botón de limpiar carrito */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -906,7 +979,7 @@ export default function Caja() {
             </div>
 
             {/* Items del carrito */}
-            <div className="flex-1 overflow-y-auto px-3 lg:px-4 bg-white">
+            <div className="flex-1 overflow-y-auto px-3 lg:px-4 bg-card">
                 {cart.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -994,9 +1067,9 @@ export default function Caja() {
             </div>
 
             {/* Resumen pegado abajo */}
-            <div className="bg-white p-3 lg:p-4 space-y-2 lg:space-y-2.5">
+            <div className="bg-card p-3 lg:p-4 space-y-2 lg:space-y-2.5">
                 {/* Card de totales con fondo gris pastel */}
-                <Card className="bg-slate-50/50 border-slate-200/50 p-3 space-y-1.5">
+                <Card className="bg-muted/40 dark:bg-muted/20 border-border p-3 space-y-1.5">
                 <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">Bs. {subtotal.toFixed(2)}</span>
@@ -1028,19 +1101,23 @@ export default function Caja() {
                         <Card
                         key={method.id}
                         className={`p-2.5 cursor-pointer transition-all ${
-                            isActive 
-                            ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700' 
-                            : 'hover:border-emerald-200 bg-card'
+                            isActive
+                            ? 'bg-emerald-100 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800'
+                            : 'hover:border-emerald-200 dark:hover:border-emerald-800 bg-card'
                         }`}
                         onClick={() => setPaymentMethod(method.id)}
                         >
                         <div className="flex flex-col items-center gap-1.5 text-center">
                             <div className={`p-1.5 rounded-lg ${
-                            isActive ? 'bg-emerald-200/50 dark:bg-emerald-900/50' : 'bg-emerald-100/50 dark:bg-emerald-900/30'
+                            isActive ? 'bg-emerald-200/50 dark:bg-emerald-900/40' : 'bg-emerald-100/50 dark:bg-emerald-900/20'
                             }`}>
                             <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                             </div>
-                            <span className="text-[10px] font-medium">
+                            <span className={`text-[10px] font-medium ${
+                              isActive
+                                ? 'text-emerald-900 dark:text-emerald-100'
+                                : 'text-foreground'
+                            }`}>
                             {method.name}
                             </span>
                         </div>
@@ -1102,6 +1179,12 @@ export default function Caja() {
         onSave={handleCreateClient}
         isCreating={createCustomerMutation.isPending}
         initialName={prefilledClientName}
+      />
+
+      {/* Modal de crear categoría (acceso rápido desde la caja) */}
+      <CreateCategoryModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
       />
       
       {/* Modal de Venta a Cuotas */}

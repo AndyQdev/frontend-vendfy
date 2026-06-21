@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/shared/api/client";
 import type { Product, ProductsResponse, ProductQueryParams, Category, Brand } from "../model/types";
 import type { ProductInput } from "../model/schema";
+import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
 export function useProducts(params: ProductQueryParams = {}) {
   const queryParams = new URLSearchParams();
@@ -15,6 +16,7 @@ export function useProducts(params: ProductQueryParams = {}) {
   }
   if (params.categoryId) queryParams.append('categoryId', params.categoryId);
   if (params.brandId) queryParams.append('brandId', params.brandId);
+  if (params.storeId && params.storeId !== 'all') queryParams.append('storeId', params.storeId);
 
   return useQuery<ProductsResponse>({
     queryKey: ["products", params],
@@ -76,7 +78,10 @@ export function useCreateProduct() {
       const response = await apiFetch<Product>("/api/product", { method: "POST", body: data });
       return response.data as Product;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      markOnboardingStep(ONBOARDING_STEPS.FIRST_PRODUCT);
+    },
   });
 }
 

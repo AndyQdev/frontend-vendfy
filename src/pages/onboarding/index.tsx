@@ -44,6 +44,7 @@ import { useTheme } from "@/app/providers/theme";
 import { useAuth } from "@/app/providers/auth";
 import { useCreateStore, useUpdateStore } from "@/entities/store/api";
 import { apiFetch } from "@/shared/api/client";
+import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
 
 const TOTAL_STEPS = 3;
@@ -343,9 +344,14 @@ export default function OnboardingPage() {
         });
       }
       await apiFetch("/api/user/finish-onboarding", { method: "POST" });
+      // Marcar pasos 1 (tienda creada) y 5 (personalización) automáticamente
+      await markOnboardingStep(ONBOARDING_STEPS.STORE_CREATED);
+      if (data.logoUrl || data.bannerUrl || data.heroTitle) {
+        await markOnboardingStep(ONBOARDING_STEPS.STORE_PERSONALIZED);
+      }
       await refreshUser();
-      toast.success("¡Todo listo! Bienvenido a Vendfy 🎉");
-      navigate("/caja", { replace: true });
+      toast.success("¡Tu tienda está lista! Ahora agreguemos tu primer producto 🎉");
+      navigate("/products?welcome=1", { replace: true });
     } catch {
       toast.error("No pudimos finalizar. Intenta de nuevo");
     } finally {

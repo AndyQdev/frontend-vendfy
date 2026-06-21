@@ -27,6 +27,7 @@ import {
 import {
   ArrowLeft,
   Plus,
+  Minus,
   Trash2,
   Save,
   CheckCircle,
@@ -34,13 +35,14 @@ import {
   ShoppingBag,
   Loader2,
   Package,
-  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface PurchaseItem {
   productId: string;
   productName: string;
+  productImage?: string;
+  productSku?: string;
   quantity: number;
   unitCost: number;
 }
@@ -77,17 +79,28 @@ export function PurchaseOrderCreate() {
   const addedIds = new Set(items.map(i => i.productId));
   const filteredProducts = allProducts.filter(p => !addedIds.has(p.id));
 
-  const toggleProduct = (product: { id: string; name: string }) => {
+  const toggleProduct = (product: { id: string; name: string; sku?: string; imageUrls?: string[] }) => {
     if (addedIds.has(product.id)) {
       setItems(prev => prev.filter(i => i.productId !== product.id));
     } else {
       setItems(prev => [...prev, {
         productId: product.id,
         productName: product.name,
+        productImage: product.imageUrls?.[0],
+        productSku: product.sku,
         quantity: 1,
         unitCost: 0,
       }]);
     }
+  };
+
+  const adjustQuantity = (index: number, delta: number) => {
+    setItems(prev => {
+      const updated = [...prev];
+      const next = Math.max(1, (updated[index].quantity || 0) + delta);
+      updated[index] = { ...updated[index], quantity: next };
+      return updated;
+    });
   };
 
   const updateItem = (index: number, field: keyof PurchaseItem, value: any) => {
@@ -229,12 +242,10 @@ export function PurchaseOrderCreate() {
                 <Input value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} placeholder="FAC-001234" className="h-9 mt-1" />
               </div>
             </div>
-            {notes || true ? (
-              <div className="mt-3">
-                <Label className="text-xs">Notas</Label>
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." rows={2} className="mt-1" />
-              </div>
-            ) : null}
+            <div className="mt-3">
+              <Label className="text-xs">Notas</Label>
+              <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." rows={2} className="mt-1" />
+            </div>
           </Card>
 
           {/* Items Table */}
@@ -242,60 +253,149 @@ export function PurchaseOrderCreate() {
             <Card className="overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="w-[60px]"></TableHead>
                     <TableHead>Producto</TableHead>
-                    <TableHead className="w-[100px]">Cantidad</TableHead>
-                    <TableHead className="w-[130px]">Costo Unit. (Bs)</TableHead>
-                    <TableHead className="w-[100px]">Subtotal</TableHead>
+                    <TableHead className="w-[170px] text-center">Cantidad</TableHead>
+                    <TableHead className="w-[140px] text-right">Costo unit.</TableHead>
+                    <TableHead className="w-[120px] text-right">Subtotal</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => (
-                    <TableRow key={item.productId}>
-                      <TableCell className="font-medium">{item.productName}</TableCell>
+                    <TableRow key={item.productId} className="align-middle">
+                      {/* Imagen */}
                       <TableCell>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={e => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
-                          className="h-8 w-20"
-                        />
+                        {item.productImage ? (
+                          <img
+                            src={item.productImage}
+                            alt={item.productName}
+                            className="h-11 w-11 rounded-md object-cover border"
+                          />
+                        ) : (
+                          <div className="h-11 w-11 rounded-md bg-muted border flex items-center justify-center">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
                       </TableCell>
+
+                      {/* Nombre + SKU */}
                       <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={item.unitCost}
-                          onChange={e => updateItem(index, "unitCost", parseFloat(e.target.value) || 0)}
-                          className="h-8 w-28"
-                        />
+                        <p className="font-medium leading-tight line-clamp-2">
+                          {item.productName}
+                        </p>
+                        {item.productSku && (
+                          <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                            {item.productSku}
+                          </p>
+                        )}
                       </TableCell>
-                      <TableCell className="font-semibold">
+
+                      {/* Cantidad con stepper */}
+                      <TableCell>
+                        <div className="inline-flex items-center rounded-md border border-input bg-background mx-auto">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-r-none"
+                            onClick={() => adjustQuantity(index, -1)}
+                            disabled={item.quantity <= 1}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItem(
+                                index,
+                                "quantity",
+                                Math.max(1, parseInt(e.target.value) || 1),
+                              )
+                            }
+                            className="h-8 w-14 border-0 text-center px-1 focus-visible:ring-0 focus-visible:border-0"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-l-none"
+                            onClick={() => adjustQuantity(index, 1)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+
+                      {/* Costo unitario */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="text-xs text-muted-foreground">Bs.</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={item.unitCost || ""}
+                            onChange={(e) =>
+                              updateItem(
+                                index,
+                                "unitCost",
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
+                            placeholder="0.00"
+                            className="h-8 w-24 text-right"
+                          />
+                        </div>
+                      </TableCell>
+
+                      {/* Subtotal */}
+                      <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
                         Bs. {(item.quantity * item.unitCost).toFixed(2)}
                       </TableCell>
+
+                      {/* Eliminar */}
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(index)}>
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => removeItem(index)}
+                          title="Quitar producto"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {/* Total row */}
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
-                    <TableCell className="font-bold text-red-600">Bs. {total.toFixed(2)}</TableCell>
-                    <TableCell />
-                  </TableRow>
                 </TableBody>
               </Table>
+
+              {/* Footer con total destacado */}
+              <div className="flex items-center justify-between gap-4 border-t bg-muted/30 px-4 py-3">
+                <div className="text-sm text-muted-foreground">
+                  {items.length} producto{items.length !== 1 ? "s" : ""} •{" "}
+                  {items.reduce((s, i) => s + i.quantity, 0)} unidad
+                  {items.reduce((s, i) => s + i.quantity, 0) !== 1 ? "es" : ""}
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Total a pagar</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    Bs. {total.toFixed(2)}
+                  </p>
+                </div>
+              </div>
             </Card>
           ) : (
-            <Card className="p-8 text-center text-muted-foreground">
-              <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p>Selecciona productos de la lista izquierda</p>
+            <Card className="p-12 text-center text-muted-foreground border-dashed">
+              <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">Sin productos seleccionados</p>
+              <p className="text-sm mt-1">
+                Selecciona productos de la lista de la izquierda para empezar
+              </p>
             </Card>
           )}
 
