@@ -18,6 +18,10 @@ export default {
   		}
   	},
   	extend: {
+  		fontFamily: {
+  			sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+  			display: ['Sora', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif']
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
@@ -26,7 +30,27 @@ export default {
   			foreground: 'hsl(var(--foreground))',
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
+  				foreground: 'hsl(var(--primary-foreground))',
+  				soft: 'hsl(var(--primary-soft))',
+  				'soft-foreground': 'hsl(var(--primary-soft-foreground))'
+  			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))',
+  				soft: 'hsl(var(--success-soft))',
+  				'soft-foreground': 'hsl(var(--success-soft-foreground))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))',
+  				soft: 'hsl(var(--warning-soft))',
+  				'soft-foreground': 'hsl(var(--warning-soft-foreground))'
+  			},
+  			info: {
+  				DEFAULT: 'hsl(var(--info))',
+  				foreground: 'hsl(var(--info-foreground))',
+  				soft: 'hsl(var(--info-soft))',
+  				'soft-foreground': 'hsl(var(--info-soft-foreground))'
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',

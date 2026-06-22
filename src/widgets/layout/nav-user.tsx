@@ -41,7 +41,7 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+                <AvatarFallback className="rounded-lg bg-primary-soft text-primary-soft-foreground text-xs font-semibold">
                   {user.name?.slice(0, 2).toUpperCase() || "US"}
                 </AvatarFallback>
               </Avatar>

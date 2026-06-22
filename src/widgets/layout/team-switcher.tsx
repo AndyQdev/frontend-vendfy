@@ -103,8 +103,11 @@ export function StoreSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white/10">
-                <VendfyIcon size={28} dark />
+              <div
+                className="flex aspect-square size-9 items-center justify-center rounded-[12px] ring-[3px] ring-primary/15 shadow-[0_8px_22px_-8px_rgba(11,185,129,0.8),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                style={{ background: "var(--primary-grad)" }}
+              >
+                <VendfyIcon size={26} dark />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">

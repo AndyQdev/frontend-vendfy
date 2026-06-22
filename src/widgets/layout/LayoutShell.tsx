@@ -63,8 +63,8 @@ export default function LayoutShell() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="main-content-bg">
-        {/* Header sticky siempre visible */}
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md shadow-[0_1px_0_0_hsl(var(--border)/0.4)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        {/* Header sticky: card flotante redondeada glass (estilo dental) */}
+        <header className="glass sticky top-0 z-30 mb-0 ml-2 mr-3 mt-3 flex h-14 shrink-0 items-center gap-2 rounded-[20px] px-3 transition-[width,height] ease-linear md:mr-5 md:px-4">
             <div className="flex items-center gap-2 px-4 flex-1">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -147,7 +147,8 @@ export default function LayoutShell() {
         {/* Main content area con overflow y padding superior */}
         <main className="flex-1 min-w-0 overflow-auto">
           <div
-            className={`flex flex-1 min-w-0 flex-col gap-4 ${
+            key={location.pathname}
+            className={`screen-in flex flex-1 min-w-0 flex-col gap-4 ${
               isCajaPage ? 'p-4' : 'p-4 pt-6'
             }`}
           >

@@ -68,9 +68,7 @@ export function NavMain({ sections, items }: NavMainProps) {
                   onClick={() => toggleItem(item.title)}
                   className="flex items-center transition-all duration-200"
                 >
-                  {item.icon && (
-                    <item.icon className={isActive ? "text-emerald-500 dark:text-emerald-400" : ""} />
-                  )}
+                  {item.icon && <item.icon />}
                   <span className="flex-1">{item.title}</span>
                   {item.badge && (
                     <span className="ml-auto text-[0.65rem] font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">

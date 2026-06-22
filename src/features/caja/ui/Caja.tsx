@@ -685,31 +685,38 @@ export default function Caja() {
                                     key={category.id}
                                     className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all ${
                                       isActive
-                                        ? 'bg-emerald-100 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800 shadow-md'
-                                        : 'hover:border-emerald-200 dark:hover:border-emerald-800 shadow-sm'
+                                        ? 'bg-primary-soft border-primary/30 ring-1 ring-primary/15 shadow-md'
+                                        : 'hover:border-primary/30 shadow-sm'
                                     }`}
                                     onClick={() => setSelectedCategory(category.id)}
                                   >
                                     <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
-                                      <div className={`p-1.5 sm:p-2 rounded-lg ${
-                                        isActive
-                                          ? 'bg-emerald-200/50 dark:bg-emerald-900/40'
-                                          : 'bg-emerald-100/50 dark:bg-emerald-900/20'
-                                      }`}>
-                                        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
+                                      <div
+                                        className={`p-1.5 sm:p-2 rounded-[11px] ${
+                                          isActive
+                                            ? 'shadow-[0_6px_14px_-5px_rgba(11,185,129,0.95)]'
+                                            : 'bg-primary/10'
+                                        }`}
+                                        style={isActive ? { background: 'var(--primary-grad)' } : undefined}
+                                      >
+                                        <Icon
+                                          className={`h-4 w-4 sm:h-5 sm:w-5 ${
+                                            isActive ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'
+                                          }`}
+                                        />
                                       </div>
 
                                       <div className="w-full">
                                         <span className={`text-[10px] sm:text-xs font-semibold block truncate ${
                                           isActive
-                                            ? 'text-emerald-900 dark:text-emerald-100'
+                                            ? 'text-primary-soft-foreground'
                                             : 'text-foreground'
                                         }`}>
                                           {category.name}
                                         </span>
                                         <span className={`text-[9px] sm:text-[10px] block mt-0.5 ${
                                           isActive
-                                            ? 'text-emerald-700/80 dark:text-emerald-300/80'
+                                            ? 'text-primary-soft-foreground/80'
                                             : 'text-muted-foreground'
                                         }`}>
                                           {productCount} producto{productCount !== 1 ? 's' : ''}
@@ -854,7 +861,7 @@ export default function Caja() {
                         {product.name}
                         </h3>
                         <div className="space-y-0.5">
-                          <p className="text-xl font-bold text-emerald-600">
+                          <p className="font-display text-xl font-bold text-emerald-600">
                             Bs. {product.price.toFixed(2)}
                           </p>
                           <p className={`text-[10px] font-medium ${stockInfo.textColor}`}>
@@ -918,7 +925,7 @@ export default function Caja() {
         {/* Panel del Carrito */}
         <div className="bg-card text-card-foreground border-l border-border rounded-tl-3xl rounded-bl-3xl overflow-hidden hidden lg:block relative">
             {/* Tabs de tipo de venta - Pegados arriba */}
-            <div className="absolute top-0 left-0 right-0 z-10 bg-card border-b border-border px-2 pt-2 pb-1 rounded-tl-3xl">
+            <div className="absolute top-0 left-0 right-0 z-10 bg-transparent border-b border-border px-2 pt-2 pb-1 rounded-tl-3xl">
               <Tabs value={saleType} onValueChange={(value) => setSaleType(value as any)}>
                 <TabsList className="grid w-full grid-cols-3 h-9">
                   <TabsTrigger value="quick" className="text-xs px-2">
@@ -939,7 +946,7 @@ export default function Caja() {
             
             <div className="h-full flex flex-col overflow-hidden pt-12">
             {/* Header del carrito */}
-            <div className="px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-card">
+            <div className="px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-transparent">
                 {/* Select de cliente con botón de limpiar carrito */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -979,7 +986,7 @@ export default function Caja() {
             </div>
 
             {/* Items del carrito */}
-            <div className="flex-1 overflow-y-auto px-3 lg:px-4 bg-card">
+            <div className="flex-1 overflow-y-auto px-3 lg:px-4 bg-transparent">
                 {cart.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -1055,7 +1062,7 @@ export default function Caja() {
                         
                         {/* Precio total del item */}
                         <div className="text-right shrink-0">
-                        <p className="font-bold text-sm text-emerald-600">
+                        <p className="font-display font-bold text-sm text-emerald-600">
                             Bs. {(item.price * item.quantity).toFixed(2)}
                         </p>
                         </div>
@@ -1067,7 +1074,7 @@ export default function Caja() {
             </div>
 
             {/* Resumen pegado abajo */}
-            <div className="bg-card p-3 lg:p-4 space-y-2 lg:space-y-2.5">
+            <div className="bg-transparent p-3 lg:p-4 space-y-2 lg:space-y-2.5">
                 {/* Card de totales con fondo gris pastel */}
                 <Card className="bg-muted/40 dark:bg-muted/20 border-border p-3 space-y-1.5">
                 <div className="flex justify-between text-xs">
@@ -1084,7 +1091,7 @@ export default function Caja() {
                 
                 <div className="flex justify-between items-center pt-1">
                     <span className="text-sm font-bold">Total</span>
-                    <span className="text-xl font-bold">
+                    <span className="font-display text-2xl font-bold text-emerald-600">
                     Bs. {total.toFixed(2)}
                     </span>
                 </div>
@@ -1102,20 +1109,23 @@ export default function Caja() {
                         key={method.id}
                         className={`p-2.5 cursor-pointer transition-all ${
                             isActive
-                            ? 'bg-emerald-100 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800'
-                            : 'hover:border-emerald-200 dark:hover:border-emerald-800 bg-card'
+                            ? 'bg-primary-soft border-primary/30 ring-1 ring-primary/15'
+                            : 'hover:border-primary/30 bg-card'
                         }`}
                         onClick={() => setPaymentMethod(method.id)}
                         >
                         <div className="flex flex-col items-center gap-1.5 text-center">
-                            <div className={`p-1.5 rounded-lg ${
-                            isActive ? 'bg-emerald-200/50 dark:bg-emerald-900/40' : 'bg-emerald-100/50 dark:bg-emerald-900/20'
-                            }`}>
-                            <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <div
+                              className={`p-1.5 rounded-[11px] ${
+                                isActive ? 'shadow-[0_6px_14px_-5px_rgba(11,185,129,0.95)]' : 'bg-primary/10'
+                              }`}
+                              style={isActive ? { background: 'var(--primary-grad)' } : undefined}
+                            >
+                            <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
                             </div>
                             <span className={`text-[10px] font-medium ${
                               isActive
-                                ? 'text-emerald-900 dark:text-emerald-100'
+                                ? 'text-primary-soft-foreground'
                                 : 'text-foreground'
                             }`}>
                             {method.name}
@@ -1127,9 +1137,10 @@ export default function Caja() {
                 </div>
                 </div>
 
-                {/* Botón finalizar */}
+                {/* Botón finalizar — CTA esmeralda */}
                 <Button
-                className="w-full h-11 text-sm font-bold"
+                className="w-full h-11 text-sm font-bold text-white border-0 shadow-[var(--cta-shadow)] transition-all hover:brightness-105 hover:-translate-y-px disabled:opacity-60"
+                style={{ background: "var(--primary-grad)" }}
                 size="lg"
                 onClick={finalizeSale}
                 disabled={cart.length === 0}
@@ -1202,9 +1213,9 @@ export default function Caja() {
           
           <div className="space-y-4 py-4">
             {/* Total */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+            <div className="bg-primary-soft border border-primary/20 rounded-lg p-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-emerald-900">Total del pedido</span>
+                <span className="text-sm font-medium text-primary-soft-foreground">Total del pedido</span>
                 <span className="text-xl font-bold text-emerald-600">Bs. {total.toFixed(2)}</span>
               </div>
             </div>
@@ -1245,7 +1256,7 @@ export default function Caja() {
             </div>
             
             {/* Monto por Cuota */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <div className="bg-muted border border-border rounded-lg p-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Monto por cuota</span>
                 <span className="text-lg font-bold">Bs. {installmentData.installmentAmount}</span>
@@ -1294,8 +1305,8 @@ export default function Caja() {
 
           <div className="space-y-4 py-2">
             {/* Total */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
-              <span className="text-sm font-medium text-emerald-900">Total del pedido</span>
+            <div className="bg-primary-soft border border-primary/20 rounded-lg p-3 flex justify-between items-center">
+              <span className="text-sm font-medium text-primary-soft-foreground">Total del pedido</span>
               <span className="text-lg font-bold text-emerald-600">Bs. {total.toFixed(2)}</span>
             </div>
 
@@ -1361,13 +1372,13 @@ export default function Caja() {
 
             {/* Delivery cost info by type */}
             {deliveryType === "free" && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
+              <div className="bg-primary-soft border border-primary/20 rounded-lg p-3 flex justify-between items-center">
                 <span className="text-sm font-semibold text-emerald-800">Envío gratuito</span>
                 <span className="font-bold text-emerald-600">Bs. 0</span>
               </div>
             )}
             {deliveryType === "fixed" && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between items-center">
+              <div className="bg-muted border border-border rounded-lg p-3 flex justify-between items-center">
                 <span className="text-sm font-semibold">Costo fijo de envío</span>
                 <span className="font-bold text-emerald-600">Bs. {(deliveryConfig?.value ?? 0).toFixed(2)}</span>
               </div>
@@ -1379,7 +1390,7 @@ export default function Caja() {
               </div>
             )}
             {deliveryType === "calculated" && deliveryDistance != null && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div className="bg-muted border border-border rounded-lg p-3">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-semibold">Costo calculado</p>
@@ -1398,7 +1409,7 @@ export default function Caja() {
             </div>
 
             {/* Summary */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
+            <div className="bg-muted border border-border rounded-lg p-3 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>Bs. {total.toFixed(2)}</span>
