@@ -6,7 +6,7 @@
   /* =====================================================================
      VENDFY — Glass Esmeralda
      · Azul marino = --primary (botones / texto fuerte)   HSL 222 47% 16%
-     · Verde esmeralda = ACENTO único (activos, badges, CTAs, glass)  #10B981
+     · Cian = ACENTO único (activos, badges, CTAs, glass)  #06B6D4
      Tokens shadcn (HSL) + tokens "raw" de glass (rgba/gradiente) para
      superficies translúcidas. Light en :root, dark en .dark.
      ===================================================================== */
@@ -24,15 +24,15 @@
     /* 🔵 Primario — azul marino (botones, texto de cabecera) */
     --primary: 222 47% 16%;
     --primary-foreground: 210 40% 98%;
-    --primary-soft: 161 60% 92%;        /* pill esmeralda suave */
-    --primary-soft-foreground: 161 92% 24%;
+    --primary-soft: 185 90% 90%;        /* pill cian suave */
+    --primary-soft-foreground: 193 88% 26%;
 
     --secondary: 158 20% 93%;
     --secondary-foreground: 162 40% 14%;
 
-    /* 🟢 Acento — esmeralda (hover, estados activos, selección) */
-    --accent: 161 55% 93%;
-    --accent-foreground: 161 88% 22%;
+    /* 🩵 Acento — cian (hover, estados activos, selección) */
+    --accent: 186 75% 92%;
+    --accent-foreground: 193 86% 26%;
 
     --muted: 158 18% 93%;
     --muted-foreground: 162 9% 43%;
@@ -58,13 +58,13 @@
 
     --border: 156 16% 89%;
     --input: 156 16% 89%;
-    --ring: 161 89% 38%;                /* foco esmeralda */
+    --ring: 189 94% 43%;                /* foco cian */
 
-    --radius: 0.8125rem;               /* 13px — look dental */
+    --radius: 1rem;                    /* 16px — look Liquid Glass iOS */
 
     /* Charts */
     --chart-1: 222 47% 16%;            /* azul marino */
-    --chart-2: 161 89% 38%;            /* esmeralda */
+    --chart-2: 189 94% 43%;            /* cian */
     --chart-3: 216 90% 60%;            /* azul */
     --chart-4: 45 93% 47%;             /* ámbar */
     --chart-5: 250 80% 66%;            /* violeta */
@@ -72,36 +72,62 @@
     /* ===== Sidebar — panel CLARO glass (era navy) ===== */
     --sidebar-background: 0 0% 100%;    /* translúcido vía --side-bg + blur */
     --sidebar-foreground: 162 12% 40%;
-    --sidebar-primary: 161 89% 38%;
+    --sidebar-primary: 189 94% 43%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 161 60% 93%;      /* fondo item activo (esmeralda soft) */
-    --sidebar-accent-foreground: 161 84% 22%;
+    --sidebar-accent: 186 80% 91%;      /* fondo item activo (cian soft) */
+    --sidebar-accent-foreground: 193 86% 27%;
     --sidebar-border: 156 16% 90%;
-    --sidebar-ring: 161 89% 38%;
+    --sidebar-ring: 189 94% 43%;
 
     /* ===== Tokens raw del design system (glass / gradiente) ===== */
-    /* Color de fondo + tinte de esquina difuso (más tono, menos "mancha"). */
+    /* Fondo ANTERIOR (Glass Esmeralda con blobs) — conservado por si se
+       quiere volver: descomentar este y comentar el nuevo.
     --app-bg:
-      radial-gradient(85% 80% at 0% 0%, rgba(16,185,129,0.13), transparent 68%),
+      radial-gradient(85% 80% at 0% 0%, rgba(6,182,212,0.13), transparent 68%),
       radial-gradient(85% 80% at 100% 100%, rgba(30,58,138,0.09), transparent 68%),
-      linear-gradient(135deg, #e8f2ed 0%, #dfeae5 48%, #d7e5ea 100%);
+      linear-gradient(135deg, #e8f2f2 0%, #dfeaea 48%, #d7e5ea 100%);
+    */
+    /* Fondo iOS 26 gris frío ANTERIOR — comentado por si se quiere volver:
+    --app-bg: radial-gradient(115% 85% at 50% 0%, #ccd1d7 0%, #b9bfc7 55%, #a8afb8 100%);
+    */
+    /* Fondo "Caja Glass": base cálida #c9c7c2 con manchas de luz muy difusas
+       (como el mockup) — vivo, natural, y hace resaltar el vidrio. */
+    --app-bg:
+      radial-gradient(60% 55% at 12% 8%, rgba(239,236,229,0.6), transparent 70%),
+      radial-gradient(55% 50% at 88% 16%, rgba(183,195,198,0.5), transparent 70%),
+      radial-gradient(50% 45% at 40% 96%, rgba(214,207,196,0.55), transparent 72%),
+      linear-gradient(180deg, #cfcdc8 0%, #c9c7c2 100%);
 
     --glass-bg: rgba(255,255,255,0.52);
     --glass-2: rgba(255,255,255,0.42);
     --glass-bd: rgba(255,255,255,0.85);
-    --glass-shadow: 0 18px 44px -20px rgba(31,42,40,0.18), inset 0 1px 0 rgba(255,255,255,0.95);
+
+    /* ===== Liquid Glass (iOS): tinte degradado + sombras con luz interior ===== */
+    --ease: cubic-bezier(0.22, 0.9, 0.3, 1);
+    --glass-tint: linear-gradient(155deg, rgba(255,255,255,0.66), rgba(255,255,255,0.38) 44%, rgba(255,255,255,0.56));
+    --glass-shadow: 0 22px 48px -20px rgba(31,42,40,0.22), 0 6px 16px -8px rgba(31,42,40,0.12), inset 0 1.2px 1.2px rgba(255,255,255,0.95), inset 0 -14px 26px -20px rgba(255,255,255,0.7);
+    --glass-shadow-sm: 0 12px 26px -12px rgba(31,42,40,0.2), 0 3px 8px -4px rgba(31,42,40,0.1), inset 0 1px 1px rgba(255,255,255,0.9);
+    --glass-shadow-hover: 0 30px 58px -20px rgba(31,42,40,0.28), 0 10px 22px -8px rgba(31,42,40,0.14), inset 0 1px 1.4px rgba(255,255,255,1);
+    --chip-bg: linear-gradient(150deg, rgba(255,255,255,0.8), rgba(255,255,255,0.42));
+    --chip-shadow: inset 0 1px 1px rgba(255,255,255,0.95), 0 4px 10px -6px rgba(31,42,40,0.35);
+    --field-bg: linear-gradient(150deg, rgba(255,255,255,0.62), rgba(255,255,255,0.34));
+    --field-shadow: inset 0 1px 1.2px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(11,40,33,0.04), 0 4px 10px -8px rgba(31,42,40,0.3);
+    --track-bg: rgba(11,40,33,0.07);
+    --track-shadow: inset 0 1px 2px rgba(11,40,33,0.12);
+    --side-active-bg: linear-gradient(150deg, rgba(255,255,255,0.88), rgba(190,246,250,0.45));
     --hairline: rgba(11,40,33,0.09);
     --hairline-strong: rgba(11,40,33,0.14);
     --header-bg: rgba(255,255,255,0.5);
     --chip: rgba(255,255,255,0.7);
     --solid: #ffffff;
-    --primary-grad: linear-gradient(135deg, #0bb981 0%, #0d9488 100%);
-    --blob-a: rgba(11,185,129,0.07);    /* esmeralda */
+    --primary-grad: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    --blob-a: rgba(6,182,212,0.10);     /* cian */
     --blob-b: rgba(30,58,138,0.16);     /* azul marino */
-    --cta-shadow: 0 12px 26px -12px rgba(11,185,129,0.8);
+    --cta-shadow: 0 12px 26px -12px rgba(6,182,212,0.8);
 
     /* Sidebar — película blanca translúcida sobre el degradado */
     --side-bg: rgba(255,255,255,0.55);
+    --side-active-fg: #0b6378;          /* texto item activo (cian oscuro) */
     --icon-rest-bg: rgba(11,40,33,0.05);
     --side-hover-bg: rgba(11,40,33,0.045);
   }
@@ -119,14 +145,14 @@
     /* 🔵 Botones claros en dark (contraste) */
     --primary: 210 40% 98%;
     --primary-foreground: 222 47% 7%;
-    --primary-soft: 158 50% 18%;
-    --primary-soft-foreground: 158 70% 72%;
+    --primary-soft: 192 80% 18%;
+    --primary-soft-foreground: 187 80% 72%;
 
     --secondary: 222 30% 16%;
     --secondary-foreground: 156 35% 93%;
 
     --accent: 222 32% 18%;
-    --accent-foreground: 158 64% 62%;
+    --accent-foreground: 187 80% 62%;
 
     --muted: 222 30% 16%;
     --muted-foreground: 162 12% 66%;
@@ -151,11 +177,11 @@
 
     --border: 220 14% 24%;
     --input: 220 14% 24%;
-    --ring: 158 64% 52%;
+    --ring: 187 85% 53%;
 
     /* Charts */
     --chart-1: 210 40% 98%;
-    --chart-2: 158 64% 52%;
+    --chart-2: 187 85% 53%;
     --chart-3: 216 85% 66%;
     --chart-4: 45 93% 47%;
     --chart-5: 250 80% 72%;
@@ -163,33 +189,57 @@
     /* Sidebar dark glass */
     --sidebar-background: 222 40% 9%;
     --sidebar-foreground: 162 12% 66%;
-    --sidebar-primary: 158 64% 52%;
-    --sidebar-primary-foreground: 162 70% 6%;
-    --sidebar-accent: 158 45% 18%;
-    --sidebar-accent-foreground: 158 70% 80%;
+    --sidebar-primary: 187 85% 53%;
+    --sidebar-primary-foreground: 192 90% 8%;
+    --sidebar-accent: 192 70% 18%;
+    --sidebar-accent-foreground: 187 80% 80%;
     --sidebar-border: 222 24% 18%;
-    --sidebar-ring: 158 64% 52%;
+    --sidebar-ring: 187 85% 53%;
 
-    /* raw dark — color de fondo + tinte de esquina difuso */
+    /* Fondo dark ANTERIOR (tintes cian/navy) — conservado por si se quiere
+       volver: descomentar este y comentar el nuevo.
     --app-bg:
-      radial-gradient(85% 80% at 0% 0%, rgba(16,185,129,0.12), transparent 68%),
+      radial-gradient(85% 80% at 0% 0%, rgba(6,182,212,0.12), transparent 68%),
       radial-gradient(90% 85% at 100% 0%, rgba(30,58,138,0.16), transparent 68%),
       linear-gradient(180deg, #070d18 0%, #060b14 100%);
+    */
+    /* Fondo dark casi negro ANTERIOR — comentado por si se quiere volver:
+    --app-bg: radial-gradient(115% 85% at 50% 0%, #16181d 0%, #0d0f13 55%, #08090b 100%);
+    */
+    /* Fondo dark "Liquid Glass": gris pizarra vivo (familia #6f757e del
+       mockup) con luz difusa — el vidrio oscuro resalta mucho más. */
+    --app-bg:
+      radial-gradient(60% 55% at 12% 8%, rgba(143,149,157,0.35), transparent 70%),
+      radial-gradient(55% 50% at 88% 16%, rgba(93,104,112,0.45), transparent 70%),
+      linear-gradient(180deg, #565b63 0%, #474c54 55%, #3d424a 100%);
     --glass-bg: rgba(255,255,255,0.06);
     --glass-2: rgba(255,255,255,0.04);
     --glass-bd: rgba(255,255,255,0.16);
-    --glass-shadow: 0 24px 60px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.22);
+
+    /* ===== Liquid Glass dark ===== */
+    --glass-tint: linear-gradient(155deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04) 44%, rgba(255,255,255,0.08));
+    --glass-shadow: 0 26px 60px -24px rgba(0,0,0,0.65), 0 8px 18px -8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.22), inset 0 -14px 26px -20px rgba(255,255,255,0.07);
+    --glass-shadow-sm: 0 12px 28px -12px rgba(0,0,0,0.55), 0 3px 8px -4px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.18);
+    --glass-shadow-hover: 0 32px 64px -22px rgba(0,0,0,0.7), 0 10px 22px -8px rgba(0,0,0,0.45), inset 0 1px 1.2px rgba(255,255,255,0.3);
+    --chip-bg: linear-gradient(150deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+    --chip-shadow: inset 0 1px 1px rgba(255,255,255,0.22), 0 4px 10px -6px rgba(0,0,0,0.5);
+    --field-bg: linear-gradient(150deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035));
+    --field-shadow: inset 0 1px 1px rgba(255,255,255,0.14), inset 0 -1px 1px rgba(0,0,0,0.2), 0 4px 10px -8px rgba(0,0,0,0.4);
+    --track-bg: rgba(255,255,255,0.07);
+    --track-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+    --side-active-bg: linear-gradient(150deg, rgba(34,211,238,0.18), rgba(34,211,238,0.06));
     --hairline: rgba(255,255,255,0.09);
     --hairline-strong: rgba(255,255,255,0.16);
     --header-bg: rgba(9,15,25,0.4);
     --chip: rgba(255,255,255,0.06);
-    --solid: #101d33;
-    --primary-grad: linear-gradient(135deg, #34d399 0%, #0d9488 100%);
-    --blob-a: rgba(16,185,129,0.08);
+    --solid: #15171c; /* neutro iOS (antes #101d33 navy, a juego con el fondo viejo) */
+    --primary-grad: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+    --blob-a: rgba(6,182,212,0.10);
     --blob-b: rgba(30,58,138,0.24);
-    --cta-shadow: 0 12px 26px -12px rgba(16,185,129,0.6);
+    --cta-shadow: 0 12px 26px -12px rgba(34,211,238,0.6);
 
     --side-bg: rgba(255,255,255,0.05);
+    --side-active-fg: #c2f5ff;          /* texto item activo (cian claro) */
     --icon-rest-bg: rgba(255,255,255,0.055);
     --side-hover-bg: rgba(255,255,255,0.05);
   }
@@ -380,19 +430,86 @@
    GLASS ESMERALDA · utilidades de superficie
    ===================================================================== */
 @layer components {
-  /* Vidrio esmerilado: relleno translúcido + blur con saturación + borde de
-     luz + sombra con brillo interior superior. */
+  /* Vidrio esmerilado Liquid Glass: tinte degradado + blur con saturación y
+     brillo + borde de luz + sombra profunda con luz interior superior. */
   .glass {
-    background: var(--glass-bg);
+    background: var(--glass-tint);
     border: 1px solid var(--glass-bd);
     box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(26px) saturate(1.7);
-    -webkit-backdrop-filter: blur(26px) saturate(1.7);
+    backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
+  }
+  /* Variante de menor elevación (botones flotantes, barras secundarias). */
+  .glass-sm {
+    background: var(--glass-tint);
+    border: 1px solid var(--glass-bd);
+    box-shadow: var(--glass-shadow-sm);
+    backdrop-filter: blur(20px) saturate(1.7) brightness(1.04);
+    -webkit-backdrop-filter: blur(20px) saturate(1.7) brightness(1.04);
   }
   /* Superficie glass secundaria (inputs/chips "hundidos" dentro del vidrio). */
   .glass-2 {
     background: var(--glass-2);
     border: 1px solid var(--hairline);
+  }
+  /* Chip de vidrio elevado: botones redondos del header, botones secundarios. */
+  .glass-chip {
+    background: var(--chip-bg);
+    border: 1px solid var(--glass-bd);
+    box-shadow: var(--chip-shadow);
+  }
+  /* Campo de formulario: vidrio con luz superior y base ligeramente hundida. */
+  .glass-field {
+    background: var(--field-bg);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--field-shadow);
+  }
+  /* Riel hundido (fondo de tabs segmentadas, steppers de cantidad). */
+  .glass-track {
+    background: var(--track-bg);
+    box-shadow: var(--track-shadow);
+  }
+  /* Panel sólido esmerilado para modales/menús flotantes (legible sobre todo). */
+  .glass-modal {
+    background: color-mix(in srgb, var(--solid) 88%, transparent);
+    backdrop-filter: blur(28px) saturate(1.6);
+    -webkit-backdrop-filter: blur(28px) saturate(1.6);
+    border: 1px solid var(--glass-bd);
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* Microinteracción iOS: se eleva al pasar y se comprime al presionar. */
+  .press {
+    transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease),
+      background-color 0.22s var(--ease), filter 0.22s var(--ease);
+  }
+  .press:hover {
+    transform: translateY(-1px);
+  }
+  .press:active {
+    transform: translateY(0) scale(0.97);
+  }
+  /* Versión para cards clickeables: elevación mayor. */
+  .press-lift {
+    transition: transform 0.26s var(--ease), box-shadow 0.26s var(--ease);
+  }
+  .press-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--glass-shadow-hover);
+  }
+  .press-lift:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press, .press-lift { transition: none; }
+    .press:hover, .press:active, .press-lift:hover, .press-lift:active { transform: none; }
+  }
+
+  /* Tab segmentada iOS: el trigger activo es una pastilla de vidrio elevada. */
+  .seg-trigger[data-state="active"] {
+    background: var(--chip-bg);
+    box-shadow: var(--chip-shadow);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -401,11 +518,11 @@
      cada archivo. El componente <Card> ya usa bg-card. Incluye el highlight
      superior (inset) + sombra suave para que resalte igual que el sidebar. */
   .bg-card {
-    background-color: var(--glass-bg);
+    background: var(--glass-tint);
     border-color: var(--glass-bd);
     box-shadow: var(--glass-shadow);
-    -webkit-backdrop-filter: blur(26px) saturate(1.7);
-    backdrop-filter: blur(26px) saturate(1.7);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
+    backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
   }
 
   /* El <main> (SidebarInset) es TRANSPARENTE para dejar ver --app-bg.
@@ -428,5 +545,41 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .screen-in { animation: none; }
+  }
+
+  /*
+   * Fondo del chat tipo WhatsApp, con nuestro estilo: papel cian muy claro
+   * + doodles de e-commerce (carrito, etiqueta, bolsa, caja, ticket…) en
+   * cian de marca. En dark se oscurece el papel y se atenúan los doodles
+   * con un velo del mismo color (el SVG tiene su opacidad fija).
+   */
+  .chat-doodle-bg {
+    background-color: #f1fafb;
+    background-image: url("/chat-ecommerce-pattern.svg");
+    background-repeat: repeat;
+    background-size: 300px 300px;
+  }
+  .dark .chat-doodle-bg {
+    background-color: hsl(222 47% 9%);
+    background-image:
+      linear-gradient(hsl(222 47% 9% / 0.55), hsl(222 47% 9% / 0.55)),
+      url("/chat-ecommerce-pattern.svg");
+  }
+
+  /**
+   * El hilo va "hundido" dentro de la card: sin esto el papel con textura
+   * parece una hoja flotando ENCIMA y la lista de la izquierda se lee como
+   * si estuviera por debajo. La sombra interior en los bordes que tocan la
+   * lista y la cabecera resuelve la profundidad sin cambiar los colores.
+   */
+  .chat-thread-inset {
+    box-shadow:
+      inset 10px 0 14px -12px hsl(222 47% 11% / 0.28),
+      inset 0 10px 12px -12px hsl(222 47% 11% / 0.22);
+  }
+  .dark .chat-thread-inset {
+    box-shadow:
+      inset 10px 0 16px -12px hsl(0 0% 0% / 0.55),
+      inset 0 10px 14px -12px hsl(0 0% 0% / 0.45);
   }
 }

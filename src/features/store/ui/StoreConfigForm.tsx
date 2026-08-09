@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Textarea } from "@/shared/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { useUpdateStore, useCreateStore } from "@/entities/store/api";
+import { StoreReviewsManager } from "./StoreReviewsManager";
 import { apiFetch } from "@/shared/api/client";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
 import { toast } from "sonner";
@@ -327,7 +328,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
 
       {/* Tabs */}
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${mode === "edit" && store?.id ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="general" className="text-xs md:text-sm">
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">General</span>
@@ -344,6 +345,12 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
             <Palette className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">Diseño</span>
           </TabsTrigger>
+          {mode === "edit" && store?.id && (
+            <TabsTrigger value="reviews" className="text-xs md:text-sm">
+              <Star className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Reseñas</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* General Tab */}
@@ -920,6 +927,15 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
             </div>
           </Card>
         </TabsContent>
+
+        {/* Reviews Tab */}
+        {mode === "edit" && store?.id && (
+          <TabsContent value="reviews" className="space-y-6">
+            <Card className="p-6">
+              <StoreReviewsManager storeId={store.id} />
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

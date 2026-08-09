@@ -1,5 +1,5 @@
-import { WhatsAppPage } from "@/features/whatsapp/ui/WhatsAppPage"
+import { WhatsAppInbox } from "@/features/whatsapp/chat/ui/WhatsAppInbox";
 
 export default function WhatsAppPageWrapper() {
-  return <WhatsAppPage />
+  return <WhatsAppInbox />;
 }

@@ -13,9 +13,7 @@ import {
   Sparkles,
   MessageCircle,
 } from "lucide-react"
-import { WhatsAppLinkModal } from "@/features/whatsapp"
-
-
+import { useNavigate } from "react-router-dom"
 
 
 export function NavUser({
@@ -28,7 +26,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const [showWhatsAppModal, setShowWhatsAppModal] = React.useState(false)
+  const navigate = useNavigate()
 
   return (
     <SidebarMenu>
@@ -80,7 +78,7 @@ export function NavUser({
                 <Bell />
                 Notificaciones
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowWhatsAppModal(true)}>
+              <DropdownMenuItem onClick={() => navigate("/whatsapp?config=connection")}>
                 <MessageCircle />
                 Vincular WhatsApp
               </DropdownMenuItem>
@@ -93,12 +91,6 @@ export function NavUser({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-
-      {/* Modal de vinculación de WhatsApp */}
-      <WhatsAppLinkModal 
-        open={showWhatsAppModal} 
-        onOpenChange={setShowWhatsAppModal} 
-      />
     </SidebarMenu>
   )
 }

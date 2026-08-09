@@ -85,7 +85,7 @@ const styles = `
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #10B981;
+    background: #06B6D4;
     animation: vendfy-dotBounce 1.4s ease-in-out infinite;
   }
   .vendfy-loader__dot:nth-child(2) {
@@ -129,10 +129,10 @@ const VendfyLoader = ({
 }) => {
   const isDark = theme === 'dark';
   const awningColor = isDark ? '#ffffff' : '#0F172A';
-  const doorInner = isDark ? '#0F172A' : '#ECFDF5';
+  const doorInner = isDark ? '#0F172A' : '#ECFEFF';
   const handleColor = isDark ? '#ffffff' : '#0F172A';
   const vendColor = isDark ? '#ffffff' : '#0F172A';
-  const fyColor = isDark ? '#10B981' : '#059669';
+  const fyColor = isDark ? '#06B6D4' : '#0891B2';
   const msgColor = isDark ? '#64748B' : '#94A3B8';
 
   const modeClass = isDark ? 'vendfy-loader--dark' : 'vendfy-loader--light';
@@ -150,7 +150,7 @@ const VendfyLoader = ({
           fill="none"
         >
           {/* Store body */}
-          <rect x="13" y="48" width="82" height="58" rx="5" fill="#10B981" />
+          <rect x="13" y="48" width="82" height="58" rx="5" fill="#06B6D4" />
 
           {/* Awning */}
           <rect x="8" y="34" width="92" height="16" rx="4" fill={awningColor} />
@@ -168,12 +168,12 @@ const VendfyLoader = ({
           <g className="vendfy-loader__spark">
             <path
               d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z"
-              fill="#34D399"
+              fill="#22D3EE"
             />
             <path
               className="vendfy-loader__spark-glow"
               d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z"
-              fill="#34D399"
+              fill="#22D3EE"
               opacity="0.55"
             />
             <circle
@@ -181,7 +181,7 @@ const VendfyLoader = ({
               cx="84"
               cy="16"
               r="2"
-              fill="#34D399"
+              fill="#22D3EE"
               opacity="0.3"
             />
           </g>

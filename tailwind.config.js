@@ -23,6 +23,23 @@ export default {
   			display: ['Sora', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif']
   		},
   		colors: {
+  			/* Marca: el verde esmeralda se reemplazó por CIAN. Aliasamos la
+  			   escala `emerald` a la paleta cyan de Tailwind, de modo que TODAS
+  			   las clases emerald-* existentes (emerald-500/600/100…) rinden cian
+  			   sin tocar cada componente. El azul marino (primary/slate) se mantiene. */
+  			emerald: {
+  				50: '#ECFEFF',
+  				100: '#CFFAFE',
+  				200: '#A5F3FC',
+  				300: '#67E8F9',
+  				400: '#22D3EE',
+  				500: '#06B6D4',
+  				600: '#0891B2',
+  				700: '#0E7490',
+  				800: '#155E75',
+  				900: '#164E63',
+  				950: '#083344'
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',

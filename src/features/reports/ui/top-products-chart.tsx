@@ -27,7 +27,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
               <YAxis dataKey="name" type="category" width={100} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="quantity" fill="#34d399" name="Cantidad" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="quantity" fill="#22d3ee" name="Cantidad" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

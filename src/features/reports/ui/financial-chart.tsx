@@ -44,7 +44,7 @@ export function FinancialChart({ data }: FinancialChartProps) {
               <Line
                 type="monotone"
                 dataKey="ventas"
-                stroke="#34d399"
+                stroke="#22d3ee"
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 name="Ventas"

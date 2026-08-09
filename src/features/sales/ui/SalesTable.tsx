@@ -272,8 +272,8 @@ function OrdersTableContent({
               onClick={() => onOrderClick(order)}
               className="cursor-pointer hover:bg-accent/50 transition-colors"
             >
-              <TableCell className="font-mono text-xs">
-                {order.id.slice(0, 8)}...
+              <TableCell className="font-mono text-xs font-semibold">
+                {order.number ? `#${order.number}` : `${order.id.slice(0, 8)}...`}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">

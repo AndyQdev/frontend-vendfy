@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import McpConnectPage from "@/pages/mcp-connect";
 import OnboardingPage from "@/pages/onboarding";
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
@@ -15,6 +16,7 @@ import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import WhatsAppPage from "@/pages/whatsapp";
+import CampaignsPage from "@/pages/campaigns";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
 import MovementPage from "@/pages/reports/movements";
@@ -42,6 +44,8 @@ export default function AppRouter() {
       {/* Rutas públicas */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      {/* Puente OAuth del MCP (External Sign-in URI de WorkOS); maneja su propia auth */}
+      <Route path="/mcp-connect" element={<McpConnectPage />} />
 
       {/* Rutas protegidas (con auth) */}
       <Route element={<Protected />}>
@@ -69,6 +73,7 @@ export default function AppRouter() {
             <Route path="/reports/movements" element={<MovementPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
 
             {/* Redirección por defecto a Caja */}
             <Route path="/" element={<Navigate to="/caja" replace />} />

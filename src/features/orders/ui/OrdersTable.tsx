@@ -34,7 +34,8 @@ import { Button } from "@/shared/ui/button";
 import { toast } from "sonner";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailsModal } from "./OrderDetails";
-import { WhatsAppTemplatesModal } from "@/features/whatsapp/ui/WhatsAppTemplatesModal";
+import { DeliveryTrackingModal } from "./DeliveryTrackingModal";
+import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 
 type DateFilter = "day" | "week" | "month" | "year";
@@ -217,9 +218,11 @@ export default function OrdersTable() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
   const [activeColumnId, setActiveColumnId] = useState<OrderStatus | null>(null);
+  // Pedido recién movido a "en camino": dispara la modal del link del repartidor
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const navigate = useNavigate();
   const updateOrderMutation = useUpdateOrder();
   const queryClient = useQueryClient();
 
@@ -362,6 +365,11 @@ export default function OrdersTable() {
         onSuccess: () => {
           toast.success(`Orden movida a ${KANBAN_COLUMNS.find((c) => c.id === newStatus)?.title}`);
           queryClient.invalidateQueries({ queryKey: ['orders'] });
+          // Salió en camino: ofrecemos compartir el link del repartidor para
+          // que el cliente lo siga desde el botón del WhatsApp que ya recibió.
+          if (newStatus === OrderStatus.EN_CAMINO) {
+            setTrackingOrder({ ...order, status: newStatus });
+          }
         },
         onError: () => {
           // Revertir en caso de error
@@ -405,7 +413,7 @@ export default function OrdersTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setWhatsappModalOpen(true)}
+            onClick={() => navigate("/whatsapp?config=notifications")}
             className="gap-2 text-xs"
           >
             <Bell className="h-3.5 w-3.5" />
@@ -488,12 +496,13 @@ export default function OrdersTable() {
         onClose={() => setDetailsModalOpen(false)}
       />
 
-      {/* Modal de notificaciones WhatsApp */}
-      <WhatsAppTemplatesModal
-        open={whatsappModalOpen}
-        onOpenChange={setWhatsappModalOpen}
-        storeId={storeId}
+      {/* Link del repartidor al pasar a "En camino" */}
+      <DeliveryTrackingModal
+        order={trackingOrder}
+        open={!!trackingOrder}
+        onOpenChange={(open) => !open && setTrackingOrder(null)}
       />
+
     </div>
   );
 }

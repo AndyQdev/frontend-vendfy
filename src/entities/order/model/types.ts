@@ -18,6 +18,13 @@ export interface DeliveryInfo {
   address: string;
   cost: number;
   notes?: string;
+  coordinates?: { latitude: number; longitude: number };
+  /**
+   * Link para que el cliente siga al repartidor (Yango, Pedidos Ya, un link
+   * de ubicación en vivo...). Lo carga la tienda al pasar el pedido a
+   * "en camino" y habilita el botón en la página de seguimiento.
+   */
+  trackingUrl?: string;
 }
 
 export interface InstallmentInfo {
@@ -50,6 +57,8 @@ export interface CreateOrderInput {
 // Respuesta de una orden
 export interface Order {
   id: string;
+  /** Correlativo por tienda para decirlo en voz alta (#1042) */
+  number?: number | null;
   totalAmount: number;
   status: OrderStatus;
   type: OrderType;

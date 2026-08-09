@@ -27,7 +27,7 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="sales" fill="#34d399" name="Ventas (Bs.)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="sales" fill="#22d3ee" name="Ventas (Bs.)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

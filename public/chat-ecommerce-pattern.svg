@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" fill="none">
+  <g stroke="#06B6D4" stroke-opacity="0.16" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- carrito -->
+    <g transform="translate(34 40)">
+      <path d="M0 0h5l3 16h22l4-12H10"/>
+      <circle cx="13" cy="22" r="2.6"/>
+      <circle cx="28" cy="22" r="2.6"/>
+    </g>
+    <!-- etiqueta de precio -->
+    <g transform="translate(180 30)">
+      <path d="M2 2h16l16 16-16 16-16-16z"/>
+      <circle cx="11" cy="11" r="2.4"/>
+    </g>
+    <!-- bolsa -->
+    <g transform="translate(110 95)">
+      <path d="M2 10h26l-3 26H5z"/>
+      <path d="M9 10a6 6 0 0 1 12 0"/>
+    </g>
+    <!-- caja -->
+    <g transform="translate(232 120)">
+      <path d="M2 8l14-6 14 6-14 6z"/>
+      <path d="M2 8v16l14 6 14-6V8"/>
+      <path d="M16 14v16"/>
+    </g>
+    <!-- ticket / recibo -->
+    <g transform="translate(40 150)">
+      <path d="M2 2h22v30l-4-3-3 3-4-3-3 3-4-3-4 3z"/>
+      <path d="M7 10h12M7 16h12M7 22h8"/>
+    </g>
+    <!-- corazón -->
+    <g transform="translate(170 175)">
+      <path d="M14 24S2 17 2 9a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 8-12 15-12 15z"/>
+    </g>
+    <!-- chat -->
+    <g transform="translate(95 220)">
+      <path d="M2 4h26v18H12l-7 6v-6H2z"/>
+    </g>
+    <!-- carrito 2 -->
+    <g transform="translate(238 232)">
+      <path d="M0 0h5l3 16h22l4-12H10"/>
+      <circle cx="13" cy="22" r="2.6"/>
+      <circle cx="28" cy="22" r="2.6"/>
+    </g>
+    <!-- etiqueta 2 -->
+    <g transform="translate(20 248)">
+      <path d="M2 2h16l16 16-16 16-16-16z"/>
+      <circle cx="11" cy="11" r="2.4"/>
+    </g>
+  </g>
+</svg>

@@ -1,14 +1,21 @@
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/app/providers/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 
+// Solo rutas relativas internas (evita open-redirect vía ?redirect=)
+function safeRedirect(value: string | null): string | null {
+  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
+  return null;
+}
+
 export default function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +29,7 @@ export default function LoginForm() {
 
     try {
       await login(email, password);
-      navigate("/caja");
+      navigate(safeRedirect(searchParams.get("redirect")) ?? "/caja");
     } catch (err: any) {
       setError(err.message || "Email o contraseña incorrectos");
     } finally {

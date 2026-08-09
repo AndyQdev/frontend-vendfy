@@ -4,15 +4,14 @@ import {
   Package,
   Users,
   BarChart3,
-  Settings,
   ClipboardList,
   Store,
   DollarSign,
   Boxes,
   Truck,
   Tags,
-  TrendingUp,
   MessageCircle,
+  Megaphone,
 } from "lucide-react"
 
 import { NavMain, type NavSection } from "@/widgets/layout/nav-main"
@@ -24,7 +23,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  SidebarSeparator,
 } from "@/shared/ui/sidebar"
 import { useStore, useAuth } from "@/app/providers/auth"
 
@@ -63,7 +61,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [{ title: "Clientes", url: "/customers", icon: Users }],
     },
     {
-      label: "Mi Tienda",
+      label: "Marketing",
+      items: [
+        { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
+        { title: "Campañas", url: "/campaigns", icon: Megaphone },
+      ],
+    },
+    {
+      label: "Administración",
       items: [
         {
           title: selectedStore === "all" ? "Tiendas" : "Tienda",
@@ -73,23 +78,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               : `/stores/${(selectedStore as any)?.id || ""}`,
           icon: Store,
         },
-        { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
-      ],
-    },
-    {
-      label: "Análisis",
-      items: [
         {
-          title: "Estadísticas",
+          title: "Análisis",
           url: "/reports",
           icon: BarChart3,
           items: [{ title: "Movimientos", url: "/reports/movements" }],
         },
       ],
-    },
-    {
-      label: "Sistema",
-      items: [{ title: "Configuración", url: "/settings", icon: Settings }],
     },
   ]
 
@@ -98,7 +93,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <StoreSwitcher />
       </SidebarHeader>
-      <SidebarSeparator className="my-1" />
       <SidebarContent className="gap-0">
         <NavMain sections={sections} />
       </SidebarContent>

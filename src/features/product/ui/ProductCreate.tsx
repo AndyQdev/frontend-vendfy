@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useStore } from "@/app/providers/auth";
 import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrands } from "@/entities/product/api";
 import type { ProductInput } from "@/entities/product/model/schema";
+import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
 import { toast } from "sonner";
 
 export default function CreateProduct() {
@@ -667,6 +668,13 @@ export default function CreateProduct() {
           </Card>
         </div>
       </form>
+
+      {/* Reseñas del producto (solo en edición) */}
+      {isEditMode && productId && formData.storeId && (
+        <Card className="p-6">
+          <StoreReviewsManager storeId={formData.storeId} productId={productId} />
+        </Card>
+      )}
 
       {/* Modals */}
       <ImageUploadModal

@@ -116,6 +116,11 @@ export function OrderCard({ order, onViewDetails }: { order: Order; onViewDetail
               <p className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">
                 {order.customer?.name || "Sin cliente"}
               </p>
+              {order.number && (
+                <span className="shrink-0 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                  #{order.number}
+                </span>
+              )}
             </div>
             {/* Tipo de orden con tooltip */}
             <TooltipProvider>

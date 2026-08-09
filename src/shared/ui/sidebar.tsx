@@ -206,7 +206,7 @@ const Sidebar = React.forwardRef<
               <SheetTitle>Sidebar</SheetTitle>
               <SheetDescription>Displays the mobile sidebar.</SheetDescription>
             </SheetHeader>
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <div className="flex h-full w-full flex-col gap-3 p-2">{children}</div>
           </SheetContent>
         </Sheet>
       )
@@ -248,7 +248,7 @@ const Sidebar = React.forwardRef<
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-[color:var(--glass-bd)] bg-[color:var(--side-bg)] shadow-[0_20px_48px_-20px_rgba(31,42,40,0.18),inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-[26px] backdrop-saturate-[1.7] group-data-[collapsible=icon]:rounded-none group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            className="flex h-full w-full flex-col gap-3 group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
           >
             {children}
           </div>
@@ -358,7 +358,7 @@ const SidebarHeader = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="header"
-      className={cn("flex flex-col gap-2 p-2", className)}
+      className={cn("glass-sm rounded-[22px] flex flex-col gap-2 p-2", className)}
       {...props}
     />
   )
@@ -373,7 +373,7 @@ const SidebarFooter = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="footer"
-      className={cn("flex flex-col gap-2 p-2", className)}
+      className={cn("glass-sm rounded-[22px] flex flex-col gap-2 p-2", className)}
       {...props}
     />
   )
@@ -404,7 +404,7 @@ const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] group-data-[collapsible=icon]:overflow-hidden",
+        "glass rounded-[26px] flex min-h-0 flex-1 flex-col gap-2 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] group-data-[collapsible=icon]:overflow-hidden",
         className
       )}
       {...props}
@@ -512,7 +512,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-btn relative flex w-full items-center gap-3 overflow-hidden rounded-[13px] border border-transparent px-2 text-left text-[0.875rem] outline-none ring-sidebar-ring transition-all duration-150 hover:border-sidebar-border hover:bg-[color:var(--side-hover-bg)] hover:text-foreground focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:border-sidebar-ring/30 data-[active=true]:bg-sidebar-accent data-[active=true]:font-bold data-[active=true]:text-[color:var(--side-active-fg)] data-[active=true]:shadow-[0_4px_12px_-8px_rgba(6,106,78,0.35),inset_0_1px_0_rgba(255,255,255,0.45)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r-full data-[active=true]:before:bg-[image:linear-gradient(180deg,#34d399,#0d9488)] data-[active=true]:before:shadow-[0_0_12px_rgba(52,211,153,0.9)] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center [&>span:last-child]:truncate [&>svg]:box-content [&>svg]:size-[1.05rem] [&>svg]:shrink-0 [&>svg]:rounded-[9px] [&>svg]:p-1.5 [&>svg]:bg-[color:var(--icon-rest-bg)] [&>svg]:text-sidebar-foreground/70 [&>svg]:transition-all data-[active=true]:[&>svg]:bg-[image:var(--primary-grad)] data-[active=true]:[&>svg]:text-[#04130d] data-[active=true]:[&>svg]:shadow-[0_6px_14px_-5px_rgba(11,185,129,0.95)] hover:[&>svg]:text-sidebar-foreground group-data-[collapsible=icon]:[&>svg]:bg-transparent group-data-[collapsible=icon]:[&>svg]:p-0 group-data-[collapsible=icon]:[&>svg]:shadow-none group-data-[collapsible=icon]:data-[active=true]:[&>svg]:bg-transparent",
+  "peer/menu-button group/menu-btn relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-transparent px-2 text-left text-[0.875rem] outline-none ring-sidebar-ring transition-all duration-200 hover:border-sidebar-border hover:bg-[color:var(--side-hover-bg)] hover:text-foreground focus-visible:ring-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:border-[color:var(--glass-bd)] data-[active=true]:bg-[image:var(--side-active-bg)] data-[active=true]:font-bold data-[active=true]:text-[color:var(--side-active-fg)] data-[active=true]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_8px_18px_-10px_rgba(6,182,212,0.55)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r-full data-[active=true]:before:bg-[image:linear-gradient(180deg,#22d3ee,#0891b2)] data-[active=true]:before:shadow-[0_0_12px_rgba(34,211,238,0.9)] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center [&>span:last-child]:truncate [&>svg]:box-content [&>svg]:size-[1.05rem] [&>svg]:shrink-0 [&>svg]:rounded-[9px] [&>svg]:p-1.5 [&>svg]:bg-[color:var(--icon-rest-bg)] [&>svg]:text-sidebar-foreground/70 [&>svg]:transition-all data-[active=true]:[&>svg]:bg-[image:var(--primary-grad)] data-[active=true]:[&>svg]:text-[#04222b] data-[active=true]:[&>svg]:shadow-[0_6px_14px_-5px_rgba(6,182,212,0.95)] hover:[&>svg]:text-sidebar-foreground group-data-[collapsible=icon]:[&>svg]:bg-transparent group-data-[collapsible=icon]:[&>svg]:p-0 group-data-[collapsible=icon]:[&>svg]:shadow-none group-data-[collapsible=icon]:data-[active=true]:[&>svg]:bg-transparent",
   {
     variants: {
       variant: {

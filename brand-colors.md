@@ -1,12 +1,17 @@
 # Vendfy - Colores de Marca
 
+> El acento de marca pasó de **verde esmeralda** a **CIAN**. El azul marino se mantiene.
+> En código, la escala Tailwind `emerald-*` está aliasada a la paleta `cyan`, así que las
+> clases existentes (`emerald-500`, etc.) rinden cian automáticamente.
+
 ## Colores Principales
 
-### Verde Esmeralda (Primary)
-- **Principal:** `#10B981` (emerald-500)
-- **Hover/Oscuro:** `#059669` (emerald-600)
-- **Claro/Fondo:** `#D1FAE5` (emerald-100)
-- **Muy claro:** `#ECFDF5` (emerald-50)
+### Cian (Primary / acento)
+- **Principal:** `#06B6D4` (cyan-500)
+- **Hover/Oscuro:** `#0891B2` (cyan-600)
+- **Claro:** `#22D3EE` (cyan-400)
+- **Claro/Fondo:** `#CFFAFE` (cyan-100)
+- **Muy claro:** `#ECFEFF` (cyan-50)
 
 ### Azul Marino Oscuro (Secondary)
 - **Principal:** `#0F172A` (slate-900)

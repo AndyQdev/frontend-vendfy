@@ -619,7 +619,7 @@ export default function Caja() {
                 <div className="space-y-3 sm:space-y-4">
                     <div className="flex gap-2 sm:gap-3 items-center">
                         <Button
-                        variant="outline"
+                        variant="secondary"
                         size="icon"
                         className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 hidden sm:flex"
                         >
@@ -638,7 +638,7 @@ export default function Caja() {
                         </div>
                         
                         <Button
-                        variant="outline"
+                        variant="secondary"
                         size="icon"
                         className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 hidden sm:flex"
                         >
@@ -652,7 +652,7 @@ export default function Caja() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background shadow-md hidden sm:flex"
+                            className="glass-chip absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 hidden sm:flex"
                             onClick={() => scrollCategories('left')}
                         >
                             <ChevronLeft className="h-4 w-4" />
@@ -683,18 +683,19 @@ export default function Caja() {
                                 return (
                                   <Card
                                     key={category.id}
-                                    className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all ${
+                                    className={`shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer ${
                                       isActive
-                                        ? 'bg-primary-soft border-primary/30 ring-1 ring-primary/15 shadow-md'
-                                        : 'hover:border-primary/30 shadow-sm'
+                                        ? 'border-[color:var(--glass-bd)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_10px_22px_-12px_rgba(6,182,212,0.6)]'
+                                        : 'press-lift hover:border-primary/30'
                                     }`}
+                                    style={isActive ? { background: 'var(--side-active-bg)' } : undefined}
                                     onClick={() => setSelectedCategory(category.id)}
                                   >
                                     <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-center">
                                       <div
                                         className={`p-1.5 sm:p-2 rounded-[11px] ${
                                           isActive
-                                            ? 'shadow-[0_6px_14px_-5px_rgba(11,185,129,0.95)]'
+                                            ? 'shadow-[0_6px_14px_-5px_rgba(6,182,212,0.95)]'
                                             : 'bg-primary/10'
                                         }`}
                                         style={isActive ? { background: 'var(--primary-grad)' } : undefined}
@@ -756,7 +757,7 @@ export default function Caja() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background shadow-md hidden sm:flex"
+                            className="glass-chip absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 hidden sm:flex"
                             onClick={() => scrollCategories('right')}
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -833,10 +834,10 @@ export default function Caja() {
                     return (
                     <Card
                     key={product.id}
-                    className={`group relative overflow-hidden transition-all duration-200 ${
-                        product.stock === 0 
-                        ? 'opacity-60 cursor-not-allowed' 
-                        : 'cursor-pointer hover:shadow-sm hover:border-emerald-300'
+                    className={`group relative overflow-hidden ${
+                        product.stock === 0
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'cursor-pointer press-lift'
                     }`}
                     onClick={() => addToCart(product)}
                     >
@@ -1117,7 +1118,7 @@ export default function Caja() {
                         <div className="flex flex-col items-center gap-1.5 text-center">
                             <div
                               className={`p-1.5 rounded-[11px] ${
-                                isActive ? 'shadow-[0_6px_14px_-5px_rgba(11,185,129,0.95)]' : 'bg-primary/10'
+                                isActive ? 'shadow-[0_6px_14px_-5px_rgba(6,182,212,0.95)]' : 'bg-primary/10'
                               }`}
                               style={isActive ? { background: 'var(--primary-grad)' } : undefined}
                             >
@@ -1364,7 +1365,7 @@ export default function Caja() {
                 </div>
                 <div className="rounded-lg overflow-hidden border">
                   <img
-                    src={`https://maps.googleapis.com/maps/api/staticmap?size=640x200&scale=2&maptype=roadmap&style=feature:all|element:geometry|color:0xf5f5f5&style=feature:road|element:geometry|color:0xffffff&style=feature:water|element:geometry|color:0xc9e8fc&markers=color:0x172554|label:T|${storeCoords.latitude},${storeCoords.longitude}&markers=color:0x10b981|label:C|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&path=color:0x10b981cc|weight:5|geodesic:true|${storeCoords.latitude},${storeCoords.longitude}|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`}
+                    src={`https://maps.googleapis.com/maps/api/staticmap?size=640x200&scale=2&maptype=roadmap&style=feature:all|element:geometry|color:0xf5f5f5&style=feature:road|element:geometry|color:0xffffff&style=feature:water|element:geometry|color:0xc9e8fc&markers=color:0x172554|label:T|${storeCoords.latitude},${storeCoords.longitude}&markers=color:0x06b6d4|label:C|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&path=color:0x06b6d4cc|weight:5|geodesic:true|${storeCoords.latitude},${storeCoords.longitude}|${selectedClient.addresses[selectedAddrIdx].latitude},${selectedClient.addresses[selectedAddrIdx].longitude}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`}
                     alt="Ruta" className="w-full h-[180px] object-cover" />
                 </div>
               </div>

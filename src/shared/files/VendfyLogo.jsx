@@ -20,24 +20,24 @@ export const VendfyLogo = ({ variant = 'full', size = 40, className = '' }) => {
         width={size}
         className={className}
       >
-        <rect x="13" y="48" width="82" height="58" rx="5" fill="#10B981" />
+        <rect x="13" y="48" width="82" height="58" rx="5" fill="#06B6D4" />
         <rect x="8" y="34" width="92" height="16" rx="4" fill="#0F172A" />
         <path d="M8 50 Q18 60, 28 50 Q38 60, 48 50 Q58 60, 68 50 Q78 60, 88 50 Q96 60, 100 50" fill="#0F172A" />
         <rect x="38" y="62" width="32" height="44" rx="5" fill="#0F172A" />
-        <rect x="41" y="65" width="26" height="41" rx="3.5" fill="#ECFDF5" />
+        <rect x="41" y="65" width="26" height="41" rx="3.5" fill="#ECFEFF" />
         <circle cx="61" cy="86" r="2.2" fill="#0F172A" />
-        <path d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z" fill="#34D399" />
-        <path d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z" fill="#34D399" opacity="0.5" />
-        <circle cx="84" cy="16" r="2" fill="#34D399" opacity="0.3" />
+        <path d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z" fill="#22D3EE" />
+        <path d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z" fill="#22D3EE" opacity="0.5" />
+        <circle cx="84" cy="16" r="2" fill="#22D3EE" opacity="0.3" />
       </svg>
     );
   }
 
   const isWhite = variant === 'full-white';
   const textColor = isWhite ? '#ffffff' : '#0F172A';
-  const accentColor = isWhite ? '#10B981' : '#059669';
+  const accentColor = isWhite ? '#06B6D4' : '#0891B2';
   const awningColor = isWhite ? '#ffffff' : '#0F172A';
-  const doorInner = isWhite ? '#0F172A' : '#ECFDF5';
+  const doorInner = isWhite ? '#0F172A' : '#ECFEFF';
   const handleColor = isWhite ? '#ffffff' : '#0F172A';
 
   return (
@@ -49,15 +49,15 @@ export const VendfyLogo = ({ variant = 'full', size = 40, className = '' }) => {
       className={className}
     >
       <g transform="translate(0, 2) scale(0.48)">
-        <rect x="13" y="48" width="82" height="58" rx="5" fill="#10B981" />
+        <rect x="13" y="48" width="82" height="58" rx="5" fill="#06B6D4" />
         <rect x="8" y="34" width="92" height="16" rx="4" fill={awningColor} />
         <path d="M8 50 Q18 60, 28 50 Q38 60, 48 50 Q58 60, 68 50 Q78 60, 88 50 Q96 60, 100 50" fill={awningColor} />
         <rect x="38" y="62" width="32" height="44" rx="5" fill={awningColor} />
         <rect x="41" y="65" width="26" height="41" rx="3.5" fill={doorInner} />
         <circle cx="61" cy="86" r="2.2" fill={handleColor} />
-        <path d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z" fill="#34D399" />
-        <path d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z" fill="#34D399" opacity="0.5" />
-        <circle cx="84" cy="16" r="2" fill="#34D399" opacity="0.3" />
+        <path d="M98 12 L101 22 L111 25 L101 28 L98 38 L95 28 L85 25 L95 22Z" fill="#22D3EE" />
+        <path d="M112 4 L114 9 L119 11 L114 13 L112 18 L110 13 L105 11 L110 9Z" fill="#22D3EE" opacity="0.5" />
+        <circle cx="84" cy="16" r="2" fill="#22D3EE" opacity="0.3" />
       </g>
       <text x="68" y="42" fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif" fontSize="32" fontWeight="700" fill={textColor}>Vend</text>
       <text x="137" y="42" fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif" fontSize="32" fontWeight="700" fill={accentColor}>fy</text>

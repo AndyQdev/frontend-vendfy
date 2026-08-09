@@ -53,6 +53,7 @@ export default function LayoutShell() {
     '/reports/movements': 'Movimientos',
     '/settings': 'Configuración',
     '/whatsapp': 'WhatsApp',
+    '/campaigns': 'Campañas',
   };
   const currentPage = pageNames[location.pathname] || location.pathname.split('/').filter(Boolean).pop() || 'Inicio';
 
@@ -64,7 +65,7 @@ export default function LayoutShell() {
       <AppSidebar />
       <SidebarInset className="main-content-bg">
         {/* Header sticky: card flotante redondeada glass (estilo dental) */}
-        <header className="glass sticky top-0 z-30 mb-0 ml-2 mr-3 mt-3 flex h-14 shrink-0 items-center gap-2 rounded-[20px] px-3 transition-[width,height] ease-linear md:mr-5 md:px-4">
+        <header className="glass sticky top-0 z-30 mb-0 ml-2 mr-3 mt-3 flex h-14 shrink-0 items-center gap-2 rounded-[26px] px-3 transition-[width,height] ease-linear md:mr-5 md:px-4">
             <div className="flex items-center gap-2 px-4 flex-1">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -95,7 +96,7 @@ export default function LayoutShell() {
               {/* Web Store Button */}
               {selectedStore && selectedStore !== "all" && (selectedStore as any).slug && (
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
                   className="h-9 w-9"
                   aria-label="Ver tienda web"
@@ -111,7 +112,7 @@ export default function LayoutShell() {
               {/* Bot WhatsApp Button */}
               {isWhatsAppConnected ? (
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
                   onClick={() => navigate("/whatsapp")}
                   className="h-9 w-9 relative"
@@ -132,10 +133,10 @@ export default function LayoutShell() {
 
               {/* Theme Toggle */}
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="icon"
                 onClick={toggleTheme}
-                className="h-9 w-9"
+                className="h-9 w-9 relative"
                 aria-label="Cambiar tema"
               >
                 <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

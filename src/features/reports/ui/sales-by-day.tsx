@@ -31,7 +31,7 @@ export function SalesByDay({ data, hourlyData }: SalesByDayProps) {
                 <XAxis dataKey="day" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="sales" fill="#34d399" name="Ventas (Bs.)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="sales" fill="#22d3ee" name="Ventas (Bs.)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             {hasHourly && (
