@@ -12,6 +12,7 @@ import {
   Tags,
   MessageCircle,
   Megaphone,
+  Plug,
 } from "lucide-react"
 
 import { NavMain, type NavSection } from "@/widgets/layout/nav-main"
@@ -65,6 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
         { title: "Campañas", url: "/campaigns", icon: Megaphone },
+        { title: "Integraciones", url: "/integrations", icon: Plug },
       ],
     },
     {

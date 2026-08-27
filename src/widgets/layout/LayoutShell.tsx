@@ -54,6 +54,7 @@ export default function LayoutShell() {
     '/settings': 'Configuración',
     '/whatsapp': 'WhatsApp',
     '/campaigns': 'Campañas',
+    '/integrations': 'Integraciones',
   };
   const currentPage = pageNames[location.pathname] || location.pathname.split('/').filter(Boolean).pop() || 'Inicio';
 
