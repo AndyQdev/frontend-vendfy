@@ -81,7 +81,70 @@ const MOVEMENT_TYPE_CONFIG: Record<
     color: "bg-orange-500",
     icon: <Minus className="h-4 w-4" />,
   },
+  waste: {
+    label: "Merma",
+    description: "Producto perdido, derramado o dañado",
+    color: "bg-rose-500",
+    icon: <AlertTriangle className="h-4 w-4" />,
+  },
+  sample: {
+    label: "Muestra",
+    description: "Entregado como muestra al cliente",
+    color: "bg-violet-500",
+    icon: <Package className="h-4 w-4" />,
+  },
+  // ── Automáticos: los genera el motor de consumo, no se registran a mano ──
+  consumption: {
+    label: "Consumo",
+    description: "Salida por un pedido",
+    color: "bg-green-600",
+    icon: <ShoppingCart className="h-4 w-4" />,
+  },
+  return: {
+    label: "Devolución",
+    description: "Reversa del consumo de un pedido",
+    color: "bg-sky-500",
+    icon: <ArrowUpDown className="h-4 w-4" />,
+  },
+  fraction: {
+    label: "Fraccionamiento",
+    description: "Se abrió y trasvasó producto",
+    color: "bg-amber-500",
+    icon: <Boxes className="h-4 w-4" />,
+  },
+  assembly: {
+    label: "Armado",
+    description: "Se armó un producto compuesto",
+    color: "bg-teal-500",
+    icon: <Boxes className="h-4 w-4" />,
+  },
+  container_open: {
+    label: "Envase abierto",
+    description: "Cambio de estado del envase",
+    color: "bg-slate-400",
+    icon: <Archive className="h-4 w-4" />,
+  },
+  container_empty: {
+    label: "Envase vacío",
+    description: "El envase llegó a cero",
+    color: "bg-slate-500",
+    icon: <Archive className="h-4 w-4" />,
+  },
 };
+
+/**
+ * Lo que una persona puede registrar a mano. El resto de los tipos los genera
+ * el motor de consumo al vender, cancelar o fraccionar, y ofrecerlos en el
+ * formulario invitaría a descuadrar el inventario a mano.
+ */
+const MANUAL_MOVEMENT_TYPES: MovementType[] = [
+  "purchase",
+  "sale",
+  "adjustment_in",
+  "adjustment_out",
+  "waste",
+  "sample",
+];
 
 export default function InventoryTable() {
   const navigate = useNavigate();
@@ -271,8 +334,15 @@ export default function InventoryTable() {
     );
   };
 
-  const isStockOut = (type: MovementType) =>
-    type === "sale" || type === "adjustment_out";
+  /**
+   * Si el movimiento saca stock. Se prefiere `direction` que ya viene del
+   * backend; la lista de tipos es el respaldo para movimientos viejos que
+   * todavía no lo traen.
+   */
+  const isStockOut = (type: MovementType, direction?: number) => {
+    if (typeof direction === "number") return direction < 0;
+    return !["purchase", "adjustment_in", "assembly", "return"].includes(type);
+  };
 
   return (
     <div className="space-y-6">
@@ -711,12 +781,11 @@ export default function InventoryTable() {
                   <SelectValue placeholder="Seleccionar tipo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {(
-                    Object.entries(MOVEMENT_TYPE_CONFIG) as [
-                      MovementType,
-                      (typeof MOVEMENT_TYPE_CONFIG)[MovementType],
-                    ][]
-                  ).map(([key, config]) => (
+                  {MANUAL_MOVEMENT_TYPES.map((key) => (MOVEMENT_TYPE_CONFIG[key]
+                    ? [key, MOVEMENT_TYPE_CONFIG[key]] as const
+                    : null))
+                    .filter((e): e is readonly [MovementType, (typeof MOVEMENT_TYPE_CONFIG)[MovementType]] => e !== null)
+                    .map(([key, config]) => (
                     <SelectItem key={key} value={key}>
                       <span className="flex items-center gap-2">
                         {config.icon}
@@ -847,7 +916,7 @@ export default function InventoryTable() {
                     {getMovementBadge(movement.type)}
                     <div>
                       <p className="text-sm font-medium">
-                        {isStockOut(movement.type) ? "-" : "+"}
+                        {isStockOut(movement.type, movement.direction) ? "-" : "+"}
                         {movement.quantity} unidades
                       </p>
                       {movement.notes && (

@@ -47,13 +47,30 @@ export interface InventoryQueryParams {
   search?: string; // Búsqueda multi-campo (nombre, descripción, tags)
 }
 
-// Tipos de movimiento de inventario
-export type MovementType = 'purchase' | 'sale' | 'adjustment_in' | 'adjustment_out';
+// Tipos de movimiento de inventario.
+// Los cuatro primeros se registran a mano; el resto los genera el motor de
+// consumo del backend al vender, cancelar o fraccionar.
+export type MovementType =
+  | 'purchase'
+  | 'sale'
+  | 'adjustment_in'
+  | 'adjustment_out'
+  | 'consumption'
+  | 'fraction'
+  | 'assembly'
+  | 'waste'
+  | 'sample'
+  | 'container_open'
+  | 'container_empty'
+  | 'return';
 
 export interface InventoryMovement {
   id: string;
   type: MovementType;
+  /** Cantidad SIEMPRE positiva, en la unidad base del producto. */
   quantity: number;
+  /** +1 entra, -1 sale, 0 no altera el total. Lo calcula el backend. */
+  direction?: number;
   unitCost: number | null;
   totalCost: number | null;
   notes: string | null;
