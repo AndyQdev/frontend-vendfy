@@ -9,6 +9,12 @@ export interface Inventory {
     sku: string;
     imageUrls?: string[];
     price?: number;
+    /** 'unit' salvo que el producto se venda por medida. */
+    inventoryType?: 'unit' | 'fractional' | 'composite';
+    /** Cuánto trae cada envase, en unidad base. */
+    contentPerUnit?: number | null;
+    /** Unidad en que está expresado stockQuantity. */
+    baseUnit?: { id: string; code: string; name: string; symbol: string };
   };
   store: {
     id: string;
@@ -114,4 +120,19 @@ export interface MovementQueryParams {
   inventoryId?: string;
   type?: MovementType;
   storeId?: string;
+}
+
+// ─── Unidades de medida ───────────────────────────────────────────────
+export type UnitDimension = 'UNIT' | 'VOLUME' | 'MASS' | 'LENGTH' | 'AREA';
+
+export interface UnitOfMeasure {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  dimension: UnitDimension;
+  /** Cuántas unidades base entran en 1 de ésta. 1000 para el kilo. */
+  factorToBase: number;
+  /** La unidad en que se guarda el stock de su dimensión. */
+  isBase: boolean;
 }

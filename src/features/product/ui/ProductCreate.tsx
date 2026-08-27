@@ -11,6 +11,8 @@ import { ImageUploadModal } from "@/shared/ui/image-upload-modal";
 import { CreateBrandModal } from "@/features/product/ui/CreateBrandModal";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import { Switch } from "@/shared/ui/switch";
+import { useUnitsOfMeasure } from "@/entities/inventory/api";
 import { useStore } from "@/app/providers/auth";
 import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrands } from "@/entities/product/api";
 import type { ProductInput } from "@/entities/product/model/schema";
@@ -42,6 +44,21 @@ export default function CreateProduct() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ─── Medida (opcional) ───────────────────────────────────────────────
+  // Apagado por defecto: la enorme mayoría de los productos se venden por
+  // unidades y no tienen por qué ver esto.
+  const [porMedida, setPorMedida] = useState(false);
+  const [unidadBase, setUnidadBase] = useState("ml");
+  const [contenido, setContenido] = useState<number>(0);
+  const { data: unidades = [] } = useUnitsOfMeasure(true);
+
+  // Las unidades en que tiene sentido fraccionar: 'unidad' no sirve para esto.
+  const unidadesMedibles = useMemo(
+    () => unidades.filter((u) => u.code !== "unit"),
+    [unidades]
+  );
+  const unidadElegida = unidadesMedibles.find((u) => u.code === unidadBase);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -60,10 +77,24 @@ export default function CreateProduct() {
 
   useEffect(() => {
     if (existingProduct && isEditMode) {
-      console.log("Loading existing product:", existingProduct);
-      console.log("Category ID:", existingProduct.category?.id);
-      console.log("Brand ID:", existingProduct.brand?.id);
-      
+      const currentStoreId = typeof selectedStore === "object" ? selectedStore?.id || "" : "";
+
+      // El precio vive en store_product y el stock en inventory (por tienda):
+      // se toma el de la tienda seleccionada, o el primero si no hay match.
+      const storeProducts: any[] = (existingProduct as any).storeProducts || [];
+      const storeProduct =
+        storeProducts.find((sp) => sp.store?.id === currentStoreId) || storeProducts[0];
+      const inventories: any[] = (existingProduct as any).inventories || [];
+      const inventory =
+        inventories.find((inv) => inv.store?.id === currentStoreId) || inventories[0];
+
+      const p: any = existingProduct;
+      if (p.inventoryType === "fractional") {
+        setPorMedida(true);
+        setUnidadBase(p.baseUnit?.code || "ml");
+        setContenido(p.contentPerUnit || 0);
+      }
+
       setFormData({
         name: existingProduct.name || "",
         description: existingProduct.description || "",
@@ -71,9 +102,9 @@ export default function CreateProduct() {
         sku: existingProduct.sku || "",
         categoryId: existingProduct.category?.id || "",
         brandId: existingProduct.brand?.id || "",
-        storeId: typeof selectedStore === "object" ? selectedStore?.id || "" : "",
-        price: 0,
-        initialStock: 0,
+        storeId: storeProduct?.store?.id || currentStoreId,
+        price: storeProduct ? Number(storeProduct.price) || 0 : 0,
+        initialStock: inventory?.stockQuantity ?? 0,
         metadata: {
           isFeatured: existingProduct.metadata?.isFeatured || false,
           tags: existingProduct.metadata?.tags || [],
@@ -209,10 +240,18 @@ export default function CreateProduct() {
       newErrors.name = "El nombre del producto es requerido";
     }
 
+    if (!formData.price || formData.price <= 0) {
+      newErrors.price = "El precio debe ser mayor a 0";
+    }
+
     // Validar que haya una tienda seleccionada válida
     if (!formData.storeId || selectedStore === "all" || selectedStore === null) {
       newErrors.storeId = "Debes seleccionar una tienda específica";
       toast.error("Por favor selecciona una tienda antes de crear el producto");
+    }
+
+    if (porMedida && !isEditMode && (!contenido || contenido <= 0)) {
+      newErrors.contenido = "Indica cuánto trae cada envase (por ejemplo, 100).";
     }
 
     setErrors(newErrors);
@@ -233,6 +272,21 @@ export default function CreateProduct() {
         brandId: formData.brandId || undefined,
         categoryId: formData.categoryId || undefined,
         sku: formData.sku || undefined,
+        // En edición el stock se gestiona desde Inventario/Compras
+        initialStock: isEditMode ? undefined : formData.initialStock,
+        // La medida SOLO viaja si el usuario la activó. Un producto normal no
+        // manda estos campos y el backend lo trata como unitario, igual que
+        // siempre.
+        ...(porMedida && !isEditMode
+          ? {
+              inventoryType: "fractional" as const,
+              baseUnitCode: unidadBase,
+              contentPerUnit: contenido,
+              // El stock inicial se escribe en envases y se guarda en unidad
+              // base: 3 frascos de 100 ml son 300 ml.
+              initialStock: (formData.initialStock || 0) * contenido,
+            }
+          : {}),
       };
 
       if (isEditMode && productId) {
@@ -561,7 +615,7 @@ export default function CreateProduct() {
 
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Label htmlFor="initialStock">Stock Inicial</Label>
+                <Label htmlFor="initialStock">{isEditMode ? "Stock Actual" : "Stock Inicial"}</Label>
                 <HintIcon>
                   Cuántas unidades tienes ahora mismo. Cuando vendas, el stock baja automáticamente. Cuando recargues, hazlo desde <span className="font-medium">Compras</span> para que quede registrado en tus reportes.
                 </HintIcon>
@@ -574,11 +628,102 @@ export default function CreateProduct() {
                 value={formData.initialStock}
                 onChange={(e) => setFormData(prev => ({ ...prev, initialStock: parseInt(e.target.value) || 0 }))}
                 placeholder="Ej: 10"
+                disabled={isEditMode}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Lo que tienes hoy. Si no tienes stock todavía, déjalo en 0.
+                {isEditMode
+                  ? "El stock se gestiona desde Inventario y Compras, no desde aquí."
+                  : porMedida && contenido > 0 && unidadElegida
+                    ? `Cuántos envases tienes. El sistema guardará ${
+                        (formData.initialStock || 0) * contenido
+                      } ${unidadElegida.symbol} en total.`
+                    : "Lo que tienes hoy. Si no tienes stock todavía, déjalo en 0."}
               </p>
             </div>
+          </Card>
+
+          {/* ─── Se vende por medida (opcional) ─────────────────────── */}
+          <Card className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-semibold">Se vende por medida</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Actívalo si vendes fracciones de un envase: perfume por mililitro,
+                  azúcar por kilo, tela por metro. Si vendes unidades enteras,
+                  déjalo apagado.
+                </p>
+              </div>
+              <Switch
+                checked={porMedida}
+                onCheckedChange={setPorMedida}
+                disabled={isEditMode}
+                aria-label="Se vende por medida"
+              />
+            </div>
+
+            {isEditMode && (
+              <p className="text-xs text-muted-foreground mt-3">
+                La medida no se puede cambiar después de crear el producto: las
+                cantidades ya registradas dejarían de significar lo mismo.
+              </p>
+            )}
+
+            {porMedida && !isEditMode && (
+              <div className="mt-5 border-t pt-5 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="unidadBase">¿En qué se mide?</Label>
+                    <Select value={unidadBase} onValueChange={setUnidadBase}>
+                      <SelectTrigger id="unidadBase" className="mt-1">
+                        <SelectValue placeholder="Elegir unidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unidadesMedibles.map((u) => (
+                          <SelectItem key={u.code} value={u.code}>
+                            {u.name} ({u.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="contenido">¿Cuánto trae cada envase?</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="contenido"
+                        type="number"
+                        min="1"
+                        value={contenido || ""}
+                        onChange={(e) => setContenido(parseInt(e.target.value) || 0)}
+                        placeholder="Ej: 100"
+                        className="pr-14"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        {unidadElegida?.symbol ?? ""}
+                      </span>
+                    </div>
+                    {errors.contenido && (
+                      <p className="text-sm text-red-500 mt-1">{errors.contenido}</p>
+                    )}
+                  </div>
+                </div>
+
+                {contenido > 0 && unidadElegida && (
+                  <div className="rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">
+                    Tu stock se contará en{" "}
+                    <span className="font-medium text-foreground">
+                      {unidadElegida.name.toLowerCase()}
+                    </span>
+                    . Un envase equivale a{" "}
+                    <span className="font-medium text-foreground">
+                      {contenido} {unidadElegida.symbol}
+                    </span>
+                    , así que 3 envases son {contenido * 3} {unidadElegida.symbol}.
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Featured */}

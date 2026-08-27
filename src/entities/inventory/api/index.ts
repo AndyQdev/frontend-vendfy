@@ -9,6 +9,7 @@ import type {
   CreateMovementParams,
   MovementQueryParams,
   MovementKpis,
+  UnitOfMeasure,
 } from "../model/types";
 
 export function useInventory(params: InventoryQueryParams) {
@@ -152,5 +153,27 @@ export function useMovementsByInventory(inventoryId: string | null) {
       };
     },
     enabled: !!inventoryId,
+  });
+}
+
+/**
+ * Catálogo de unidades de medida.
+ *
+ * `onlyBase` deja solo las unidades en que se puede GUARDAR stock (ml, g, cm,
+ * unidad). Las derivadas —litro, kilo, metro— sirven para mostrar y vender,
+ * pero el stock siempre se guarda en la medida más fina para que las cuentas
+ * sean exactas.
+ */
+export function useUnitsOfMeasure(onlyBase = true) {
+  return useQuery<UnitOfMeasure[]>({
+    queryKey: ["unit-of-measure", onlyBase],
+    queryFn: async () => {
+      const response = await apiFetch<UnitOfMeasure[]>(
+        `/api/unit-of-measure${onlyBase ? "?onlyBase=true" : ""}`
+      );
+      return response.data || [];
+    },
+    // El catálogo es fijo: no hace falta re-pedirlo.
+    staleTime: Infinity,
   });
 }

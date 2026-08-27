@@ -146,6 +146,35 @@ const MANUAL_MOVEMENT_TYPES: MovementType[] = [
   "sample",
 ];
 
+/**
+ * Muestra una cantidad con su unidad.
+ *
+ * El stock se guarda siempre en la unidad más fina (ml, g, cm) para que las
+ * cuentas sean enteras y exactas. Acá se traduce a algo legible: 1500 ml se
+ * lee mejor como "1,5 L", y 300 unidades como "300".
+ */
+export function formatearCantidad(
+  cantidad: number,
+  unidad?: { code: string; symbol: string }
+): string {
+  if (!unidad || unidad.code === "unit") return String(cantidad);
+
+  const escalas: Record<string, { factor: number; symbol: string }> = {
+    ml: { factor: 1000, symbol: "L" },
+    g: { factor: 1000, symbol: "kg" },
+    cm: { factor: 100, symbol: "m" },
+  };
+
+  const escala = escalas[unidad.code];
+  if (escala && cantidad >= escala.factor) {
+    const valor = cantidad / escala.factor;
+    const texto = Number.isInteger(valor) ? String(valor) : valor.toFixed(2).replace(".", ",");
+    return `${texto} ${escala.symbol}`;
+  }
+
+  return `${cantidad} ${unidad.symbol}`;
+}
+
 export default function InventoryTable() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -684,7 +713,7 @@ export default function InventoryTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="font-semibold">
-                      {inventory.stockQuantity}
+                      {formatearCantidad(inventory.stockQuantity, inventory.product?.baseUnit)}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -762,7 +791,7 @@ export default function InventoryTable() {
                   {" — "}
                   Stock actual:{" "}
                   <span className="font-semibold">
-                    {selectedInventory.stockQuantity}
+                    {formatearCantidad(selectedInventory.stockQuantity, selectedInventory.product?.baseUnit)}
                   </span>
                 </>
               )}
@@ -815,8 +844,8 @@ export default function InventoryTable() {
               {movementType && selectedInventory && (
                 <p className="text-xs text-muted-foreground">
                   {isStockOut(movementType as MovementType)
-                    ? `Stock resultante: ${selectedInventory.stockQuantity - (parseInt(movementQuantity) || 0)}`
-                    : `Stock resultante: ${selectedInventory.stockQuantity + (parseInt(movementQuantity) || 0)}`}
+                    ? `Stock resultante: ${formatearCantidad(selectedInventory.stockQuantity - (parseInt(movementQuantity) || 0), selectedInventory.product?.baseUnit)}`
+                    : `Stock resultante: ${formatearCantidad(selectedInventory.stockQuantity + (parseInt(movementQuantity) || 0), selectedInventory.product?.baseUnit)}`}
                 </p>
               )}
             </div>
