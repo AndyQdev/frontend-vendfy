@@ -18,6 +18,7 @@ import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrand
 import type { ProductInput } from "@/entities/product/model/schema";
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
 import { toast } from "sonner";
+import { PresentacionesCard } from "./PresentacionesCard";
 
 export default function CreateProduct() {
   const navigate = useNavigate();
@@ -49,6 +50,10 @@ export default function CreateProduct() {
   // Apagado por defecto: la enorme mayoría de los productos se venden por
   // unidades y no tienen por qué ver esto.
   const [porMedida, setPorMedida] = useState(false);
+  // Las formas de venta cuelgan de store_product -el producto EN esta tienda-,
+  // no del producto: un mismo perfume puede venderse en decants en una tienda
+  // y solo entero en otra.
+  const [storeProductId, setStoreProductId] = useState<string>("");
   const [unidadBase, setUnidadBase] = useState("ml");
   const [contenido, setContenido] = useState<number>(0);
   const { data: unidades = [] } = useUnitsOfMeasure(true);
@@ -87,6 +92,8 @@ export default function CreateProduct() {
       const inventories: any[] = (existingProduct as any).inventories || [];
       const inventory =
         inventories.find((inv) => inv.store?.id === currentStoreId) || inventories[0];
+
+      setStoreProductId(storeProduct?.id || "");
 
       const p: any = existingProduct;
       if (p.inventoryType === "fractional") {
@@ -813,6 +820,15 @@ export default function CreateProduct() {
           </Card>
         </div>
       </form>
+
+      {/* Formas de venta: solo si el producto se vende por medida. */}
+      {isEditMode && porMedida && storeProductId && (
+        <PresentacionesCard
+          storeProductId={storeProductId}
+          contenidoPorEnvase={contenido}
+          unidadBase={unidadElegida ?? null}
+        />
+      )}
 
       {/* Reseñas del producto (solo en edición) */}
       {isEditMode && productId && formData.storeId && (

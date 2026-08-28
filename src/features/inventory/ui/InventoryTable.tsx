@@ -1,12 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useInventory, useCreateMovement, useMovementsByInventory } from "@/entities/inventory/api";
+import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
 import { useCategories, useBrands } from "@/entities/product/api";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { Truck as TruckIcon, Package as PackageIcon } from "lucide-react";
 import { useStore } from "@/app/providers/auth";
-import type { Inventory, MovementType } from "@/entities/inventory/model/types";
+import type { Inventory } from "@/entities/inventory/model/types";
 import {
   Table,
   TableBody,
@@ -18,17 +18,15 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { Label } from "@/shared/ui/label";
-import { Textarea } from "@/shared/ui/textarea";
 import { PaginationControls } from "@/shared/ui/pagination";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog,
+  ResponsiveDialogBody,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/shared/ui/responsive-dialog";
 import {
   Select,
   SelectContent,
@@ -44,136 +42,32 @@ import {
   AlertTriangle,
   Archive,
   Plus,
-  Minus,
   ShoppingCart,
   ArrowUpDown,
   History,
   X,
 } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
-import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { CeldasExistencias } from "./CeldasExistencias";
+import { MovimientosGlobales } from "./MovimientosGlobales";
+import {
+  AjusteStockDialog,
+  type AlcanceAjuste,
+  type AperturaAjuste,
+  type DireccionAjuste,
+} from "./AjusteStockDialog";
+import { formatearCantidad } from "@/entities/inventory/model/envases";
+import {
+  esSalida,
+  MOVEMENT_TYPE_CONFIG,
+} from "@/entities/inventory/model/movimientos";
 
-const MOVEMENT_TYPE_CONFIG: Record<
-  MovementType,
-  { label: string; description: string; color: string; icon: React.ReactNode }
-> = {
-  purchase: {
-    label: "Compra",
-    description: "Registrar entrada de mercadería por compra",
-    color: "bg-blue-500",
-    icon: <ShoppingCart className="h-4 w-4" />,
-  },
-  sale: {
-    label: "Venta",
-    description: "Registrar salida por venta completada",
-    color: "bg-green-500",
-    icon: <DollarSign className="h-4 w-4" />,
-  },
-  adjustment_in: {
-    label: "Ajuste entrada",
-    description: "Corregir stock hacia arriba (sin compra)",
-    color: "bg-emerald-500",
-    icon: <Plus className="h-4 w-4" />,
-  },
-  adjustment_out: {
-    label: "Ajuste salida",
-    description: "Corregir stock hacia abajo (sin venta)",
-    color: "bg-orange-500",
-    icon: <Minus className="h-4 w-4" />,
-  },
-  waste: {
-    label: "Merma",
-    description: "Producto perdido, derramado o dañado",
-    color: "bg-rose-500",
-    icon: <AlertTriangle className="h-4 w-4" />,
-  },
-  sample: {
-    label: "Muestra",
-    description: "Entregado como muestra al cliente",
-    color: "bg-violet-500",
-    icon: <Package className="h-4 w-4" />,
-  },
-  // ── Automáticos: los genera el motor de consumo, no se registran a mano ──
-  consumption: {
-    label: "Consumo",
-    description: "Salida por un pedido",
-    color: "bg-green-600",
-    icon: <ShoppingCart className="h-4 w-4" />,
-  },
-  return: {
-    label: "Devolución",
-    description: "Reversa del consumo de un pedido",
-    color: "bg-sky-500",
-    icon: <ArrowUpDown className="h-4 w-4" />,
-  },
-  fraction: {
-    label: "Fraccionamiento",
-    description: "Se abrió y trasvasó producto",
-    color: "bg-amber-500",
-    icon: <Boxes className="h-4 w-4" />,
-  },
-  assembly: {
-    label: "Armado",
-    description: "Se armó un producto compuesto",
-    color: "bg-teal-500",
-    icon: <Boxes className="h-4 w-4" />,
-  },
-  container_open: {
-    label: "Envase abierto",
-    description: "Cambio de estado del envase",
-    color: "bg-slate-400",
-    icon: <Archive className="h-4 w-4" />,
-  },
-  container_empty: {
-    label: "Envase vacío",
-    description: "El envase llegó a cero",
-    color: "bg-slate-500",
-    icon: <Archive className="h-4 w-4" />,
-  },
-};
+// Se mudó a entities/inventory/model/envases; se re-exporta para no romper
+// importaciones existentes.
+export { formatearCantidad };
 
-/**
- * Lo que una persona puede registrar a mano. El resto de los tipos los genera
- * el motor de consumo al vender, cancelar o fraccionar, y ofrecerlos en el
- * formulario invitaría a descuadrar el inventario a mano.
- */
-const MANUAL_MOVEMENT_TYPES: MovementType[] = [
-  "purchase",
-  "sale",
-  "adjustment_in",
-  "adjustment_out",
-  "waste",
-  "sample",
-];
 
-/**
- * Muestra una cantidad con su unidad.
- *
- * El stock se guarda siempre en la unidad más fina (ml, g, cm) para que las
- * cuentas sean enteras y exactas. Acá se traduce a algo legible: 1500 ml se
- * lee mejor como "1,5 L", y 300 unidades como "300".
- */
-export function formatearCantidad(
-  cantidad: number,
-  unidad?: { code: string; symbol: string }
-): string {
-  if (!unidad || unidad.code === "unit") return String(cantidad);
-
-  const escalas: Record<string, { factor: number; symbol: string }> = {
-    ml: { factor: 1000, symbol: "L" },
-    g: { factor: 1000, symbol: "kg" },
-    cm: { factor: 100, symbol: "m" },
-  };
-
-  const escala = escalas[unidad.code];
-  if (escala && cantidad >= escala.factor) {
-    const valor = cantidad / escala.factor;
-    const texto = Number.isInteger(valor) ? String(valor) : valor.toFixed(2).replace(".", ",");
-    return `${texto} ${escala.symbol}`;
-  }
-
-  return `${cantidad} ${unidad.symbol}`;
-}
 
 export default function InventoryTable() {
   const navigate = useNavigate();
@@ -198,13 +92,11 @@ export default function InventoryTable() {
   const categories = categoriesData || [];
   const brands = brandsData || [];
 
-  // Modal de movimiento
-  const [movementDialogOpen, setMovementDialogOpen] = useState(false);
-  const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
-  const [movementType, setMovementType] = useState<MovementType | "">("");
-  const [movementQuantity, setMovementQuantity] = useState("");
-  const [movementUnitCost, setMovementUnitCost] = useState("");
-  const [movementNotes, setMovementNotes] = useState("");
+  // Pestaña activa: el saldo, o el relato de cómo se llegó a él.
+  const [vista, setVista] = useState<"stock" | "movimientos">("stock");
+
+  // Ajuste en curso. null = diálogo cerrado.
+  const [apertura, setApertura] = useState<AperturaAjuste | null>(null);
 
   // Modal de historial
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -264,7 +156,6 @@ export default function InventoryTable() {
   const totalPages = Math.ceil(totalInventories / pageSize);
   const stats = inventoryResponse?.stats;
 
-  const createMovement = useCreateMovement();
   const { data: movementsResponse, isLoading: isLoadingMovements } =
     useMovementsByInventory(historyInventoryId);
 
@@ -298,44 +189,17 @@ export default function InventoryTable() {
     setCurrentPage(1);
   };
 
-  const openMovementDialog = (inventory: Inventory, type?: MovementType) => {
-    setSelectedInventory(inventory);
-    setMovementType(type || "");
-    setMovementQuantity("");
-    setMovementUnitCost("");
-    setMovementNotes("");
-    setMovementDialogOpen(true);
-  };
+  const abrirAjuste = (
+    inventory: Inventory,
+    alcance: AlcanceAjuste,
+    direccion: DireccionAjuste,
+  ) => setApertura({ inventory, alcance, direccion });
 
   const openHistoryDialog = (inventoryId: string) => {
     setHistoryInventoryId(inventoryId);
     setHistoryDialogOpen(true);
   };
 
-  const handleSubmitMovement = async () => {
-    if (!selectedInventory || !movementType || !movementQuantity) return;
-
-    const qty = parseInt(movementQuantity);
-    if (isNaN(qty) || qty <= 0) {
-      toast.error("La cantidad debe ser un número positivo");
-      return;
-    }
-
-    try {
-      await createMovement.mutateAsync({
-        inventoryId: selectedInventory.id,
-        type: movementType as MovementType,
-        quantity: qty,
-        ...(movementUnitCost && { unitCost: parseFloat(movementUnitCost) }),
-        ...(movementNotes && { notes: movementNotes }),
-      });
-
-      toast.success("Movimiento registrado exitosamente");
-      setMovementDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error?.message || "Error al registrar movimiento");
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -350,573 +214,443 @@ export default function InventoryTable() {
     }
   };
 
-  const getMovementBadge = (type: MovementType) => {
-    const config = MOVEMENT_TYPE_CONFIG[type];
-    if (!config) return <Badge variant="secondary">{type}</Badge>;
-    return (
-      <Badge className={config.color}>
-        <span className="flex items-center gap-1">
-          {config.icon}
-          {config.label}
-        </span>
-      </Badge>
-    );
-  };
-
-  /**
-   * Si el movimiento saca stock. Se prefiere `direction` que ya viene del
-   * backend; la lista de tipos es el respaldo para movimientos viejos que
-   * todavía no lo traen.
-   */
-  const isStockOut = (type: MovementType, direction?: number) => {
-    if (typeof direction === "number") return direction < 0;
-    return !["purchase", "adjustment_in", "assembly", "return"].includes(type);
-  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Inventario</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona el stock de tus productos
-          </p>
-        </div>
-      </div>
+      <Tabs
+        value={vista}
+        onValueChange={(v) => setVista(v as "stock" | "movimientos")}
+      >
+        <TabsList>
+          <TabsTrigger value="stock" className="gap-1.5">
+            <Boxes className="h-4 w-4" />
+            Stock
+          </TabsTrigger>
+          <TabsTrigger value="movimientos" className="gap-1.5">
+            <History className="h-4 w-4" />
+            Movimientos
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stats Cards */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-card border rounded-lg p-4">
+        <TabsContent value="stock" className="mt-4 space-y-6">
+        {/* Stats Cards */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-card border rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-muted rounded-lg animate-pulse w-10 h-10" />
+                  <div className="flex-1">
+                    <div className="h-3 bg-muted rounded w-24 animate-pulse mb-2" />
+                    <div className="h-6 bg-muted rounded w-16 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : stats ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-muted rounded-lg animate-pulse w-10 h-10" />
-                <div className="flex-1">
-                  <div className="h-3 bg-muted rounded w-24 animate-pulse mb-2" />
-                  <div className="h-6 bg-muted rounded w-16 animate-pulse" />
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <Archive className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Productos Únicos</p>
+                  <p className="text-2xl font-semibold">{stats.uniqueProducts}</p>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      ) : stats ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Archive className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+
+            <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                  <Boxes className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Unidades en Stock</p>
+                  <p className="text-2xl font-semibold">{stats.totalUnits}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Productos Únicos</p>
-                <p className="text-2xl font-semibold">{stats.uniqueProducts}</p>
+            </div>
+
+            <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                  <p className="text-2xl font-semibold">
+                    Bs. {stats.totalValue.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Productos Agotados</p>
+                  <p className="text-2xl font-semibold">{stats.outOfStock}</p>
+                </div>
               </div>
             </div>
           </div>
+        ) : null}
 
-          <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <Boxes className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Unidades en Stock</p>
-                <p className="text-2xl font-semibold">{stats.totalUnits}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
-                <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Total</p>
-                <p className="text-2xl font-semibold">
-                  Bs. {stats.totalValue.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Productos Agotados</p>
-                <p className="text-2xl font-semibold">{stats.outOfStock}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Filtros */}
-      <div className="bg-card border rounded-lg p-4 space-y-3">
-        {/* Búsqueda */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, descripción o etiqueta..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-9"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Fila de filtros */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Categoría */}
-          <div className="w-full sm:w-44">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Marca */}
-          <div className="w-full sm:w-44">
-            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-              <SelectTrigger>
-                <SelectValue placeholder="Marca" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las marcas</SelectItem>
-                {brands.map((brand) => (
-                  <SelectItem key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Rango de precio */}
-          <div className="flex items-center gap-1.5 px-2.5 h-10 rounded-md border bg-background">
-            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+        {/* Filtros: una sola fila desde laptop; apilados en pantallas chicas. */}
+        <div className="bg-card border rounded-lg p-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          {/* Búsqueda */}
+          <div className="relative lg:min-w-[220px] lg:flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={minPriceInput}
-              onChange={(e) => setMinPriceInput(e.target.value)}
-              placeholder="Min"
-              className="w-20 h-8 px-2 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              placeholder="Buscar producto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-9"
             />
-            <span className="text-muted-foreground text-sm">–</span>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={maxPriceInput}
-              onChange={(e) => setMaxPriceInput(e.target.value)}
-              placeholder="Max"
-              className="w-20 h-8 px-2 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </div>
-
-          {/* Solo con stock */}
-          <div className="flex items-center gap-2 px-3 h-10 rounded-md border bg-background">
-            <Boxes className="h-3.5 w-3.5 text-muted-foreground" />
-            <label
-              htmlFor="inv-instock"
-              className="text-sm whitespace-nowrap cursor-pointer select-none"
-            >
-              Solo con stock
-            </label>
-            <Switch
-              id="inv-instock"
-              checked={onlyInStock}
-              onCheckedChange={setOnlyInStock}
-            />
-          </div>
-
-          {/* Reset */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleResetFilters}
-              className="h-10 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5 mr-1.5" />
-              Limpiar filtros
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Table */}
-      {isLoading ? (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Imagen</TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Tienda</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
-                <TableHead className="text-right">Disponible</TableHead>
-                <TableHead className="text-right">En Tránsito</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(pageSize)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="w-16 h-16 bg-muted rounded-lg animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-32 animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-20 animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-24 animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-16 animate-pulse ml-auto" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-12 animate-pulse ml-auto" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-muted rounded w-12 animate-pulse ml-auto" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-6 bg-muted rounded w-20 animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-8 bg-muted rounded w-24 animate-pulse mx-auto" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : inventories.length === 0 ? (
-        hasActiveFilters ? (
-          <EmptyState
-            icon={PackageIcon}
-            title="No encontramos resultados"
-            description="No hay productos que coincidan con los filtros aplicados. Prueba ajustando los criterios."
-            primaryAction={{
-              label: "Limpiar filtros",
-              variant: "outline",
-              onClick: handleResetFilters,
-            }}
-          />
-        ) : (
-          <EmptyState
-            icon={PackageIcon}
-            title="Tu inventario está vacío"
-            description="Cuando crees productos y registres compras, aparecerán aquí con su stock disponible. La forma correcta de cargar stock es desde Compras — así queda registrado en tus reportes."
-            primaryAction={{
-              label: "Crear producto",
-              icon: Plus,
-              onClick: () => navigate("/products/create"),
-            }}
-            secondaryAction={{
-              label: "Registrar compra",
-              icon: TruckIcon,
-              variant: "outline",
-              onClick: () => navigate("/purchases/new"),
-            }}
-          />
-        )
-      ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Imagen</TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Tienda</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
-                <TableHead className="text-right">Disponible</TableHead>
-                <TableHead className="text-right">En Tránsito</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {inventories.map((inventory) => (
-                <TableRow key={inventory.id}>
-                  <TableCell>
-                    <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden">
-                      {inventory.product.imageUrls &&
-                      inventory.product.imageUrls.length > 0 ? (
-                        <img
-                          src={inventory.product.imageUrls[0]}
-                          alt={inventory.product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{inventory.product.name}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {inventory.product.sku ? (
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {inventory.product.sku}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">
-                        Sin código
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{inventory.store.name}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-semibold text-green-600">
-                      Bs. {inventory.product.price?.toFixed(2) || "0.00"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-semibold">
-                      {formatearCantidad(inventory.stockQuantity, inventory.product?.baseUnit)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={
-                        inventory.reservedQuantity > 0
-                          ? "font-semibold text-yellow-600"
-                          : ""
-                      }
-                    >
-                      {inventory.reservedQuantity}
-                    </span>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(inventory.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Registrar compra"
-                        onClick={() => openMovementDialog(inventory, "purchase")}
-                      >
-                        <ShoppingCart className="h-4 w-4 text-blue-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Ajustar stock"
-                        onClick={() => openMovementDialog(inventory)}
-                      >
-                        <ArrowUpDown className="h-4 w-4 text-orange-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Ver historial"
-                        onClick={() => openHistoryDialog(inventory.id)}
-                      >
-                        <History className="h-4 w-4 text-gray-600" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {!isLoading && inventories.length > 0 && (
-            <div className="border-t p-4">
-              <PaginationControls
-                currentPage={currentPage}
-                totalPages={totalPages}
-                pageSize={pageSize}
-                totalItems={totalInventories}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={[5, 10, 20, 50]}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Dialog: Registrar Movimiento */}
-      <Dialog open={movementDialogOpen} onOpenChange={setMovementDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Movimiento</DialogTitle>
-            <DialogDescription>
-              {selectedInventory && (
-                <>
-                  <span className="font-medium text-foreground">
-                    {selectedInventory.product.name}
-                  </span>
-                  {" — "}
-                  Stock actual:{" "}
-                  <span className="font-semibold">
-                    {formatearCantidad(selectedInventory.stockQuantity, selectedInventory.product?.baseUnit)}
-                  </span>
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Tipo de movimiento */}
-            <div className="space-y-2">
-              <Label>Tipo de movimiento</Label>
-              <Select
-                value={movementType}
-                onValueChange={(val) => setMovementType(val as MovementType)}
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpiar búsqueda"
               >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Fila de filtros */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Categoría */}
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-40">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tipo..." />
+                  <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MANUAL_MOVEMENT_TYPES.map((key) => (MOVEMENT_TYPE_CONFIG[key]
-                    ? [key, MOVEMENT_TYPE_CONFIG[key]] as const
-                    : null))
-                    .filter((e): e is readonly [MovementType, (typeof MOVEMENT_TYPE_CONFIG)[MovementType]] => e !== null)
-                    .map(([key, config]) => (
-                    <SelectItem key={key} value={key}>
-                      <span className="flex items-center gap-2">
-                        {config.icon}
-                        <span>
-                          {config.label}
-                          <span className="text-muted-foreground text-xs ml-1">
-                            — {config.description}
-                          </span>
-                        </span>
-                      </span>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Cantidad */}
-            <div className="space-y-2">
-              <Label>Cantidad</Label>
+            {/* Marca */}
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-40">
+              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Marca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las marcas</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Rango de precio */}
+            <div className="flex items-center gap-1.5 px-2.5 h-10 rounded-md border bg-background">
+              <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="number"
-                min={1}
-                placeholder="Ej: 10"
-                value={movementQuantity}
-                onChange={(e) => setMovementQuantity(e.target.value)}
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                value={minPriceInput}
+                onChange={(e) => setMinPriceInput(e.target.value)}
+                placeholder="Min"
+                className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
-              {movementType && selectedInventory && (
-                <p className="text-xs text-muted-foreground">
-                  {isStockOut(movementType as MovementType)
-                    ? `Stock resultante: ${formatearCantidad(selectedInventory.stockQuantity - (parseInt(movementQuantity) || 0), selectedInventory.product?.baseUnit)}`
-                    : `Stock resultante: ${formatearCantidad(selectedInventory.stockQuantity + (parseInt(movementQuantity) || 0), selectedInventory.product?.baseUnit)}`}
-                </p>
-              )}
+              <span className="text-muted-foreground text-sm">–</span>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
+                placeholder="Max"
+                className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
             </div>
 
-            {/* Costo unitario (solo para compras) */}
-            {movementType === "purchase" && (
-              <div className="space-y-2">
-                <Label>Costo unitario (opcional)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="Ej: 15.50"
-                  value={movementUnitCost}
-                  onChange={(e) => setMovementUnitCost(e.target.value)}
+            {/* Solo con stock */}
+            <div className="flex items-center gap-2 px-3 h-10 rounded-md border bg-background">
+              <Boxes className="h-3.5 w-3.5 text-muted-foreground" />
+              <label
+                htmlFor="inv-instock"
+                className="text-sm whitespace-nowrap cursor-pointer select-none"
+              >
+                Con stock
+              </label>
+              <Switch
+                id="inv-instock"
+                checked={onlyInStock}
+                onCheckedChange={setOnlyInStock}
+              />
+            </div>
+
+            {/* Reset */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-10 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Limpiar</span>
+              </Button>
+            )}
+          </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        {isLoading ? (
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Imagen</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Tienda</TableHead>
+                  <TableHead className="text-right">Precio</TableHead>
+                  <TableHead className="text-center">Stock</TableHead>
+                  <TableHead className="text-center">Consumo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...Array(pageSize)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="w-16 h-16 bg-muted rounded-lg animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-32 animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-20 animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-24 animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-16 animate-pulse ml-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-12 animate-pulse ml-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-muted rounded w-12 animate-pulse ml-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-6 bg-muted rounded w-20 animate-pulse" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-8 bg-muted rounded w-24 animate-pulse mx-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : inventories.length === 0 ? (
+          hasActiveFilters ? (
+            <EmptyState
+              icon={PackageIcon}
+              title="No encontramos resultados"
+              description="No hay productos que coincidan con los filtros aplicados. Prueba ajustando los criterios."
+              primaryAction={{
+                label: "Limpiar filtros",
+                variant: "outline",
+                onClick: handleResetFilters,
+              }}
+            />
+          ) : (
+            <EmptyState
+              icon={PackageIcon}
+              title="Tu inventario está vacío"
+              description="Cuando crees productos y registres compras, aparecerán aquí con su stock disponible. La forma correcta de cargar stock es desde Compras — así queda registrado en tus reportes."
+              primaryAction={{
+                label: "Crear producto",
+                icon: Plus,
+                onClick: () => navigate("/products/create"),
+              }}
+              secondaryAction={{
+                label: "Registrar compra",
+                icon: TruckIcon,
+                variant: "outline",
+                onClick: () => navigate("/purchases/new"),
+              }}
+            />
+          )
+        ) : (
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Imagen</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Tienda</TableHead>
+                  <TableHead className="text-right">Precio</TableHead>
+                  <TableHead className="text-center">Stock</TableHead>
+                  <TableHead className="text-center">Consumo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inventories.map((inventory) => (
+                  <TableRow key={inventory.id}>
+                    <TableCell>
+                      <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden">
+                        {inventory.product.imageUrls &&
+                        inventory.product.imageUrls.length > 0 ? (
+                          <img
+                            src={inventory.product.imageUrls[0]}
+                            alt={inventory.product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{inventory.product.name}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {inventory.product.sku ? (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {inventory.product.sku}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          Sin código
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{inventory.store.name}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-semibold text-green-600">
+                        Bs. {inventory.product.price?.toFixed(2) || "0.00"}
+                      </span>
+                    </TableCell>
+                    <CeldasExistencias
+                      inventory={inventory}
+                      onAjustar={(alcance, direccion) =>
+                        abrirAjuste(inventory, alcance, direccion)
+                      }
+                    />
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        {getStatusBadge(inventory.status)}
+                        {inventory.reservedQuantity > 0 && (
+                          <span className="text-[10px] text-yellow-600 dark:text-yellow-500">
+                            {formatearCantidad(
+                              inventory.reservedQuantity,
+                              inventory.product?.baseUnit
+                            )}{" "}
+                            reservado
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Registrar compra"
+                          onClick={() => abrirAjuste(inventory, "envase", "in")}
+                        >
+                          <ShoppingCart className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Ajustar stock"
+                          onClick={() => abrirAjuste(inventory, "envase", "out")}
+                        >
+                          <ArrowUpDown className="h-4 w-4 text-orange-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Ver historial"
+                          onClick={() => openHistoryDialog(inventory.id)}
+                        >
+                          <History className="h-4 w-4 text-gray-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {!isLoading && inventories.length > 0 && (
+              <div className="border-t p-4">
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalInventories}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={[5, 10, 20, 50]}
                 />
-                {movementUnitCost && movementQuantity && (
-                  <p className="text-xs text-muted-foreground">
-                    Costo total: Bs.{" "}
-                    {(
-                      parseFloat(movementUnitCost) *
-                      parseInt(movementQuantity)
-                    ).toFixed(2)}
-                  </p>
-                )}
               </div>
             )}
-
-            {/* Notas */}
-            <div className="space-y-2">
-              <Label>Notas (opcional)</Label>
-              <Textarea
-                placeholder="Ej: Compra de reposición semanal"
-                value={movementNotes}
-                onChange={(e) => setMovementNotes(e.target.value)}
-                rows={2}
-              />
-            </div>
           </div>
+        )}
+        </TabsContent>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setMovementDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmitMovement}
-              disabled={
-                !movementType ||
-                !movementQuantity ||
-                parseInt(movementQuantity) <= 0 ||
-                createMovement.isPending
-              }
-            >
-              {createMovement.isPending ? "Registrando..." : "Registrar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="movimientos" className="mt-4">
+          <MovimientosGlobales storeId={storeId} />
+        </TabsContent>
+      </Tabs>
+
 
       {/* Dialog: Historial de Movimientos */}
-      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogContent className="sm:max-w-[640px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Historial de Movimientos</DialogTitle>
-            <DialogDescription>
+      <ResponsiveDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+      >
+        <ResponsiveDialogContent className="sm:max-w-[640px]">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Historial de movimientos</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
               Últimos movimientos registrados para este producto
-            </DialogDescription>
-          </DialogHeader>
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+
+          <ResponsiveDialogBody className="pb-6">
 
           {isLoadingMovements ? (
             <div className="space-y-3 py-4">
@@ -936,17 +670,30 @@ export default function InventoryTable() {
             </div>
           ) : (
             <div className="space-y-3 py-2">
-              {movementsResponse.data.map((movement) => (
+              {movementsResponse.data.map((movement) => {
+                const config = MOVEMENT_TYPE_CONFIG[movement.type];
+                const salida = esSalida(movement.type, movement.direction);
+                return (
                 <div
                   key={movement.id}
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    {getMovementBadge(movement.type)}
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        config?.chip ?? "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {config?.icon}
+                      {config?.label ?? movement.type}
+                    </span>
                     <div>
-                      <p className="text-sm font-medium">
-                        {isStockOut(movement.type, movement.direction) ? "-" : "+"}
-                        {movement.quantity} unidades
+                      <p className="text-sm font-medium tabular-nums">
+                        {movement.direction === 0 ? "" : salida ? "−" : "+"}
+                        {formatearCantidad(
+                          movement.quantity,
+                          movement.inventory?.product?.baseUnit
+                        )}
                       </p>
                       {movement.notes && (
                         <p className="text-xs text-muted-foreground">
@@ -975,11 +722,18 @@ export default function InventoryTable() {
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogBody>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      <AjusteStockDialog
+        apertura={apertura}
+        onClose={() => setApertura(null)}
+      />
     </div>
   );
 }
