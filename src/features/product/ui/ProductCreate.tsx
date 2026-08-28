@@ -257,7 +257,7 @@ export default function CreateProduct() {
       toast.error("Por favor selecciona una tienda antes de crear el producto");
     }
 
-    if (porMedida && !isEditMode && (!contenido || contenido <= 0)) {
+    if (porMedida && (!contenido || contenido <= 0)) {
       newErrors.contenido = "Indica cuánto trae cada envase (por ejemplo, 100).";
     }
 
@@ -284,14 +284,17 @@ export default function CreateProduct() {
         // La medida SOLO viaja si el usuario la activó. Un producto normal no
         // manda estos campos y el backend lo trata como unitario, igual que
         // siempre.
-        ...(porMedida && !isEditMode
+        ...(porMedida
           ? {
               inventoryType: "fractional" as const,
               baseUnitCode: unidadBase,
               contentPerUnit: contenido,
               // El stock inicial se escribe en envases y se guarda en unidad
-              // base: 3 frascos de 100 ml son 300 ml.
-              initialStock: (formData.initialStock || 0) * contenido,
+              // base: 3 frascos de 100 ml son 300 ml. Al editar no se toca:
+              // el stock se maneja desde Inventario.
+              ...(isEditMode
+                ? {}
+                : { initialStock: (formData.initialStock || 0) * contenido }),
             }
           : {}),
       };
@@ -663,19 +666,19 @@ export default function CreateProduct() {
               <Switch
                 checked={porMedida}
                 onCheckedChange={setPorMedida}
-                disabled={isEditMode}
                 aria-label="Se vende por medida"
               />
             </div>
 
             {isEditMode && (
               <p className="text-xs text-muted-foreground mt-3">
-                La medida no se puede cambiar después de crear el producto: las
-                cantidades ya registradas dejarían de significar lo mismo.
+                Solo se puede cambiar mientras el producto no tenga movimientos
+                de inventario: un stock de 300 pasaría de significar 300
+                unidades a 300 mililitros, y el historial quedaría mintiendo.
               </p>
             )}
 
-            {porMedida && !isEditMode && (
+            {porMedida && (
               <div className="mt-5 border-t pt-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
