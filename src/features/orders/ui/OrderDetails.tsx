@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { Separator } from "@/shared/ui/separator";
+import { formatearCantidad } from "@/entities/inventory/model/envases";
 
 export function OrderDetailsModal({ order, open, onClose }: { order: Order | null; open: boolean; onClose: () => void }) {
   if (!order) return null;
@@ -102,7 +103,26 @@ export function OrderDetailsModal({ order, open, onClose }: { order: Order | nul
                         {item.storeProduct?.product?.name || "Producto"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Cantidad: {item.quantity}
+                        {item.baseQuantity ? (
+                          <>
+                            {item.quantity} ×{" "}
+                            {formatearCantidad(
+                              item.baseQuantity,
+                              item.unit ?? item.storeProduct?.product?.baseUnit ?? undefined
+                            )}
+                            {item.quantity > 1 && (
+                              <>
+                                {" = "}
+                                {formatearCantidad(
+                                  item.baseQuantity * item.quantity,
+                                  item.unit ?? item.storeProduct?.product?.baseUnit ?? undefined
+                                )}
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>Cantidad: {item.quantity}</>
+                        )}
                       </p>
                     </div>
                   </div>

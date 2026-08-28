@@ -18,7 +18,6 @@ import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrand
 import type { ProductInput } from "@/entities/product/model/schema";
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
 import { toast } from "sonner";
-import { PresentacionesCard } from "./PresentacionesCard";
 
 export default function CreateProduct() {
   const navigate = useNavigate();
@@ -50,10 +49,10 @@ export default function CreateProduct() {
   // Apagado por defecto: la enorme mayoría de los productos se venden por
   // unidades y no tienen por qué ver esto.
   const [porMedida, setPorMedida] = useState(false);
-  // Las formas de venta cuelgan de store_product -el producto EN esta tienda-,
-  // no del producto: un mismo perfume puede venderse en decants en una tienda
-  // y solo entero en otra.
-  const [storeProductId, setStoreProductId] = useState<string>("");
+  // Precio de UNA unidad base: Bs por ml, por gramo. Es lo único que hace
+  // falta para vender fraccionado; qué medidas se ofrecen (10, 20, 30 ml) lo
+  // decide cada tienda en su web, no nosotros.
+  const [precioPorMedida, setPrecioPorMedida] = useState<number>(0);
   const [unidadBase, setUnidadBase] = useState("ml");
   const [contenido, setContenido] = useState<number>(0);
   const { data: unidades = [] } = useUnitsOfMeasure(true);
@@ -93,13 +92,12 @@ export default function CreateProduct() {
       const inventory =
         inventories.find((inv) => inv.store?.id === currentStoreId) || inventories[0];
 
-      setStoreProductId(storeProduct?.id || "");
-
       const p: any = existingProduct;
       if (p.inventoryType === "fractional") {
         setPorMedida(true);
         setUnidadBase(p.baseUnit?.code || "ml");
         setContenido(p.contentPerUnit || 0);
+        setPrecioPorMedida(Number(storeProduct?.pricePerBaseUnit) || 0);
       }
 
       setFormData({
@@ -261,6 +259,11 @@ export default function CreateProduct() {
       newErrors.contenido = "Indica cuánto trae cada envase (por ejemplo, 100).";
     }
 
+    if (porMedida && (!precioPorMedida || precioPorMedida <= 0)) {
+      newErrors.precioPorMedida =
+        "Indica cuánto cobras por unidad de medida, o apaga la venta por medida.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -289,6 +292,9 @@ export default function CreateProduct() {
               inventoryType: "fractional" as const,
               baseUnitCode: unidadBase,
               contentPerUnit: contenido,
+              // Sin esto el producto se puede fraccionar pero no vender
+              // fraccionado: la tienda no sabría cuánto cobrar.
+              pricePerBaseUnit: precioPorMedida > 0 ? precioPorMedida : undefined,
               // El stock inicial se escribe en envases y se guarda en unidad
               // base: 3 frascos de 100 ml son 300 ml. Al editar no se toca:
               // el stock se maneja desde Inventario.
@@ -719,6 +725,66 @@ export default function CreateProduct() {
                   </div>
                 </div>
 
+                <div className="sm:max-w-[50%]">
+                  <Label htmlFor="precioPorMedida">
+                    ¿Cuánto cobras por {unidadElegida?.symbol ?? "medida"}?
+                  </Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      Bs
+                    </span>
+                    <Input
+                      id="precioPorMedida"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={precioPorMedida || ""}
+                      onChange={(e) =>
+                        setPrecioPorMedida(parseFloat(e.target.value) || 0)
+                      }
+                      placeholder="Ej: 10"
+                      className="pl-9"
+                    />
+                  </div>
+                  {errors.precioPorMedida && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.precioPorMedida}
+                    </p>
+                  )}
+                </div>
+
+                {contenido > 0 && unidadElegida && precioPorMedida > 0 && (
+                  <div className="rounded-md border bg-muted/40 p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Con esto, tu producto se podrá vender de tres formas
+                    </p>
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between gap-3">
+                        <span>Envase completo</span>
+                        <span className="font-medium tabular-nums">
+                          Bs {(formData.price || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>
+                          Por medida — 10 {unidadElegida.symbol}
+                        </span>
+                        <span className="font-medium tabular-nums">
+                          Bs {(precioPorMedida * 10).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 text-muted-foreground">
+                        <span>Packs que arme el cliente</span>
+                        <span>según lo que elija</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1 border-t">
+                      Qué medidas se ofrecen —10, 20, 30 {unidadElegida.symbol}—
+                      lo decide cada tienda en su web. Acá solo va el precio.
+                    </p>
+                  </div>
+                )}
+
                 {contenido > 0 && unidadElegida && (
                   <div className="rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">
                     Tu stock se contará en{" "}
@@ -823,15 +889,6 @@ export default function CreateProduct() {
           </Card>
         </div>
       </form>
-
-      {/* Formas de venta: solo si el producto se vende por medida. */}
-      {isEditMode && porMedida && storeProductId && (
-        <PresentacionesCard
-          storeProductId={storeProductId}
-          contenidoPorEnvase={contenido}
-          unidadBase={unidadElegida ?? null}
-        />
-      )}
 
       {/* Reseñas del producto (solo en edición) */}
       {isEditMode && productId && formData.storeId && (

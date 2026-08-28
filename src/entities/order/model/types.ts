@@ -79,8 +79,17 @@ export interface Order {
   };
   items?: Array<{
     id: string;
+    /** Cuántas cosas: 3 camisas, 2 decants. NO cuántos mililitros. */
     quantity: number;
     price: number;
+    /**
+     * Cuánto mide CADA unidad de esta línea, en unidad base. Solo en ventas
+     * por medida: 2 decants de 30 ml son quantity 2 y baseQuantity 30.
+     */
+    baseQuantity?: number | null;
+    /** PRODUCT | MEASURE | PRESENTATION | CONFIGURATION */
+    itemType?: string;
+    unit?: { code: string; symbol: string } | null;
     storeProduct?: {
       id: string;
       product?: {
@@ -88,6 +97,7 @@ export interface Order {
         name: string;
         sku?: string;
         imageUrls?: string[];
+        baseUnit?: { code: string; symbol: string } | null;
       };
     };
   }>;
