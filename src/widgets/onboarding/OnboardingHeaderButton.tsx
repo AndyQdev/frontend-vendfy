@@ -12,13 +12,16 @@ import {
 } from "@/shared/ui/tooltip";
 
 /**
- * Botón en el header que muestra el progreso del onboarding y permite re-abrir
- * el checklist si el usuario lo había ocultado.
+ * El botón del header: el ÚNICO lugar desde donde se abre la guía de primeros
+ * pasos. Muestra cuánto falta y, al tocarlo, abre o cierra el panel.
+ *
+ * Cuando ya está todo hecho desaparece: no queda nada que abrir, y un botón
+ * permanente que dice "Todo listo" es ruido en la barra para siempre.
  */
 export function OnboardingHeaderButton() {
   const { user } = useAuth();
   const { data: stores } = useStores();
-  const { dismissed, show } = useOnboardingVisibility();
+  const { abierto, alternar } = useOnboardingVisibility();
 
   if (!user) return null;
 
@@ -26,10 +29,7 @@ export function OnboardingHeaderButton() {
   if ((stores?.length ?? 0) > 0) completed.add(1);
 
   const completedCount = completed.size;
-  const allDone = completedCount >= TOTAL_ONBOARDING_STEPS;
-
-  // Si está todo terminado y el widget también fue cerrado, no estorbamos.
-  if (allDone && dismissed) return null;
+  if (completedCount >= TOTAL_ONBOARDING_STEPS) return null;
 
   const progress = Math.round((completedCount / TOTAL_ONBOARDING_STEPS) * 100);
 
@@ -40,21 +40,22 @@ export function OnboardingHeaderButton() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={show}
+            onClick={alternar}
             className="h-9 gap-2 px-2.5 hidden sm:inline-flex"
-            aria-label="Ver primeros pasos"
+            aria-expanded={abierto}
+            aria-label={abierto ? "Cerrar primeros pasos" : "Ver primeros pasos"}
           >
             <div className="relative">
-              <Sparkles
-                className={`h-4 w-4 ${allDone ? "text-emerald-500" : "text-emerald-600 dark:text-emerald-400"}`}
-              />
-              {!dismissed && !allDone && (
+              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              {/* El puntito recuerda que quedan pasos, sin tapar nada. Con el
+                  panel abierto sobra: ya lo estás mirando. */}
+              {!abierto && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               )}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium hidden md:inline">
-                {allDone ? "Todo listo" : "Primeros pasos"}
+                Primeros pasos
               </span>
               <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
                 {completedCount}/{TOTAL_ONBOARDING_STEPS}
@@ -69,8 +70,8 @@ export function OnboardingHeaderButton() {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          {allDone
-            ? "Completaste tu configuración 🎉"
+          {abierto
+            ? "Cerrar la guía"
             : `Te faltan ${TOTAL_ONBOARDING_STEPS - completedCount} pasos. Click para ver`}
         </TooltipContent>
       </Tooltip>
@@ -79,12 +80,13 @@ export function OnboardingHeaderButton() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={show}
+        onClick={alternar}
         className="h-9 w-9 relative sm:hidden"
-        aria-label="Ver primeros pasos"
+        aria-expanded={abierto}
+        aria-label={abierto ? "Cerrar primeros pasos" : "Ver primeros pasos"}
       >
         <Sparkles className="h-[1.2rem] w-[1.2rem] text-emerald-600 dark:text-emerald-400" />
-        {!dismissed && !allDone && (
+        {!abierto && (
           <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
         )}
       </Button>

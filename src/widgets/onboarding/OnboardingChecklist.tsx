@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   CheckCircle2,
   Circle,
-  ChevronDown,
   X,
   Sparkles,
   Store as StoreIcon,
@@ -20,8 +19,6 @@ import { TOTAL_ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 import { useOnboardingVisibility } from "@/widgets/onboarding/visibility";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/cn";
-
-const COLLAPSED_KEY = "onboarding-checklist-collapsed";
 
 type Step = {
   id: number;
@@ -89,78 +86,24 @@ const STEPS: Step[] = [
  * el flotante la taparía. Ahí el checklist sigue disponible desde el botón
  * de progreso del header.
  */
-const HIDDEN_PATHS = [
-  "/login",
-  "/register",
-  "/onboarding",
-  "/stores/new",
-  "/whatsapp",
-];
-// Pantallas densas: arranca como pastilla compacta para no tapar contenido
-// (el usuario puede expandirla con un clic).
-const COMPACT_PATHS = ["/caja"];
-
-/** Anillo de progreso compacto */
-function ProgressRing({ progress }: { progress: number }) {
-  const radius = 9;
-  const circumference = 2 * Math.PI * radius;
-  return (
-    <span className="relative flex h-6 w-6 items-center justify-center">
-      <svg className="h-6 w-6 -rotate-90" viewBox="0 0 24 24">
-        <circle
-          cx="12"
-          cy="12"
-          r={radius}
-          className="stroke-current text-border"
-          strokeWidth="2.5"
-          fill="none"
-        />
-        <circle
-          cx="12"
-          cy="12"
-          r={radius}
-          className="stroke-current text-primary-soft-foreground transition-all duration-500"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - (circumference * progress) / 100}
-        />
-      </svg>
-      <Sparkles className="absolute h-2.5 w-2.5 text-primary-soft-foreground" />
-    </span>
-  );
-}
-
 export function OnboardingChecklist() {
   const { user, refreshUser } = useAuth();
   const { data: stores } = useStores();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { dismissed, hide } = useOnboardingVisibility();
-  const compactRoute = COMPACT_PATHS.some((p) =>
-    location.pathname.startsWith(p),
-  );
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "1",
-  );
-  // En pantallas full-screen arranca compacto en cada visita
-  const [expandedHere, setExpandedHere] = useState(false);
-  useEffect(() => {
-    setExpandedHere(false);
-  }, [location.pathname]);
+  const { abierto, cerrar } = useOnboardingVisibility();
 
-  // Refrescar user cuando cambian de ruta para detectar pasos auto-marcados desde otras secciones
+  // Los pasos se marcan solos desde otras secciones -crear un producto, hacer
+  // una compra-, asi que se relee el usuario al abrir el panel y al cambiar de
+  // ruta MIENTRAS esta abierto. Cerrado no se pide nada: era una llamada por
+  // navegacion para todo el mundo, sin que nadie la estuviera mirando.
   useEffect(() => {
-    if (!dismissed && user) {
-      refreshUser();
-    }
+    if (abierto && user) refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [abierto, location.pathname]);
 
-  if (!user || dismissed) return null;
-  if (HIDDEN_PATHS.some((p) => location.pathname.startsWith(p))) return null;
+  if (!user || !abierto) return null;
 
   const completedSteps = new Set<number>(user.onboardingSteps || []);
   // Paso 1 se marca automáticamente si tiene tiendas (legacy users sin step 1 explícito)
@@ -170,7 +113,8 @@ export function OnboardingChecklist() {
   const allDone = completedCount >= TOTAL_ONBOARDING_STEPS;
   const progress = Math.round((completedCount / TOTAL_ONBOARDING_STEPS) * 100);
 
-  // Si todo está completo y el usuario no lo ha cerrado, mostramos celebración minimal
+  // Solo se llega acá con el panel abierto: si se completó el último paso
+  // mientras estaba a la vista, el momento se festeja.
   if (allDone) {
     return (
       <div className="fixed bottom-4 right-4 z-40 animate-in fade-in slide-in-from-bottom-4">
@@ -188,9 +132,9 @@ export function OnboardingChecklist() {
                 size="sm"
                 variant="ghost"
                 className="mt-2 h-7 px-2 text-xs"
-                onClick={hide}
+                onClick={cerrar}
               >
-                Ocultar
+                Cerrar
               </Button>
             </div>
           </div>
@@ -217,52 +161,12 @@ export function OnboardingChecklist() {
 
   const nextStep = STEPS.find((s) => !completedSteps.has(s.id));
 
-  // Pastilla compacta: en rutas full-screen (o si el usuario colapsó) hasta
-  // que la abra a propósito. Ocupa lo mínimo y no tapa el contenido.
-  const showPill = (compactRoute && !expandedHere) || (!compactRoute && collapsed);
-
-  if (showPill) {
-    return (
-      <div className="fixed bottom-4 right-4 z-40 animate-in fade-in slide-in-from-bottom-4">
-        <button
-          type="button"
-          onClick={() => {
-            if (compactRoute) setExpandedHere(true);
-            else {
-              setCollapsed(false);
-              localStorage.setItem(COLLAPSED_KEY, "0");
-            }
-          }}
-          className="flex items-center gap-2.5 rounded-full border border-border bg-card/95 py-2 pl-2.5 pr-4 shadow-lg backdrop-blur transition-colors hover:bg-accent"
-        >
-          <ProgressRing progress={progress} />
-          <span className="text-left">
-            <span className="block text-xs font-semibold leading-tight">
-              Primeros pasos
-            </span>
-            <span className="block text-[11px] leading-tight text-muted-foreground">
-              {completedCount} de {TOTAL_ONBOARDING_STEPS}
-              {nextStep ? ` · ${nextStep.title}` : ""}
-            </span>
-          </span>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)]">
       <div className="overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-4">
         {/* Header */}
-        <button
-          onClick={() => {
-            if (compactRoute) setExpandedHere(false);
-            else {
-              setCollapsed(true);
-              localStorage.setItem(COLLAPSED_KEY, "1");
-            }
-          }}
-          className="flex w-full items-center gap-3 px-4 py-3 text-white transition-opacity hover:opacity-95"
+        <div
+          className="flex items-center gap-3 px-4 py-3 text-white"
           style={{ background: "var(--primary-grad)" }}
         >
           <Sparkles className="h-4 w-4 flex-shrink-0" />
@@ -273,8 +177,15 @@ export function OnboardingChecklist() {
             </p>
           </div>
           <span className="text-xs font-bold">{progress}%</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
+          <button
+            type="button"
+            onClick={cerrar}
+            aria-label="Cerrar primeros pasos"
+            className="-mr-1 rounded-md p-1 transition-colors hover:bg-white/20"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Progress bar */}
         <div className="h-1 bg-primary-soft/40">
@@ -336,13 +247,9 @@ export function OnboardingChecklist() {
           </ul>
 
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
-            <button
-              onClick={hide}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3 w-3" />
-              Ocultar (lo verás en el header)
-            </button>
+            <p className="text-[11px] text-muted-foreground">
+              Lo abrís cuando quieras desde "Primeros pasos", arriba.
+            </p>
             <p className="text-[10px] text-muted-foreground">A tu ritmo</p>
           </div>
         </div>
