@@ -23,6 +23,8 @@ export interface Category {
 export interface StoreProductInfo {
   id: string;
   price: number;
+  /** Si esta tienda lo muestra en su web. */
+  visibleOnWeb?: boolean;
   store?: {
     id: string;
     name: string;
@@ -43,6 +45,12 @@ export interface Product {
   updated_at: string;
   // Precio plano cuando se filtra por una tienda específica
   price?: number;
+  /**
+   * Si se ve en la web de la tienda filtrada. Solo viene cuando se pide una
+   * tienda concreta: sin tienda la respuesta es distinta por cada una y hay
+   * que mirar `storeProducts`.
+   */
+  visibleOnWeb?: boolean;
   // Listado de precios por tienda (siempre presente cuando no se filtra por tienda)
   storeProducts?: StoreProductInfo[];
 }

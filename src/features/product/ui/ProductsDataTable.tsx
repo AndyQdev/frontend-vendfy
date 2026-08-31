@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
+import { SwitchWeb } from "@/features/product/ui/SwitchWeb";
 import { useNavegarConRegreso } from "@/shared/hooks/use-regreso";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
 import { useStore } from "@/app/providers/auth";
 import { EmptyState } from "@/shared/ui/empty-state";
-import { Tag, Boxes, Barcode, ShoppingCart as CartIcon, Copy } from "lucide-react";
+import { Tag, Boxes, Barcode, ShoppingCart as CartIcon, Copy, EyeOff } from "lucide-react";
 import type { Product } from "@/entities/product/model/types";
 import { ButtonMagic } from "@/shared/ui/button-magic";
 import { AiGenerateModal } from "./AiGenerateModal";
@@ -341,6 +342,7 @@ export function ProductsDataTable() {
                   <TableHead>Categoría</TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="w-[70px] text-center">Web</TableHead>
                   <TableHead className="w-[80px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -373,6 +375,9 @@ export function ProductsDataTable() {
                     </TableCell>
                     <TableCell>
                       <div className="h-8 w-8 bg-muted rounded animate-pulse mx-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-5 w-9 bg-muted rounded-full animate-pulse mx-auto" />
                     </TableCell>
                     <TableCell>
                       <div className="h-8 w-8 bg-muted rounded animate-pulse" />
@@ -516,6 +521,15 @@ export function ProductsDataTable() {
                     Destacado
                   </Badge>
                 )}
+
+                {/* Un producto escondido tiene que verse escondido tambien
+                    aca, o la vista de tarjetas mentiria respecto de la tabla. */}
+                {isSingleStoreView && product.visibleOnWeb === false && (
+                  <Badge variant="secondary" className="absolute top-2 left-2 gap-1">
+                    <EyeOff className="h-3 w-3" />
+                    Oculto en la web
+                  </Badge>
+                )}
               </div>
 
               {/* Product Info */}
@@ -579,6 +593,9 @@ export function ProductsDataTable() {
                 <TableHead>Marca</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead className="w-[70px] text-center" title="Si el producto se muestra en tu tienda web">
+                  Web
+                </TableHead>
                 <TableHead className="w-[60px] text-center">Copiar</TableHead>
                 <TableHead className="w-[80px]">Acciones</TableHead>
               </TableRow>
@@ -643,6 +660,9 @@ export function ProductsDataTable() {
                     ) : (
                       <Badge variant="secondary">Normal</Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <SwitchWeb product={product} storeId={activeStoreId} />
                   </TableCell>
                   <TableCell className="text-center">
                     <Button

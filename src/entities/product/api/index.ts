@@ -96,6 +96,39 @@ export function useUpdateProduct() {
   });
 }
 
+/**
+ * Prender o apagar un producto en la web de UNA tienda.
+ *
+ * Va por el mismo PATCH del producto porque la visibilidad vive en la pivote
+ * `store_product`, igual que el precio: sin decir de qué tienda, no significa
+ * nada. Por eso `storeId` no es opcional acá aunque lo sea en el PATCH.
+ */
+export function useSetProductWebVisibility() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      storeId,
+      visibleOnWeb,
+    }: {
+      id: string;
+      storeId: string;
+      visibleOnWeb: boolean;
+    }) => {
+      const response = await apiFetch<Product>(`/api/product/${id}`, {
+        method: "PATCH",
+        body: { storeId, visibleOnWeb },
+      });
+      return response.data as Product;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      // El listado de inventario muestra los mismos productos.
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
 export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
