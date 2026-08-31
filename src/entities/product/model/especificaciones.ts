@@ -23,16 +23,10 @@
  * exactamente el trabajo que este importador viene a evitar.
  */
 
+import type { ResultadoParseo } from "@/shared/ui/importar-modal";
+
 /** Un renglón ya interpretado, listo para entrar a `metadata.specifications`. */
 export type ParEspecificacion = { clave: string; valor: string };
-
-export type ResultadoImportacion = {
-  pares: ParEspecificacion[];
-  /** Cómo se leyó el texto; se le muestra a la persona para que confíe. */
-  formato: string;
-  /** Por qué no se pudo leer nada. `null` si salió bien. */
-  error: string | null;
-};
 
 /** Tope defensivo: un pegado gigante es casi siempre un pegado equivocado. */
 const MAXIMO_PARES = 200;
@@ -55,8 +49,24 @@ const CLAVES_VALOR = [
 const ES_PORCENTAJE = /^(porcentaje|percentage|percent|pct|%)$/i;
 
 /** Compara nombres de campo sin acentos ni mayúsculas: "Descripción" = "descripcion". */
-const normalizar = (s: string) =>
+export const normalizarClave = (s: string) =>
   s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const normalizar = normalizarClave;
+
+/**
+ * Busca en un objeto el primer campo que coincida con alguno de los alias.
+ *
+ * Un JSON pegado puede decir `nombre`, `name` o `cliente` para lo mismo, y
+ * quien lo pega no tiene por qué saber cuál esperamos.
+ */
+export function campoPorAlias(
+  obj: Record<string, unknown>,
+  alias: string[],
+): unknown {
+  const clave = Object.keys(obj).find((k) => alias.includes(normalizar(k)));
+  return clave === undefined ? undefined : obj[clave];
+}
 
 /**
  * Convierte lo que sea a texto mostrable.
@@ -257,9 +267,11 @@ function paresDesdeJson(datos: unknown): ParEspecificacion[] {
  * Lee el texto pegado. Nunca lanza: los problemas vuelven en `error` para
  * poder mostrarlos junto al textarea en vez de romper el formulario.
  */
-export function parsearEspecificaciones(texto: string): ResultadoImportacion {
+export function parsearEspecificaciones(
+  texto: string,
+): ResultadoParseo<ParEspecificacion> {
   const limpio = texto.trim();
-  if (!limpio) return { pares: [], formato: "", error: null };
+  if (!limpio) return { items: [], formato: "", error: null };
 
   let pares: ParEspecificacion[] = [];
   let formato = "texto";
@@ -303,7 +315,7 @@ export function parsearEspecificaciones(texto: string): ResultadoImportacion {
 
   if (finales.length === 0) {
     return {
-      pares: [],
+      items: [],
       formato: "",
       error:
         "No se reconoció ningún dato. Cada renglón necesita un nombre y un valor separados por dos puntos, tabulación o igual.",
@@ -312,11 +324,11 @@ export function parsearEspecificaciones(texto: string): ResultadoImportacion {
 
   if (finales.length > MAXIMO_PARES) {
     return {
-      pares: finales.slice(0, MAXIMO_PARES),
+      items: finales.slice(0, MAXIMO_PARES),
       formato,
       error: `Se leyeron ${finales.length} filas y solo se van a importar las primeras ${MAXIMO_PARES}.`,
     };
   }
 
-  return { pares: finales, formato, error: null };
+  return { items: finales, formato, error: null };
 }

@@ -56,7 +56,10 @@ import {
   deleteReviewImage,
 } from "@/entities/review/api";
 import type { Review } from "@/entities/review/model/types";
+import type { ResenaImportada } from "@/entities/review/model/importar";
 import { useProducts } from "@/entities/product/api";
+import { BotonImportar } from "@/shared/ui/importar-modal";
+import { ImportarResenasModal } from "@/features/store/ui/ImportarResenasModal";
 
 interface StoreReviewsManagerProps {
   storeId: string;
@@ -141,6 +144,7 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
   const [form, setForm] = useState<ReviewFormState>(emptyForm);
   const [uploading, setUploading] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState<Review | null>(null);
+  const [importarAbierto, setImportarAbierto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSaving = createReview.isPending || updateReview.isPending;
@@ -197,6 +201,49 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
     } catch (error) {
       console.error("Error saving review:", error);
       toast.error("Error al guardar la reseña");
+    }
+  };
+
+  /**
+   * Crea de una las reseñas pegadas.
+   *
+   * En serie y no en paralelo: son varias escrituras seguidas contra la misma
+   * tienda y no hay ningún apuro. Si alguna falla se sigue con el resto y se
+   * avisa cuántas entraron, para no perder las que sí se crearon.
+   */
+  const handleImportarResenas = async (resenas: ResenaImportada[]) => {
+    let creadas = 0;
+    const fallidas: string[] = [];
+
+    for (const resena of resenas) {
+      try {
+        await createReview.mutateAsync({
+          storeId,
+          productId: productId ?? null,
+          customerName: resena.customerName,
+          rating: resena.rating,
+          comment: resena.comment,
+          imageUrls: [],
+          featured: false,
+          published: true,
+        });
+        creadas += 1;
+      } catch {
+        fallidas.push(resena.customerName);
+      }
+    }
+
+    if (creadas > 0) {
+      toast.success(
+        creadas === 1 ? "Se creó 1 reseña" : `Se crearon ${creadas} reseñas`
+      );
+    }
+    if (fallidas.length > 0) {
+      toast.error(
+        `No se pudo crear ${fallidas.length === 1 ? "la reseña de" : "las reseñas de"} ${fallidas.join(", ")}`
+      );
+      // Si no entró ninguna, el modal queda abierto con el texto pegado.
+      if (creadas === 0) throw new Error("No se importó ninguna reseña");
     }
   };
 
@@ -280,10 +327,16 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
               : "Sube fotos y capturas de tus clientes satisfechos: aparecerán en tu tienda online"}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Reseña
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <BotonImportar
+            onClick={() => setImportarAbierto(true)}
+            title="Pegar varias reseñas y crearlas de golpe"
+          />
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Reseña
+          </Button>
+        </div>
       </div>
 
       {/* Listado */}
@@ -300,10 +353,15 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
           <p className="text-sm text-muted-foreground mt-1 mb-4">
             Agrega capturas de WhatsApp o fotos de tus clientes contentos
           </p>
-          <Button variant="outline" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar mi primera reseña
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar mi primera reseña
+            </Button>
+            <Button variant="ghost" onClick={() => setImportarAbierto(true)}>
+              Importar varias
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -623,6 +681,13 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportarResenasModal
+        open={importarAbierto}
+        onOpenChange={setImportarAbierto}
+        onImportar={handleImportarResenas}
+        deProducto={isProductScoped}
+      />
     </div>
   );
 }

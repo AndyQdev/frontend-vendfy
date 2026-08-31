@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info, ClipboardPaste } from "lucide-react";
+import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -11,6 +11,8 @@ import { ImageUploadModal } from "@/shared/ui/image-upload-modal";
 import { CreateBrandModal } from "@/features/product/ui/CreateBrandModal";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 import { ImportarEspecificacionesModal } from "@/features/product/ui/ImportarEspecificacionesModal";
+import { ImportarEtiquetasModal } from "@/features/product/ui/ImportarEtiquetasModal";
+import { BotonImportar } from "@/shared/ui/importar-modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
 import { useUnitsOfMeasure } from "@/entities/inventory/api";
@@ -71,6 +73,7 @@ export default function CreateProduct() {
   const [specificationKey, setSpecificationKey] = useState("");
   const [specificationValue, setSpecificationValue] = useState("");
   const [importarSpecs, setImportarSpecs] = useState(false);
+  const [importarTags, setImportarTags] = useState(false);
 
   // API calls
   const createProduct = useCreateProduct();
@@ -247,6 +250,22 @@ export default function CreateProduct() {
       cuantas === 1
         ? "Se importó 1 especificación"
         : `Se importaron ${cuantas} especificaciones`
+    );
+  };
+
+  /** Suma las etiquetas pegadas a las que ya estaban, sin repetir. */
+  const handleImportTags = (etiquetas: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        tags: [...(prev.metadata?.tags || []), ...etiquetas]
+      }
+    }));
+    toast.success(
+      etiquetas.length === 1
+        ? "Se importó 1 etiqueta"
+        : `Se importaron ${etiquetas.length} etiquetas`
     );
   };
 
@@ -507,15 +526,10 @@ export default function CreateProduct() {
               />
               {/* Cargar diez acordes de a uno son veinte pulsaciones; pegarlos
                   es una sola. */}
-              <button
-                type="button"
+              <BotonImportar
                 onClick={() => setImportarSpecs(true)}
                 title="Pegar una lista y llenar las especificaciones de golpe"
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-md hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
-              >
-                <ClipboardPaste className="h-3 w-3" />
-                Importar
-              </button>
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -889,6 +903,10 @@ export default function CreateProduct() {
                   }
                 }}
               />
+              <BotonImportar
+                onClick={() => setImportarTags(true)}
+                title="Pegar una lista de etiquetas y cargarlas de golpe"
+              />
             </div>
 
             <div className="flex gap-2">
@@ -957,6 +975,13 @@ export default function CreateProduct() {
         onOpenChange={setImportarSpecs}
         existentes={formData.metadata?.specifications || {}}
         onImportar={handleImportSpecifications}
+      />
+
+      <ImportarEtiquetasModal
+        open={importarTags}
+        onOpenChange={setImportarTags}
+        existentes={formData.metadata?.tags || []}
+        onImportar={handleImportTags}
       />
     </div>
     </TooltipProvider>
