@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
@@ -20,13 +20,16 @@ import { useStore } from "@/app/providers/auth";
 import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrands } from "@/entities/product/api";
 import type { ProductInput } from "@/entities/product/model/schema";
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
+import { useRegreso } from "@/shared/hooks/use-regreso";
 import { toast } from "sonner";
 
 export default function CreateProduct() {
-  const navigate = useNavigate();
   const { id: productId } = useParams();
   const { selectedStore } = useStore();
   const isEditMode = Boolean(productId);
+  // Vuelve a la lista tal como estaba -con su búsqueda y sus filtros- y no al
+  // catálogo entero.
+  const volverALista = useRegreso("/products");
 
   // State for form data
   const [formData, setFormData] = useState<ProductInput>({
@@ -357,7 +360,7 @@ export default function CreateProduct() {
         await createProduct.mutateAsync(payload);
         toast.success("Producto creado correctamente");
       }
-      navigate("/products");
+      volverALista();
     } catch (error) {
       console.error("Error saving product:", error);
       toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto");
@@ -370,7 +373,7 @@ export default function CreateProduct() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
+          <Button variant="ghost" size="icon" onClick={volverALista}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>

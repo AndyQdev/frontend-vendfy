@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useCustomers, useDeleteCustomer } from "@/entities/customer/api";
 import {
   Table,
@@ -29,11 +29,17 @@ import { Customer } from "@/entities/customer/model/types";
 import { format } from "date-fns";
 import { CustomerFormModal } from "./CustomerFormModal";
 import { toast } from "sonner";
+import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 
 export default function CustomersTable() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // La búsqueda vive en la dirección: volver a la lista la conserva.
+  const { filtros, borrador, setFiltro, limpiar } = useFiltrosUrl(
+    { q: "", pagina: 1, tam: 10 },
+    { diferidas: ["q"], reiniciar: "pagina", ignorar: ["tam"] },
+  );
+  const searchTerm = filtros.q;
+  const currentPage = filtros.pagina;
+  const pageSize = filtros.tam;
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -55,18 +61,8 @@ export default function CustomersTable() {
   const totalItems = customersResponse?.countData || 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1);
-  };
+  const handlePageChange = (page: number) => setFiltro("pagina", page);
+  const handlePageSizeChange = (newPageSize: number) => setFiltro("tam", newPageSize);
 
   const handleCustomerClick = (customer: Customer) => {
     setCustomerToEdit(customer);
@@ -133,8 +129,8 @@ export default function CustomersTable() {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           placeholder="Buscar por nombre de cliente..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={borrador.q}
+          onChange={(e) => setFiltro("q", e.target.value)}
           className="pl-10"
         />
       </div>
@@ -149,7 +145,7 @@ export default function CustomersTable() {
             primaryAction={{
               label: "Limpiar búsqueda",
               variant: "outline",
-              onClick: () => setSearchTerm(""),
+              onClick: limpiar,
             }}
           />
         ) : (

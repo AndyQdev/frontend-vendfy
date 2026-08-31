@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
+import { useNavegarConRegreso } from "@/shared/hooks/use-regreso";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
 import { useStore } from "@/app/providers/auth";
 import { EmptyState } from "@/shared/ui/empty-state";
@@ -51,16 +53,27 @@ import { toast } from "sonner";
 
 export function ProductsDataTable() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const isWelcome = searchParams.get("welcome") === "1";
   const { selectedStore } = useStore();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedBrand, setSelectedBrand] = useState("all");
+
+  // La búsqueda y los filtros viven en la dirección, así que volver de editar
+  // un producto -o recargar, o pasarle el link a alguien- los conserva.
+  const { filtros, borrador, setFiltro, limpiar, hayFiltros } = useFiltrosUrl(
+    { q: "", categoria: "all", marca: "all", pagina: 1, tam: 10 },
+    { diferidas: ["q"], reiniciar: "pagina", ignorar: ["tam"] },
+  );
+  const searchTerm = filtros.q;
+  const selectedCategory = filtros.categoria;
+  const selectedBrand = filtros.marca;
+  const currentPage = filtros.pagina;
+  const pageSize = filtros.tam;
+
+  /** Al abrir una ficha se recuerda esta lista para poder volver a ella. */
+  const irAlProducto = useNavegarConRegreso();
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1); // Cambiado a base 1
-  const [pageSize, setPageSize] = useState(10); // Ahora es mutable
   const [currentImageIndexes, setCurrentImageIndexes] = useState<Record<string, number>>({});
   const [copyingProduct, setCopyingProduct] = useState<Product | null>(null);
 
@@ -90,14 +103,6 @@ export function ProductsDataTable() {
   const categories:any = categoriesResponse || [];
   const brands:any = brandsResponse || [];
 
-  // Debounce search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page (base 1)
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
   const handleDelete = async (id: string, name: string) => {
     if (confirm(`¿Estás seguro de eliminar el producto "${name}"?`)) {
       try {
@@ -109,24 +114,11 @@ export function ProductsDataTable() {
     }
   };
 
-  const handleCategoryFilter = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setCurrentPage(1);
-  };
-
-  const handleBrandFilter = (brandId: string) => {
-    setSelectedBrand(brandId);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1); // Reset a primera página al cambiar el tamaño
-  };
+  // Cambiar un filtro vuelve solo a la primera página: lo hace `useFiltrosUrl`.
+  const handleCategoryFilter = (categoryId: string) => setFiltro("categoria", categoryId);
+  const handleBrandFilter = (brandId: string) => setFiltro("marca", brandId);
+  const handlePageChange = (page: number) => setFiltro("pagina", page);
+  const handlePageSizeChange = (newPageSize: number) => setFiltro("tam", newPageSize);
 
   // Image carousel
   const handleNextImage = (productId: string, imageUrls: string[]) => {
@@ -261,8 +253,8 @@ export function ProductsDataTable() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar productos por nombre o SKU..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={borrador.q}
+                onChange={(e) => setFiltro("q", e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -392,7 +384,7 @@ export function ProductsDataTable() {
           </div>
         )
       ) : products.length === 0 ? (
-        searchTerm || selectedCategory !== "all" || selectedBrand !== "all" ? (
+        hayFiltros ? (
           <EmptyState
             icon={Package}
             title="No encontramos productos"
@@ -400,11 +392,7 @@ export function ProductsDataTable() {
             primaryAction={{
               label: "Limpiar filtros",
               variant: "outline",
-              onClick: () => {
-                setSearchTerm("");
-                setSelectedCategory("all");
-                setSelectedBrand("all");
-              },
+              onClick: limpiar,
             }}
           />
         ) : isWelcome ? (
@@ -561,7 +549,7 @@ export function ProductsDataTable() {
                     variant="outline" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => navigate(`/products/${product.id}`)}
+                    onClick={() => irAlProducto(`/products/${product.id}`)}
                   >
                     <Edit className="h-3 w-3 mr-1" />
                     Editar
@@ -675,7 +663,7 @@ export function ProductsDataTable() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/products/${product.id}`)}>
+                        <DropdownMenuItem onClick={() => irAlProducto(`/products/${product.id}`)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
                         </DropdownMenuItem>

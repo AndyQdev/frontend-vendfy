@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useOrders } from "@/entities/order/api";
 import { useStore } from "@/app/providers/auth";
 import {
@@ -19,12 +19,19 @@ import { OrderType, OrderStatus, Order } from "@/entities/order/model/types";
 import { formatMoney } from "@/shared/lib/money";
 import { format } from "date-fns";
 import { SalesDetailsModal } from "./SalesDetailsModal";
+import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 
 export default function SalesTable() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [selectedTab, setSelectedTab] = useState<OrderType>(OrderType.QUICK);
+  // La búsqueda, la pestaña y la página viven en la dirección: volver o
+  // recargar deja la misma pantalla.
+  const { filtros, borrador, setFiltro } = useFiltrosUrl(
+    { q: "", tipo: OrderType.QUICK as string, pagina: 1, tam: 10 },
+    { diferidas: ["q"], reiniciar: "pagina", ignorar: ["tam", "tipo"] },
+  );
+  const searchTerm = filtros.q;
+  const currentPage = filtros.pagina;
+  const pageSize = filtros.tam;
+  const selectedTab = filtros.tipo as OrderType;
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { selectedStore } = useStore();
@@ -54,27 +61,11 @@ export default function SalesTable() {
   const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
   const totalPages = Math.ceil(filteredOrders.length / pageSize);
 
-  // Debounce search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  // El retraso del buscador y la vuelta a la primera página los maneja
+  // `useFiltrosUrl`.
+  const handlePageChange = (page: number) => setFiltro("pagina", page);
 
-  // Reset page cuando cambia el tab
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedTab]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1);
-  };
+  const handlePageSizeChange = (newPageSize: number) => setFiltro("tam", newPageSize);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -126,14 +117,14 @@ export default function SalesTable() {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           placeholder="Buscar por nombre de cliente..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={borrador.q}
+          onChange={(e) => setFiltro("q", e.target.value)}
           className="pl-10"
         />
       </div>
 
       {/* Tabs */}
-      <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as OrderType)}>
+      <Tabs value={selectedTab} onValueChange={(value) => setFiltro("tipo", value)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value={OrderType.QUICK}>
             Venta Rápida ({allOrders.filter(o => o.type === OrderType.QUICK).length})

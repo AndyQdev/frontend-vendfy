@@ -1,5 +1,6 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useNavigate } from "react-router-dom";
 import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
 import { useCategories, useBrands } from "@/entities/product/api";
@@ -71,17 +72,39 @@ export { formatearCantidad };
 
 export default function InventoryTable() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedBrand, setSelectedBrand] = useState("all");
-  const [minPriceInput, setMinPriceInput] = useState("");
-  const [maxPriceInput, setMaxPriceInput] = useState("");
-  const [debouncedMinPrice, setDebouncedMinPrice] = useState("");
-  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState("");
-  const [onlyInStock, setOnlyInStock] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+
+  // Todo el estado de la lista vive en la dirección: volver, recargar o pasarle
+  // el link a alguien deja la misma pantalla.
+  const { filtros, borrador, setFiltro, limpiar, hayFiltros } = useFiltrosUrl(
+    {
+      q: "",
+      categoria: "all",
+      marca: "all",
+      min: "",
+      max: "",
+      conStock: false,
+      vista: "stock",
+      pagina: 1,
+      tam: 10,
+    },
+    {
+      diferidas: ["q", "min", "max"],
+      retraso: 500,
+      reiniciar: "pagina",
+      ignorar: ["tam", "vista"],
+    },
+  );
+  const searchTerm = borrador.q;
+  const debouncedSearch = filtros.q;
+  const selectedCategory = filtros.categoria;
+  const selectedBrand = filtros.marca;
+  const minPriceInput = borrador.min;
+  const maxPriceInput = borrador.max;
+  const debouncedMinPrice = filtros.min;
+  const debouncedMaxPrice = filtros.max;
+  const onlyInStock = filtros.conStock;
+  const currentPage = filtros.pagina;
+  const pageSize = filtros.tam;
   const { selectedStore } = useStore();
 
   // Categorías y marcas para los selectores
@@ -93,7 +116,8 @@ export default function InventoryTable() {
   const brands = brandsData || [];
 
   // Pestaña activa: el saldo, o el relato de cómo se llegó a él.
-  const [vista, setVista] = useState<"stock" | "movimientos">("stock");
+  const vista = filtros.vista as "stock" | "movimientos";
+  const setVista = (valor: string) => setFiltro("vista", valor);
 
   // Ajuste en curso. null = diálogo cerrado.
   const [apertura, setApertura] = useState<AperturaAjuste | null>(null);
@@ -128,27 +152,8 @@ export default function InventoryTable() {
     ...(onlyInStock && { inStock: true }),
   };
 
-  // Hay algún filtro activo (excluyendo búsqueda y stock)?
-  const hasActiveFilters =
-    !!debouncedSearch ||
-    selectedCategory !== "all" ||
-    selectedBrand !== "all" ||
-    !!minPriceNum ||
-    !!maxPriceNum ||
-    onlyInStock;
-
-  const handleResetFilters = () => {
-    setSearchTerm("");
-    setDebouncedSearch("");
-    setSelectedCategory("all");
-    setSelectedBrand("all");
-    setMinPriceInput("");
-    setMaxPriceInput("");
-    setDebouncedMinPrice("");
-    setDebouncedMaxPrice("");
-    setOnlyInStock(false);
-    setCurrentPage(1);
-  };
+  const hasActiveFilters = hayFiltros;
+  const handleResetFilters = limpiar;
 
   const { data: inventoryResponse, isLoading } = useInventory(queryParams);
   const inventories = inventoryResponse?.data || [];
@@ -159,35 +164,10 @@ export default function InventoryTable() {
   const { data: movementsResponse, isLoading: isLoadingMovements } =
     useMovementsByInventory(historyInventoryId);
 
-  // Debounce: search (500ms)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
-
-  // Debounce: precios (600ms)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedMinPrice(minPriceInput);
-      setDebouncedMaxPrice(maxPriceInput);
-      setCurrentPage(1);
-    }, 600);
-    return () => clearTimeout(t);
-  }, [minPriceInput, maxPriceInput]);
-
-  // Filtros instantáneos (cambian de página inmediatamente)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCategory, selectedBrand, onlyInStock]);
-
-  const handlePageChange = (page: number) => setCurrentPage(page);
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1);
-  };
+  // El retraso del buscador y la vuelta a la primera página los maneja
+  // `useFiltrosUrl`; acá ya no hace falta ningún efecto.
+  const handlePageChange = (page: number) => setFiltro("pagina", page);
+  const handlePageSizeChange = (newPageSize: number) => setFiltro("tam", newPageSize);
 
   const abrirAjuste = (
     inventory: Inventory,
@@ -311,13 +291,13 @@ export default function InventoryTable() {
             <Input
               placeholder="Buscar producto..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => setFiltro("q", e.target.value)}
               className="pl-10 pr-9"
             />
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm("")}
+                onClick={() => setFiltro("q", "")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Limpiar búsqueda"
               >
@@ -330,7 +310,7 @@ export default function InventoryTable() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Categoría */}
             <div className="min-w-0 flex-1 sm:flex-none sm:w-40">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <Select value={selectedCategory} onValueChange={(v) => setFiltro("categoria", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
@@ -347,7 +327,7 @@ export default function InventoryTable() {
 
             {/* Marca */}
             <div className="min-w-0 flex-1 sm:flex-none sm:w-40">
-              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+              <Select value={selectedBrand} onValueChange={(v) => setFiltro("marca", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Marca" />
                 </SelectTrigger>
@@ -371,7 +351,7 @@ export default function InventoryTable() {
                 min={0}
                 step="0.01"
                 value={minPriceInput}
-                onChange={(e) => setMinPriceInput(e.target.value)}
+                onChange={(e) => setFiltro("min", e.target.value)}
                 placeholder="Min"
                 className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
@@ -382,7 +362,7 @@ export default function InventoryTable() {
                 min={0}
                 step="0.01"
                 value={maxPriceInput}
-                onChange={(e) => setMaxPriceInput(e.target.value)}
+                onChange={(e) => setFiltro("max", e.target.value)}
                 placeholder="Max"
                 className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
@@ -400,7 +380,7 @@ export default function InventoryTable() {
               <Switch
                 id="inv-instock"
                 checked={onlyInStock}
-                onCheckedChange={setOnlyInStock}
+                onCheckedChange={(v) => setFiltro("conStock", v)}
               />
             </div>
 
