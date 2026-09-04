@@ -43,6 +43,13 @@ type DateFilter = "day" | "week" | "month" | "year";
 // Configuración de columnas del Kanban
 const KANBAN_COLUMNS = [
   {
+    // Primera por una razón: es la bandeja de "esto todavía no es una venta".
+    // Arrastrar de acá a Pendiente es lo que confirma disponibilidad y recién
+    // ahí descuenta el stock.
+    id: OrderStatus.POR_CONFIRMAR,
+    title: "Por confirmar",
+  },
+  {
     id: OrderStatus.PENDIENTE,
     title: "Pendiente",
   },
@@ -67,6 +74,7 @@ const KANBAN_COLUMNS = [
 // Obtener colores pasteles según el estado
 const getStatusColors = (status: OrderStatus) => {
   const colorMap = {
+    [OrderStatus.POR_CONFIRMAR]: { primary: '#E67E22', pastel: '#E67E2215' }, // Naranja
     [OrderStatus.PENDIENTE]: { primary: '#F1C40F', pastel: '#F1C40F15' }, // Amarillo
     [OrderStatus.EN_PROCESO]: { primary: '#3498DB', pastel: '#3498DB15' }, // Azul
     [OrderStatus.EN_CAMINO]: { primary: '#9B59B6', pastel: '#9B59B615' }, // Morado
@@ -243,6 +251,7 @@ export default function OrdersTable() {
   // Agrupar órdenes por estado
   const ordersByStatus = useMemo(() => {
     const grouped: Record<OrderStatus, Order[]> = {
+      [OrderStatus.POR_CONFIRMAR]: [],
       [OrderStatus.PENDIENTE]: [],
       [OrderStatus.EN_PROCESO]: [],
       [OrderStatus.EN_CAMINO]: [],

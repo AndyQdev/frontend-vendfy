@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
-import { SwitchWeb } from "@/features/product/ui/SwitchWeb";
+import { SwitchTienda } from "@/features/product/ui/SwitchTienda";
 import { useNavegarConRegreso } from "@/shared/hooks/use-regreso";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
 import { useStore } from "@/app/providers/auth";
@@ -343,6 +343,7 @@ export function ProductsDataTable() {
                   <TableHead>Marca</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="w-[70px] text-center">Web</TableHead>
+                  <TableHead className="w-[80px] text-center">A pedido</TableHead>
                   <TableHead className="w-[80px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -375,6 +376,9 @@ export function ProductsDataTable() {
                     </TableCell>
                     <TableCell>
                       <div className="h-8 w-8 bg-muted rounded animate-pulse mx-auto" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-5 w-9 bg-muted rounded-full animate-pulse mx-auto" />
                     </TableCell>
                     <TableCell>
                       <div className="h-5 w-9 bg-muted rounded-full animate-pulse mx-auto" />
@@ -596,6 +600,12 @@ export function ProductsDataTable() {
                 <TableHead className="w-[70px] text-center" title="Si el producto se muestra en tu tienda web">
                   Web
                 </TableHead>
+                <TableHead
+                  className="w-[80px] text-center"
+                  title="Si se puede comprar aunque no tengas stock: el pedido queda por confirmar hasta que consigas la mercadería"
+                >
+                  A pedido
+                </TableHead>
                 <TableHead className="w-[60px] text-center">Copiar</TableHead>
                 <TableHead className="w-[80px]">Acciones</TableHead>
               </TableRow>
@@ -662,7 +672,14 @@ export function ProductsDataTable() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <SwitchWeb product={product} storeId={activeStoreId} />
+                    <SwitchTienda product={product} storeId={activeStoreId} />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <SwitchTienda
+                      product={product}
+                      storeId={activeStoreId}
+                      campo="sellWithoutStock"
+                    />
                   </TableCell>
                   <TableCell className="text-center">
                     <Button

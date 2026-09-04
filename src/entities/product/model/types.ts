@@ -25,6 +25,8 @@ export interface StoreProductInfo {
   price: number;
   /** Si esta tienda lo muestra en su web. */
   visibleOnWeb?: boolean;
+  /** Si esta tienda lo vende aunque no tenga stock. */
+  sellWithoutStock?: boolean;
   store?: {
     id: string;
     name: string;
@@ -51,6 +53,11 @@ export interface Product {
    * que mirar `storeProducts`.
    */
   visibleOnWeb?: boolean;
+  /**
+   * Si se puede pedir sin stock en la tienda filtrada. Como `visibleOnWeb`,
+   * solo viene cuando se pide una tienda concreta.
+   */
+  sellWithoutStock?: boolean;
   // Listado de precios por tienda (siempre presente cuando no se filtra por tienda)
   storeProducts?: StoreProductInfo[];
 }

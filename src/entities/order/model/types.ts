@@ -1,5 +1,13 @@
 // Enums
 export enum OrderStatus {
+  /**
+   * Esperando que confirmes que podés conseguir lo que falta.
+   *
+   * El pedido está completo pero NO descontó stock. Nace así cuando alguna
+   * línea no tiene stock y su producto está marcado "A pedido". Al moverlo a
+   * Pendiente, recién ahí se descuenta.
+   */
+  POR_CONFIRMAR = 'por-confirmar',
   PENDIENTE = 'pendiente',
   EN_PROCESO = 'en-proceso',
   EN_CAMINO = 'en-camino',

@@ -97,27 +97,30 @@ export function useUpdateProduct() {
 }
 
 /**
- * Prender o apagar un producto en la web de UNA tienda.
+ * Cambiar una de las banderas por tienda de un producto.
  *
- * Va por el mismo PATCH del producto porque la visibilidad vive en la pivote
- * `store_product`, igual que el precio: sin decir de qué tienda, no significa
- * nada. Por eso `storeId` no es opcional acá aunque lo sea en el PATCH.
+ * `visibleOnWeb` (se muestra en la tienda online) y `sellWithoutStock` (se
+ * puede pedir sin stock) viven las dos en la pivote `store_product`, igual que
+ * el precio: sin decir de qué tienda no significan nada. Por eso `storeId` no
+ * es opcional acá aunque lo sea en el PATCH.
  */
-export function useSetProductWebVisibility() {
+export function useSetProductStoreFlag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       id,
       storeId,
-      visibleOnWeb,
+      campo,
+      valor,
     }: {
       id: string;
       storeId: string;
-      visibleOnWeb: boolean;
+      campo: "visibleOnWeb" | "sellWithoutStock";
+      valor: boolean;
     }) => {
       const response = await apiFetch<Product>(`/api/product/${id}`, {
         method: "PATCH",
-        body: { storeId, visibleOnWeb },
+        body: { storeId, [campo]: valor },
       });
       return response.data as Product;
     },
