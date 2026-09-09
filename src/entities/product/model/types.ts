@@ -17,6 +17,8 @@ export interface Category {
   description?: string;
   enabled: boolean;
   icon?: string | null;
+  /** Foto de la categoría para las vitrinas de la tienda web. */
+  imageUrl?: string | null;
   productCount?: number; // Conteo de productos de la categoría
 }
 

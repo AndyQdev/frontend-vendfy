@@ -145,7 +145,7 @@ export function useDeleteProduct() {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; description?: string; icon?: string | null; userId: string }) => {
+    mutationFn: async (data: { name: string; description?: string; icon?: string | null; imageUrl?: string | null; userId: string }) => {
       const response = await apiFetch<Category>("/api/category", { method: "POST", body: data });
       return response.data as Category;
     },
@@ -156,7 +156,7 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string; icon?: string | null } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string; icon?: string | null; imageUrl?: string | null } }) => {
       const response = await apiFetch<Category>(`/api/category/${id}`, { method: "PATCH", body: data });
       return response.data as Category;
     },

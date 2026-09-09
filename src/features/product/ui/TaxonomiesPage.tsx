@@ -153,9 +153,20 @@ export function TaxonomiesPage() {
                 {categories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell>
-                      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-                        <CategoryIcon name={category.icon} size={20} />
-                      </div>
+                      {/* La foto si la hay, el icono si no: es la misma regla
+                          que aplica la tienda web, y verla acá deja claro qué
+                          va a mostrar el cliente. */}
+                      {category.imageUrl ? (
+                        <img
+                          src={category.imageUrl}
+                          alt=""
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                          <CategoryIcon name={category.icon} size={20} />
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{category.name}</div>

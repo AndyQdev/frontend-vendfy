@@ -5,6 +5,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { IconPicker } from "@/shared/ui/icon-picker";
+import { CategoryImageField } from "@/shared/ui/category-image-field";
 import { useCreateCategory, useUpdateCategory } from "@/entities/product/api";
 import type { Category } from "@/entities/product/model/types";
 import { useAuth } from "@/app/providers/auth";
@@ -24,6 +25,7 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
     name: "",
     description: "",
     icon: null as string | null,
+    imageUrl: null as string | null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -36,6 +38,7 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
         name: category?.name ?? "",
         description: category?.description ?? "",
         icon: category?.icon ?? null,
+        imageUrl: category?.imageUrl ?? null,
       });
       setErrors({});
     }
@@ -71,6 +74,9 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
             name: formData.name,
             description: formData.description || undefined,
             icon: formData.icon,
+            // Cadena vacía y no null: es lo que el backend interpreta como
+            // "quitar la foto y volver al icono".
+            imageUrl: formData.imageUrl ?? "",
           },
         });
         toast.success("Categoría actualizada");
@@ -79,6 +85,7 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
           name: formData.name,
           description: formData.description || undefined,
           icon: formData.icon,
+          imageUrl: formData.imageUrl ?? undefined,
           userId: user.id,
         });
         toast.success("Categoría creada");
