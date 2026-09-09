@@ -127,13 +127,25 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
           </div>
 
           <div className="space-y-2">
+            <Label>Foto para la tienda web</Label>
+            <CategoryImageField
+              value={formData.imageUrl}
+              onChange={(imageUrl) => setFormData((prev) => ({ ...prev, imageUrl }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Es lo que se ve en "Comprar por categoría" de tu tienda online.
+              Sin foto se usa el icono, que en una vitrina se ve a medio hacer.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label>Icono</Label>
             <IconPicker
               value={formData.icon}
               onChange={(icon) => setFormData((prev) => ({ ...prev, icon }))}
             />
             <p className="text-xs text-muted-foreground">
-              Se mostrará al lado del nombre en la tienda.
+              Se usa en el panel y como respaldo cuando la categoría no tiene foto.
             </p>
           </div>
 
