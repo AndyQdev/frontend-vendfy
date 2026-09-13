@@ -33,6 +33,8 @@ import {
 import { toast } from "sonner";
 import { CategoryIcon } from "@/shared/ui/category-icon";
 import { apiFetch } from "@/shared/api/client";
+import { AiModelPicker } from "@/shared/ui/ai-model-picker";
+import { useModeloIa } from "@/shared/hooks/use-modelo-ia";
 import { useStore, useAuth } from "@/app/providers/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ProductInput } from "@/entities/product/model/schema";
@@ -76,6 +78,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
   const { selectedStore } = useStore();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { modelo } = useModeloIa();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -149,6 +152,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
             totalChunks,
             categories,
             prompt: userPrompt.trim() || undefined,
+            ...modelo,
           },
         });
 
@@ -288,10 +292,15 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-500" />
-            Crear Productos con IA
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Crear Productos con IA
+            </DialogTitle>
+            {/* El selector va acá arriba porque la elección aplica a todo lo
+                que se genere después, no a un campo suelto. */}
+            <AiModelPicker className="mr-6 shrink-0" />
+          </div>
           <DialogDescription>
             {step === "upload" && "Sube un archivo o imagen y la IA generará productos automáticamente"}
             {step === "processing" && "Procesando archivo con IA..."}

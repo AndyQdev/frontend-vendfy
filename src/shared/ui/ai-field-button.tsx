@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { apiFetch } from "@/shared/api/client";
+import { useModeloIa } from "@/shared/hooks/use-modelo-ia";
 import { toast } from "sonner";
 
 type EnrichField = "description" | "tags" | "specifications" | "store_description" | "store_aboutUs" | "store_heroTitle";
@@ -16,6 +17,9 @@ interface AiFieldButtonProps {
 
 export function AiFieldButton({ storeId, field, currentValues, onResult, skipNameCheck }: AiFieldButtonProps) {
   const [loading, setLoading] = useState(false);
+  // Qué IA usar lo elige el usuario una vez (AiModelPicker) y vale para todos
+  // los botones: acá sólo se lee y se manda.
+  const { modelo } = useModeloIa();
 
   const handleClick = async () => {
     if (!skipNameCheck && !storeId) {
@@ -35,11 +39,11 @@ export function AiFieldButton({ storeId, field, currentValues, onResult, skipNam
     try {
       const response = await apiFetch<any>("/api/product/ai/enrich", {
         method: "POST",
-        body: { storeId, field, currentValues },
+        body: { storeId, field, currentValues, ...modelo },
       });
       onResult(response.data);
     } catch (error: any) {
-      toast.error("Error al generar con IA");
+      toast.error(error?.message || "Error al generar con IA");
     } finally {
       setLoading(false);
     }

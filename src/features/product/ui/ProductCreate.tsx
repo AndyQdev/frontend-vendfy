@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
+import { AiModelPicker } from "@/shared/ui/ai-model-picker";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -387,14 +388,19 @@ export default function CreateProduct() {
             </p>
           </div>
         </div>
-        <Button onClick={handleSubmit} disabled={createProduct.isPending || updateProduct.isPending}>
-          <Save className="h-4 w-4 mr-2" />
-          {createProduct.isPending || updateProduct.isPending
-            ? "Guardando..."
-            : isEditMode
-            ? "Actualizar"
-            : "Crear Producto"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Con qué IA responden los botones "IA" repartidos por el formulario.
+              Uno solo arriba: repetirlo junto a cada campo sería ruido. */}
+          <AiModelPicker />
+          <Button onClick={handleSubmit} disabled={createProduct.isPending || updateProduct.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            {createProduct.isPending || updateProduct.isPending
+              ? "Guardando..."
+              : isEditMode
+              ? "Actualizar"
+              : "Crear Producto"}
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
