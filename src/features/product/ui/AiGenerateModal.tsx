@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { CategoryIcon } from "@/shared/ui/category-icon";
 import { apiFetch } from "@/shared/api/client";
 import { AiModelPicker } from "@/shared/ui/ai-model-picker";
+import { SpecsCell } from "./SpecsCell";
 import { useModeloIa } from "@/shared/hooks/use-modelo-ia";
 import { useStore, useAuth } from "@/app/providers/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -458,7 +459,10 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               </div>
             )}
 
-            <div className="border rounded-lg overflow-hidden">
+            {/* Scroll en vez de recortar: con la columna nueva son siete, y en
+                una pantalla angosta `overflow-hidden` se comía la última sin
+                avisar. */}
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -467,6 +471,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                     <TableHead className="w-[60px]">Stock</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead>Tags</TableHead>
+                    <TableHead className="w-[110px]">Especificaciones</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -510,6 +515,12 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                             <Badge variant="outline" className="text-xs py-0">+{product.tags!.length - 2}</Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <SpecsCell
+                          value={product.specifications}
+                          onChange={(specs) => handleProductChange(index, "specifications", specs)}
+                        />
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveProduct(index)}>
