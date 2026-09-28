@@ -26,6 +26,8 @@ export interface Propuesta {
   faltan: { slot: string; pregunta: string }[];
   opciones: ProductoOpcion[];
   requiereConfirmacion: boolean;
+  /** Qué va a cambiar si confirma. Lo que hace revisable la tarjeta. */
+  vistaPrevia: { etiqueta: string; antes: number; despues: number } | null;
   ejecutable: boolean;
   resultado: { resumen: string; datos?: any } | null;
   aviso: string | null;

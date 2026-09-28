@@ -40,6 +40,8 @@ export default function LayoutShell() {
 
   // Page name from path
   const pageNames: Record<string, string> = {
+    '/omnibox': 'Asistente',
+    '/dashboard': 'Inicio',
     '/caja': 'Caja',
     '/orders': 'Pedidos',
     '/sales': 'Ventas',
@@ -76,7 +78,7 @@ export default function LayoutShell() {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="/caja" className="text-muted-foreground hover:text-emerald-600 transition-colors flex items-center gap-1.5">
+                    <BreadcrumbLink href="/dashboard" className="text-muted-foreground hover:text-emerald-600 transition-colors flex items-center gap-1.5">
                       {/* <VendfyIcon size={18} /> */}
                       <span>Vendfy</span>
                     </BreadcrumbLink>

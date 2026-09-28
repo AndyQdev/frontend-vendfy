@@ -66,8 +66,9 @@ export function TarjetaActividad({
       data-testid="omnibox-actividad"
       data-estado={estado}
       className={cn(
-        "rounded-xl border bg-card transition-colors",
-        estado === "espera-confirmacion" && "border-primary/40 ring-1 ring-primary/10",
+        // `.glass` + 22px: la convención de Card del panel.
+        "glass rounded-[22px] transition-colors",
+        estado === "espera-confirmacion" && "ring-1 ring-primary/30",
       )}
     >
       {/* cabecera: lo que escribió + en qué quedó */}
@@ -83,7 +84,7 @@ export function TarjetaActividad({
         </span>
       </div>
 
-      <div className="border-t px-4 py-3">
+      <div className="border-t border-white/10 px-4 py-3">
         {estado === "resuelta" && (
           <Resuelta resumen={cerrada?.resumen ?? p.resultado!.resumen} datos={p.resultado?.datos} />
         )}
@@ -155,8 +156,6 @@ function EsperaConfirmacion({
   onConfirmar: () => void;
 }) {
   const e = p.entidades as Record<string, any>;
-  const antes = p.resultado?.datos?.antes;
-  const despues = p.resultado?.datos?.despues;
 
   return (
     <div className="flex flex-wrap items-center gap-4">
@@ -174,8 +173,12 @@ function EsperaConfirmacion({
         </p>
       </div>
 
-      {antes !== undefined && despues !== undefined && (
-        <Diff antes={antes} despues={despues} />
+      {p.vistaPrevia && (
+        <Diff
+          etiqueta={p.vistaPrevia.etiqueta}
+          antes={p.vistaPrevia.antes}
+          despues={p.vistaPrevia.despues}
+        />
       )}
 
       {e.cantidad !== undefined && e.costo !== undefined && (
@@ -224,8 +227,8 @@ function Ambiguedad({
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background">
+      <div className="glass-track flex items-center gap-3 rounded-2xl p-3">
+        <div className="glass-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
           <Package className="h-5 w-5 text-muted-foreground" />
         </div>
         <div className="min-w-0">
@@ -239,7 +242,7 @@ function Ambiguedad({
           key={o.storeProductId}
           data-testid="omnibox-opcion"
           onClick={() => onElegir(o)}
-          className="flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:border-primary/40 hover:bg-accent"
+          className="glass-field press-lift flex items-center gap-3 rounded-2xl p-3 text-left"
         >
           <Miniatura src={o.imagen} />
           <div className="min-w-0">
@@ -292,7 +295,7 @@ function FaltaDato({
 
       <div className="flex items-center">
         {numerico && falta.slot !== "cantidad" && (
-          <span className="rounded-l-md border border-r-0 bg-muted px-3 py-2 text-sm text-muted-foreground">
+          <span className="glass-track rounded-l-2xl px-3 py-2 text-sm text-muted-foreground">
             Bs
           </span>
         )}
@@ -304,7 +307,7 @@ function FaltaDato({
           step={numerico ? "0.01" : undefined}
           placeholder={numerico ? "0.00" : ""}
           aria-label={falta.pregunta}
-          className={cn("w-32", numerico && falta.slot !== "cantidad" && "rounded-l-none")}
+          className={cn("glass-field w-32 rounded-2xl", numerico && falta.slot !== "cantidad" && "rounded-l-none")}
         />
       </div>
 
@@ -341,11 +344,26 @@ function Insignia({ estado }: { estado: keyof typeof INSIGNIAS }) {
   );
 }
 
-function Diff({ antes, despues }: { antes: number; despues: number }) {
+/**
+ * El `10 → 15`.
+ *
+ * Es lo que hace que confirmar sea revisar y no creer. Sin esto la tarjeta dice
+ * qué se va a hacer pero no qué va a quedar, que es lo que el comerciante
+ * necesita mirar antes de apretar.
+ */
+function Diff({
+  etiqueta,
+  antes,
+  despues,
+}: {
+  etiqueta: string;
+  antes: number;
+  despues: number;
+}) {
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-primary/5 px-4 py-2">
+    <div className="glass-track flex items-center gap-3 rounded-2xl px-4 py-2">
       <div>
-        <p className="text-xs text-muted-foreground">Stock</p>
+        <p className="text-xs text-muted-foreground">{etiqueta}</p>
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold tabular-nums text-muted-foreground">
             {antes}
@@ -385,7 +403,7 @@ function Dato({
 function Miniatura({ src }: { src: string | null }) {
   if (!src) {
     return (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+      <div className="glass-track flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
         <Package className="h-5 w-5 text-muted-foreground" />
       </div>
     );
@@ -394,7 +412,7 @@ function Miniatura({ src }: { src: string | null }) {
     <img
       src={src}
       alt=""
-      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+      className="h-10 w-10 shrink-0 rounded-xl object-cover"
       loading="lazy"
     />
   );

@@ -46,6 +46,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     {
       label: "Operación",
       items: [
+        // El asistente va PRIMERO: es el punto de entrada del comerciante, no
+        // una herramienta más del menú. Es lo que pide el RF-09.
+        { title: "Asistente", url: "/omnibox", icon: Sparkles },
         { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
         // SPRINT 1: fuera del alcance de la demo
         // { title: "Caja", url: "/caja", icon: ShoppingCart },

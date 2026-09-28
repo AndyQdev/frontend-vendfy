@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Camera, Clock, Loader2, Mic, Search, Sparkles } from "lucide-react";
+import { ArrowUp, Camera, Clock, Loader2, Mic, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { useConfirmar, useIntenciones, useInterpretar } from "@/entities/omnibox/api";
@@ -140,8 +140,11 @@ export function OmniboxPage() {
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
-      {/* --- el campo --- */}
-      <section className="rounded-2xl border bg-card p-4 shadow-sm">
+      {/* --- el campo ---
+          `.glass` y `rounded-[26px]`: son las convenciones del panel (ver
+          index.css). Con `bg-card` a secas la tarjeta se ve como un rectángulo
+          gris sobre el fondo con textura, en vez de un panel del sistema. */}
+      <section className="glass rounded-[26px] p-4">
         <form onSubmit={enviar} className="flex items-center gap-2">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
             {interpretar.isPending ? (
@@ -158,7 +161,7 @@ export function OmniboxPage() {
             placeholder="Escribí o dictá lo que querés hacer…"
             aria-label="Qué querés hacer"
             disabled={interpretar.isPending}
-            className="h-11 border-0 text-base shadow-none focus-visible:ring-0"
+            className="glass-field h-11 rounded-2xl border-0 text-base focus-visible:ring-0"
           />
 
           {/* Voz y cámara: todavía no conectados, pero visibles. El caso que
@@ -167,7 +170,7 @@ export function OmniboxPage() {
             type="button"
             variant="outline"
             size="icon"
-            className="h-11 w-11 shrink-0 rounded-xl"
+            className="h-11 w-11 shrink-0"
             aria-label="Dictar"
             disabled
             title="Pronto: dictar con la voz"
@@ -178,12 +181,26 @@ export function OmniboxPage() {
             type="button"
             variant="outline"
             size="icon"
-            className="h-11 w-11 shrink-0 rounded-xl"
+            className="h-11 w-11 shrink-0"
             aria-label="Sacar una foto"
             disabled
             title="Pronto: cargar desde una foto"
           >
             <Camera className="h-5 w-5" />
+          </Button>
+
+          {/* El botón de enviar no es opcional.
+              Sin un submit en el formulario, Enter no envía nada: se escribe,
+              se aprieta Enter y no pasa absolutamente nada. Y en un teléfono ni
+              siquiera hay Enter a mano. Se ve al probarlo, no al leerlo. */}
+          <Button
+            type="submit"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            aria-label="Enviar"
+            disabled={!texto.trim() || interpretar.isPending}
+          >
+            <ArrowUp className="h-5 w-5" />
           </Button>
         </form>
 
@@ -201,7 +218,7 @@ export function OmniboxPage() {
                 setTexto(s.texto);
                 campo.current?.focus();
               }}
-              className="rounded-full border px-3 py-1.5 text-xs transition-colors hover:border-primary/40 hover:bg-accent"
+              className="glass-chip press rounded-full px-3 py-1.5 text-xs"
             >
               {s.texto}
             </button>
@@ -236,7 +253,7 @@ export function OmniboxPage() {
         <div
           data-testid="omnibox-vacio"
           className={cn(
-            "rounded-xl border border-dashed py-16 text-center",
+            "glass rounded-[26px] py-16 text-center",
             "text-sm text-muted-foreground",
           )}
         >
