@@ -1,18 +1,21 @@
 import * as React from "react"
 import {
-  ShoppingCart,
+  Sparkles,
+  LayoutDashboard,
+  // SPRINT 1: ocultos del menú — descomentar junto con sus items
+  // ShoppingCart,
+  // BarChart3,
+  // ClipboardList,
+  // DollarSign,
+  // MessageCircle,
+  // Megaphone,
+  // Plug,
   Package,
   Users,
-  BarChart3,
-  ClipboardList,
   Store,
-  DollarSign,
   Boxes,
   Truck,
   Tags,
-  MessageCircle,
-  Megaphone,
-  Plug,
 } from "lucide-react"
 
 import { NavMain, type NavSection } from "@/widgets/layout/nav-main"
@@ -43,9 +46,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     {
       label: "Operación",
       items: [
-        { title: "Caja", url: "/caja", icon: ShoppingCart },
-        { title: "Pedidos", url: "/orders", icon: ClipboardList },
-        { title: "Ventas", url: "/sales", icon: DollarSign },
+        { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
+        // SPRINT 1: fuera del alcance de la demo
+        // { title: "Caja", url: "/caja", icon: ShoppingCart },
+        // { title: "Pedidos", url: "/orders", icon: ClipboardList },
+        // { title: "Ventas", url: "/sales", icon: DollarSign },
       ],
     },
     {
@@ -61,14 +66,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: "Clientes",
       items: [{ title: "Clientes", url: "/customers", icon: Users }],
     },
-    {
-      label: "Marketing",
-      items: [
-        { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
-        { title: "Campañas", url: "/campaigns", icon: Megaphone },
-        { title: "Integraciones", url: "/integrations", icon: Plug },
-      ],
-    },
+    // SPRINT 1: la sección entera queda oculta. Se comenta completa y no solo
+    // sus items, porque una sección sin items igual pinta su encabezado.
+    // {
+    //   label: "Marketing",
+    //   items: [
+    //     { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
+    //     { title: "Campañas", url: "/campaigns", icon: Megaphone },
+    //     { title: "Integraciones", url: "/integrations", icon: Plug },
+    //   ],
+    // },
     {
       label: "Administración",
       items: [
@@ -80,12 +87,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               : `/stores/${(selectedStore as any)?.id || ""}`,
           icon: Store,
         },
-        {
-          title: "Análisis",
-          url: "/reports",
-          icon: BarChart3,
-          items: [{ title: "Movimientos", url: "/reports/movements" }],
-        },
+        // SPRINT 1: oculto junto con su submenú de Movimientos
+        // {
+        //   title: "Análisis",
+        //   url: "/reports",
+        //   icon: BarChart3,
+        //   items: [{ title: "Movimientos", url: "/reports/movements" }],
+        // },
       ],
     },
   ]
