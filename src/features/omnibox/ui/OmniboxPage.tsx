@@ -50,7 +50,7 @@ export function OmniboxPage() {
   const campo = useRef<HTMLInputElement>(null);
 
   const { data: intenciones } = useIntenciones();
-  const { data: estadoVoz } = useEstadoVoz();
+  const { data: estadoVoz, isLoading: consultandoVoz } = useEstadoVoz();
   const interpretar = useInterpretar();
   const confirmar = useConfirmar();
   const dictar = useDictar();
@@ -243,11 +243,15 @@ export function OmniboxPage() {
             title={
               !voz.soportado
                 ? "Tu navegador no puede grabar audio"
-                : !estadoVoz?.disponible
-                  ? "El dictado no está configurado en el servidor"
-                  : voz.estado === "grabando"
-                    ? "Tocá para terminar"
-                    : "Dictar"
+                : // Mientras la consulta viaja no se sabe si hay dictado, y decir
+                  // "no está configurado" es afirmar algo que puede ser falso.
+                  consultandoVoz
+                  ? "Preparando el dictado…"
+                  : !estadoVoz?.disponible
+                    ? "El dictado no está configurado en el servidor"
+                    : voz.estado === "grabando"
+                      ? "Tocá para terminar"
+                      : "Dictar"
             }
           >
             {voz.estado === "procesando" ? (
