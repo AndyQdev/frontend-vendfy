@@ -37,7 +37,84 @@ export interface Propuesta {
   producto: ProductoOpcion | null;
   /** Se entendió pero no se puede: sin permiso, o sin ejecutor todavía. */
   bloqueo: "sin-permiso" | "sin-ejecutor" | null;
+  /** Clientes para elegir ("es para José" con dos José). Vacío = no existe. */
+  clientes?: ClienteOpcion[];
+  /** Líneas del carrito entre las que hay que elegir. */
+  lineas?: LineaContexto[];
+  /** Un pedido de varias cosas: cada producto resuelto por separado. */
+  items?: ItemPedido[];
+  /** El cliente del pedido ya puesto en la venta (lo marca el panel). */
+  clienteAplicado?: string;
+  /** Último costo y promedio por producto: lo que se precarga en la compra. */
+  costos?: Record<string, CostoProducto>;
   ms: number;
+}
+
+export interface CostoProducto {
+  productId: string;
+  ultimoCosto: number | null;
+  ultimoProveedor: string | null;
+  costoPromedio: number | null;
+}
+
+/** Lo que devuelve registrar una compra: lo que muestra su tarjeta en el chat. */
+export interface CompraRegistrada {
+  purchaseOrderId: string;
+  referencia: string | null;
+  proveedor: string | null;
+  total: number;
+  unidades: number;
+  /** La foto de la factura, si la compra salió de una foto. */
+  adjunto?: string | null;
+}
+
+/** Un producto de un pedido dicho de una vez ("un Absolut y un Icon"). */
+export interface ItemPedido {
+  texto: string;
+  buscado: string;
+  cantidad: number;
+  precio: number | null;
+  /** Claro: se agrega directo. */
+  producto: ProductoOpcion | null;
+  /** Dudoso: los parecidos, para elegir uno o varios. */
+  opciones: ProductoOpcion[];
+  /** No existe: lo que se buscó. */
+  noEncontrado: string | null;
+  /** Lo que ya se agregó desde este renglón (lo marca el panel). */
+  agregados?: string[];
+  /** Un renglón de la factura que se decidió no cargar (lo marca el panel). */
+  omitido?: boolean;
+}
+
+/** Una línea de la venta abierta, como viaja al servidor con cada frase. */
+export interface LineaContexto {
+  productId: string;
+  nombre: string;
+  cantidad: number;
+}
+
+/**
+ * Las intenciones que actúan sobre la venta del panel. El servidor dice qué
+ * hacer y con qué; el panel lo aplica con el mismo reductor que sus botones.
+ */
+export const INTENCIONES_DE_VENTA = new Set([
+  // compra (Fase 4): mismo camino, otra mesa
+  "agregar_a_compra",
+  "cambiar_costo_compra",
+  "elegir_proveedor",
+  "registrar_compra",
+  // venta
+  "agregar_a_venta",
+  "quitar_de_venta",
+  "cambiar_cantidad_venta",
+  "elegir_cliente",
+  "elegir_pago",
+  "cobrar",
+  "vaciar_venta",
+]);
+
+export function esDeVenta(p: Propuesta): boolean {
+  return Boolean(p.intencion && INTENCIONES_DE_VENTA.has(p.intencion));
 }
 
 export interface IntencionDisponible {
@@ -62,18 +139,33 @@ export type EstadoTarjeta =
   | "ambiguedad"
   | "sin-producto"
   | "falta-dato"
+  | "pedido"
+  | "confirmar-compra"
+  | "elegir-cliente"
+  | "elegir-linea"
+  | "aviso"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";
+  if (p.items) return "pedido";
+  // Una compra recibida no se puede anular: se confirma con su propia tarjeta.
+  if (p.intencion === "registrar_compra" && p.ejecutable) return "confirmar-compra";
+  // Los dos José, o el que no existe: se elige (o se crea) antes de seguir.
+  if (p.clientes && !p.ejecutable) return "elegir-cliente";
+  if (p.lineas && p.lineas.length > 0) return "elegir-linea";
   if (p.opciones.length > 0) return "ambiguedad";
   // Nombró un producto que no existe: no es un dato que falte, y preguntarle
   // "¿qué producto?" a quien acaba de nombrarlo no tiene sentido.
   if (p.noEncontrado) return "sin-producto";
   if (p.faltan.length > 0) return "falta-dato";
   if (p.requiereConfirmacion && p.ejecutable) return "espera-confirmacion";
+  // Una frase de la venta que no se puede aplicar ("no hay nada para cobrar",
+  // "eso no está en la venta"): se dice por qué, sin ofrecer sugerencias de
+  // otra cosa — la persona sabe lo que quería.
+  if (esDeVenta(p) && p.aviso) return "aviso";
   // Entendió pero no puede: sin permiso, o sin ejecutor todavía.
   return "sin-entender";
 }
@@ -122,4 +214,49 @@ const TITULO: Record<string, string> = {
 
 export function tituloCorto(p: Propuesta): string {
   return (p.intencion && TITULO[p.intencion]) || p.titulo || "Resultado";
+}
+
+/** La ficha completa de un producto, para el panel de la derecha. */
+export interface FichaProducto {
+  productId: string;
+  storeProductId: string;
+  nombre: string;
+  codigo: string | null;
+  descripcion: string | null;
+  imagenes: string[];
+  marca: string | null;
+  categoria: string | null;
+  especificaciones: Record<string, unknown> | null;
+  etiquetas: string[];
+  unidad: string;
+  precio: number;
+  stock: number;
+  /** Esta tienda primero, después las otras del dueño que venden el producto. */
+  stockPorTienda: { storeId: string; nombre: string; stock: number; esEsta: boolean }[];
+  /** "No tenés en esta tienda, pero sí en…" — solo cuando aplica (D4). */
+  aviso: string | null;
+  /** Solo para quien puede comprar: el último costo y el promedio. */
+  costo?: CostoProducto | null;
+}
+
+/** Un cliente parecido a lo escrito, con lo que sirve para distinguirlo. */
+export interface ClienteOpcion {
+  id: string;
+  nombre: string;
+  telefono: string;
+  similitud: number;
+  compras: number;
+  ultimaCompra: string | null;
+}
+
+/** Lo que devuelve cobrar: lo que muestra la tarjeta de la venta en el chat. */
+export interface VentaCobrada {
+  orderId: string;
+  numero: number;
+  total: number;
+  pago: "efectivo" | "qr" | "tarjeta";
+  cliente: string;
+  /** "por-confirmar" si algo era a pedido y faltaba: no descontó stock. */
+  estado: string;
+  unidades: number;
 }

@@ -83,7 +83,7 @@ export function ChatView({
   return (
     <section className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card/60 px-4 py-3 backdrop-blur-sm">
+      <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3">
         {onBack && (
           <Button
             variant="ghost"

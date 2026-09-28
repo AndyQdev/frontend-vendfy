@@ -74,17 +74,17 @@ export function PurchaseOrderDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/purchases")}>
+          <Button variant="outline" size="icon" onClick={() => navigate("/purchases")} aria-label="Volver a compras">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">Detalle de Compra</h1>
+              <h1 className="titulo-pagina">Detalle de compra</h1>
               <Badge variant={status.variant}>{status.label}</Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{formatDate(po.created_at)}</p>
+            <p className="cifra mt-1.5 text-[13px] text-muted-foreground">{formatDate(po.created_at)}</p>
           </div>
         </div>
 

@@ -2,246 +2,167 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================================
+ * VENDFY — SISTEMA VISUAL
+ *
+ * Plano, claro y sobrio. Reemplaza al "Liquid Glass" (vidrio esmerilado sobre
+ * un fondo beige con cuatro radiales): las tarjetas no se despegaban del fondo
+ * y todo se leía como una sopa gris.
+ *
+ * Tres reglas sostienen el aspecto entero:
+ *
+ *   1. FONDO PLANO #F3F5F7 y superficies blancas. Lo que separa una tarjeta
+ *      del fondo es el BORDE de 1 px; la sombra apenas da profundidad.
+ *   2. DOS AZULES CON DOS TRABAJOS. El azul marino (--tinta) es identidad y
+ *      navegación activa. El cian oscuro (--primary, #0E7490) es la acción
+ *      principal. El cian brillante (--acento, #06B6D4) no lleva texto encima:
+ *      contra blanco da 2,4:1.
+ *   3. EL COLOR NUNCA ES DECORATIVO. Verde, ámbar y rojo dicen un estado, y
+ *      siempre van con la palabra al lado.
+ *
+ * Los nombres de token son los de shadcn a propósito: las ~40 piezas de
+ * shared/ui y todas las pantallas ya los usan, así que cambiar los VALORES
+ * mueve la app entera sin editar cada archivo.
+ * ========================================================================== */
+
 @layer base {
-  /* =====================================================================
-     VENDFY — Glass Esmeralda
-     · Azul marino = --primary (botones / texto fuerte)   HSL 222 47% 16%
-     · Cian = ACENTO único (activos, badges, CTAs, glass)  #06B6D4
-     Tokens shadcn (HSL) + tokens "raw" de glass (rgba/gradiente) para
-     superficies translúcidas. Light en :root, dark en .dark.
-     ===================================================================== */
   :root {
-    /* Color base sólido (el degradado real --app-bg se aplica en body). */
-    --background: 156 16% 95%;
-    --foreground: 222 47% 11%;          /* azul marino para texto */
-
-    --card: 0 0% 100%;                  /* fallback; el relleno real es glass */
+    /* ---------- Superficies ---------- */
+    --background: 210 20% 96%; /* #F3F5F7 */
+    --foreground: 222 47% 11%; /* #0F172A */
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* 🔵 Primario — azul marino (botones, texto de cabecera) */
-    --primary: 222 47% 16%;
-    --primary-foreground: 210 40% 98%;
-    --primary-soft: 185 90% 90%;        /* pill cian suave */
-    --primary-soft-foreground: 193 88% 26%;
+    /* ---------- Tinta: azul marino de la marca ---------- */
+    --tinta: 222 47% 11%; /* #0F172A */
+    --tinta-foreground: 0 0% 100%;
+    --tinta-muted: 220 14% 72%; /* texto secundario SOBRE la tinta */
 
-    --secondary: 158 20% 93%;
-    --secondary-foreground: 162 40% 14%;
+    /* ---------- Marca ---------- */
+    --primary: 193 82% 31%; /* #0E7490 — botón principal, foco, enlaces */
+    --primary-foreground: 0 0% 100%;
+    --primary-strong: 194 70% 27%; /* #155E75 — hover del primario */
+    --primary-soft: 191 51% 94%; /* #E6F4F7 — fondos suaves, globo del usuario */
+    --primary-soft-foreground: 193 82% 26%;
+    --acento: 189 94% 43%; /* #06B6D4 — puntos, barras, detalles. Sin texto encima. */
 
-    /* 🩵 Acento — cian (hover, estados activos, selección) */
-    --accent: 186 75% 92%;
-    --accent-foreground: 193 86% 26%;
+    /* ---------- Neutros ---------- */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%; /* #64748B */
+    --accent: 210 20% 96%; /* hover de filas, ítems de menú */
+    --accent-foreground: 222 47% 11%;
 
-    --muted: 158 18% 93%;
-    --muted-foreground: 162 9% 43%;
+    --border: 213 24% 91%; /* #E3E8EE — bordes de tarjeta */
+    --border-strong: 214 20% 80%; /* hover de controles */
+    --input: 214 22% 88%; /* #D8DEE6 — bordes de campos y botón secundario */
+    --ring: 193 82% 31%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* === Semánticos === */
-    --success: 161 80% 36%;
+    /* ---------- Estados: siempre con la palabra al lado ---------- */
+    --success: 156 76% 36%; /* #16A36A */
     --success-foreground: 0 0% 100%;
-    --success-soft: 158 56% 92%;
-    --success-soft-foreground: 161 84% 22%;
+    --success-soft: 152 55% 93%;
+    --success-soft-foreground: 158 80% 24%;
 
-    --warning: 35 92% 52%;
-    --warning-foreground: 35 100% 14%;
-    --warning-soft: 38 95% 92%;
-    --warning-soft-foreground: 30 80% 30%;
+    --warning: 38 92% 50%; /* #F59E0B */
+    --warning-foreground: 26 83% 14%;
+    --warning-soft: 40 96% 93%;
+    --warning-soft-foreground: 26 90% 32%;
 
-    --info: 216 90% 60%;
+    --destructive: 0 72% 51%; /* #DC2626 — relleno con texto blanco (4,8:1) */
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 86% 97%;
+    --destructive-soft-foreground: 0 70% 40%;
+
+    /* Informativo = la marca. Un azul más sería un color fuerte de sobra. */
+    --info: 193 82% 31%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 216 100% 95%;
-    --info-soft-foreground: 216 70% 40%;
+    --info-soft: 191 51% 94%;
+    --info-soft-foreground: 193 82% 26%;
 
-    --border: 156 16% 89%;
-    --input: 156 16% 89%;
-    --ring: 189 94% 43%;                /* foco cian */
+    /* ---------- Gráficos ---------- */
+    --chart-1: 193 82% 31%;
+    --chart-2: 222 47% 20%;
+    --chart-3: 189 94% 43%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 215 16% 62%;
 
-    --radius: 1rem;                    /* 16px — look Liquid Glass iOS */
+    /* ---------- Forma y profundidad ---------- */
+    --radius: 0.75rem;
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(15, 23, 42, 0.04);
+    --shadow-float: 0 1px 2px rgba(15, 23, 42, 0.05), 0 12px 32px -8px rgba(15, 23, 42, 0.16);
+    --shadow-modal: 0 24px 64px -16px rgba(15, 23, 42, 0.28);
 
-    /* Charts */
-    --chart-1: 222 47% 16%;            /* azul marino */
-    --chart-2: 189 94% 43%;            /* cian */
-    --chart-3: 216 90% 60%;            /* azul */
-    --chart-4: 45 93% 47%;             /* ámbar */
-    --chart-5: 250 80% 66%;            /* violeta */
-
-    /* ===== Sidebar — panel CLARO glass (era navy) ===== */
-    --sidebar-background: 0 0% 100%;    /* translúcido vía --side-bg + blur */
-    --sidebar-foreground: 162 12% 40%;
-    --sidebar-primary: 189 94% 43%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 186 80% 91%;      /* fondo item activo (cian soft) */
-    --sidebar-accent-foreground: 193 86% 27%;
-    --sidebar-border: 156 16% 90%;
-    --sidebar-ring: 189 94% 43%;
-
-    /* ===== Tokens raw del design system (glass / gradiente) ===== */
-    /* Fondo ANTERIOR (Glass Esmeralda con blobs) — conservado por si se
-       quiere volver: descomentar este y comentar el nuevo.
-    --app-bg:
-      radial-gradient(85% 80% at 0% 0%, rgba(6,182,212,0.13), transparent 68%),
-      radial-gradient(85% 80% at 100% 100%, rgba(30,58,138,0.09), transparent 68%),
-      linear-gradient(135deg, #e8f2f2 0%, #dfeaea 48%, #d7e5ea 100%);
-    */
-    /* Fondo iOS 26 gris frío ANTERIOR — comentado por si se quiere volver:
-    --app-bg: radial-gradient(115% 85% at 50% 0%, #ccd1d7 0%, #b9bfc7 55%, #a8afb8 100%);
-    */
-    /* Fondo "Caja Glass": base cálida #c9c7c2 con manchas de luz muy difusas
-       (como el mockup) — vivo, natural, y hace resaltar el vidrio. */
-    --app-bg:
-      radial-gradient(60% 55% at 12% 8%, rgba(239,236,229,0.6), transparent 70%),
-      radial-gradient(55% 50% at 88% 16%, rgba(183,195,198,0.5), transparent 70%),
-      radial-gradient(50% 45% at 40% 96%, rgba(214,207,196,0.55), transparent 72%),
-      linear-gradient(180deg, #cfcdc8 0%, #c9c7c2 100%);
-
-    --glass-bg: rgba(255,255,255,0.52);
-    --glass-2: rgba(255,255,255,0.42);
-    --glass-bd: rgba(255,255,255,0.85);
-
-    /* ===== Liquid Glass (iOS): tinte degradado + sombras con luz interior ===== */
-    --ease: cubic-bezier(0.22, 0.9, 0.3, 1);
-    --glass-tint: linear-gradient(155deg, rgba(255,255,255,0.66), rgba(255,255,255,0.38) 44%, rgba(255,255,255,0.56));
-    --glass-shadow: 0 22px 48px -20px rgba(31,42,40,0.22), 0 6px 16px -8px rgba(31,42,40,0.12), inset 0 1.2px 1.2px rgba(255,255,255,0.95), inset 0 -14px 26px -20px rgba(255,255,255,0.7);
-    --glass-shadow-sm: 0 12px 26px -12px rgba(31,42,40,0.2), 0 3px 8px -4px rgba(31,42,40,0.1), inset 0 1px 1px rgba(255,255,255,0.9);
-    --glass-shadow-hover: 0 30px 58px -20px rgba(31,42,40,0.28), 0 10px 22px -8px rgba(31,42,40,0.14), inset 0 1px 1.4px rgba(255,255,255,1);
-    --chip-bg: linear-gradient(150deg, rgba(255,255,255,0.8), rgba(255,255,255,0.42));
-    --chip-shadow: inset 0 1px 1px rgba(255,255,255,0.95), 0 4px 10px -6px rgba(31,42,40,0.35);
-    --field-bg: linear-gradient(150deg, rgba(255,255,255,0.62), rgba(255,255,255,0.34));
-    --field-shadow: inset 0 1px 1.2px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(11,40,33,0.04), 0 4px 10px -8px rgba(31,42,40,0.3);
-    --track-bg: rgba(11,40,33,0.07);
-    --track-shadow: inset 0 1px 2px rgba(11,40,33,0.12);
-    --side-active-bg: linear-gradient(150deg, rgba(255,255,255,0.88), rgba(190,246,250,0.45));
-    --hairline: rgba(11,40,33,0.09);
-    --hairline-strong: rgba(11,40,33,0.14);
-    --header-bg: rgba(255,255,255,0.5);
-    --chip: rgba(255,255,255,0.7);
-    --solid: #ffffff;
-    --primary-grad: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-    --blob-a: rgba(6,182,212,0.10);     /* cian */
-    --blob-b: rgba(30,58,138,0.16);     /* azul marino */
-    --cta-shadow: 0 12px 26px -12px rgba(6,182,212,0.8);
-
-    /* Sidebar — película blanca translúcida sobre el degradado */
-    --side-bg: rgba(255,255,255,0.55);
-    --side-active-fg: #0b6378;          /* texto item activo (cian oscuro) */
-    --icon-rest-bg: rgba(11,40,33,0.05);
-    --side-hover-bg: rgba(11,40,33,0.045);
+    /* ---------- Medidas del marco ---------- */
+    --alto-burbuja: 3.5rem; /* 56px — los tres bloques del header */
+    --alto-header: 5.25rem; /* lo reemplaza el header con su alto real */
+    --ancho-maximo: 1600px;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .dark {
-    --background: 222 56% 6%;
-    --foreground: 156 35% 93%;
-
+    --background: 222 47% 7%;
+    --foreground: 210 30% 94%;
     --card: 222 40% 11%;
-    --card-foreground: 156 35% 93%;
+    --card-foreground: 210 30% 94%;
+    --popover: 222 40% 12%;
+    --popover-foreground: 210 30% 94%;
 
-    --popover: 222 40% 11%;
-    --popover-foreground: 156 35% 93%;
+    --tinta: 222 47% 4%;
+    --tinta-foreground: 0 0% 100%;
+    --tinta-muted: 220 14% 64%;
 
-    /* 🔵 Botones claros en dark (contraste) */
-    --primary: 210 40% 98%;
+    --primary: 189 80% 42%;
     --primary-foreground: 222 47% 7%;
-    --primary-soft: 192 80% 18%;
-    --primary-soft-foreground: 187 80% 72%;
+    --primary-strong: 189 85% 50%;
+    --primary-soft: 193 60% 16%;
+    --primary-soft-foreground: 189 80% 70%;
+    --acento: 189 94% 50%;
 
-    --secondary: 222 30% 16%;
-    --secondary-foreground: 156 35% 93%;
+    --secondary: 222 32% 16%;
+    --secondary-foreground: 210 30% 94%;
+    --muted: 222 32% 15%;
+    --muted-foreground: 215 16% 64%;
+    --accent: 222 32% 17%;
+    --accent-foreground: 210 30% 94%;
 
-    --accent: 222 32% 18%;
-    --accent-foreground: 187 80% 62%;
+    --border: 222 26% 19%;
+    --border-strong: 222 22% 30%;
+    --input: 222 24% 24%;
+    --ring: 189 80% 50%;
 
-    --muted: 222 30% 16%;
-    --muted-foreground: 162 12% 66%;
-
-    --destructive: 0 64% 54%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 158 64% 52%;
-    --success-foreground: 162 70% 6%;
-    --success-soft: 158 45% 18%;
-    --success-soft-foreground: 158 70% 74%;
+    --success: 156 64% 44%;
+    --success-foreground: 158 80% 6%;
+    --success-soft: 156 45% 15%;
+    --success-soft-foreground: 156 65% 70%;
 
     --warning: 38 92% 56%;
-    --warning-foreground: 35 100% 12%;
-    --warning-soft: 38 70% 18%;
-    --warning-soft-foreground: 38 95% 74%;
+    --warning-foreground: 26 83% 10%;
+    --warning-soft: 36 60% 15%;
+    --warning-soft-foreground: 40 95% 72%;
 
-    --info: 216 80% 62%;
-    --info-foreground: 0 0% 100%;
-    --info-soft: 216 50% 20%;
-    --info-soft-foreground: 216 90% 78%;
+    --destructive: 0 70% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 45% 16%;
+    --destructive-soft-foreground: 0 90% 76%;
 
-    --border: 220 14% 24%;
-    --input: 220 14% 24%;
-    --ring: 187 85% 53%;
+    --info: 189 80% 42%;
+    --info-foreground: 222 47% 7%;
+    --info-soft: 193 60% 16%;
+    --info-soft-foreground: 189 80% 70%;
 
-    /* Charts */
-    --chart-1: 210 40% 98%;
-    --chart-2: 187 85% 53%;
-    --chart-3: 216 85% 66%;
-    --chart-4: 45 93% 47%;
-    --chart-5: 250 80% 72%;
+    --chart-1: 189 80% 46%;
+    --chart-2: 210 30% 80%;
+    --chart-3: 189 94% 60%;
+    --chart-4: 38 92% 56%;
+    --chart-5: 215 16% 50%;
 
-    /* Sidebar dark glass */
-    --sidebar-background: 222 40% 9%;
-    --sidebar-foreground: 162 12% 66%;
-    --sidebar-primary: 187 85% 53%;
-    --sidebar-primary-foreground: 192 90% 8%;
-    --sidebar-accent: 192 70% 18%;
-    --sidebar-accent-foreground: 187 80% 80%;
-    --sidebar-border: 222 24% 18%;
-    --sidebar-ring: 187 85% 53%;
-
-    /* Fondo dark ANTERIOR (tintes cian/navy) — conservado por si se quiere
-       volver: descomentar este y comentar el nuevo.
-    --app-bg:
-      radial-gradient(85% 80% at 0% 0%, rgba(6,182,212,0.12), transparent 68%),
-      radial-gradient(90% 85% at 100% 0%, rgba(30,58,138,0.16), transparent 68%),
-      linear-gradient(180deg, #070d18 0%, #060b14 100%);
-    */
-    /* Fondo dark casi negro ANTERIOR — comentado por si se quiere volver:
-    --app-bg: radial-gradient(115% 85% at 50% 0%, #16181d 0%, #0d0f13 55%, #08090b 100%);
-    */
-    /* Fondo dark "Liquid Glass": gris pizarra vivo (familia #6f757e del
-       mockup) con luz difusa — el vidrio oscuro resalta mucho más. */
-    --app-bg:
-      radial-gradient(60% 55% at 12% 8%, rgba(143,149,157,0.35), transparent 70%),
-      radial-gradient(55% 50% at 88% 16%, rgba(93,104,112,0.45), transparent 70%),
-      linear-gradient(180deg, #565b63 0%, #474c54 55%, #3d424a 100%);
-    --glass-bg: rgba(255,255,255,0.06);
-    --glass-2: rgba(255,255,255,0.04);
-    --glass-bd: rgba(255,255,255,0.16);
-
-    /* ===== Liquid Glass dark ===== */
-    --glass-tint: linear-gradient(155deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04) 44%, rgba(255,255,255,0.08));
-    --glass-shadow: 0 26px 60px -24px rgba(0,0,0,0.65), 0 8px 18px -8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.22), inset 0 -14px 26px -20px rgba(255,255,255,0.07);
-    --glass-shadow-sm: 0 12px 28px -12px rgba(0,0,0,0.55), 0 3px 8px -4px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.18);
-    --glass-shadow-hover: 0 32px 64px -22px rgba(0,0,0,0.7), 0 10px 22px -8px rgba(0,0,0,0.45), inset 0 1px 1.2px rgba(255,255,255,0.3);
-    --chip-bg: linear-gradient(150deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
-    --chip-shadow: inset 0 1px 1px rgba(255,255,255,0.22), 0 4px 10px -6px rgba(0,0,0,0.5);
-    --field-bg: linear-gradient(150deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035));
-    --field-shadow: inset 0 1px 1px rgba(255,255,255,0.14), inset 0 -1px 1px rgba(0,0,0,0.2), 0 4px 10px -8px rgba(0,0,0,0.4);
-    --track-bg: rgba(255,255,255,0.07);
-    --track-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
-    --side-active-bg: linear-gradient(150deg, rgba(34,211,238,0.18), rgba(34,211,238,0.06));
-    --hairline: rgba(255,255,255,0.09);
-    --hairline-strong: rgba(255,255,255,0.16);
-    --header-bg: rgba(9,15,25,0.4);
-    --chip: rgba(255,255,255,0.06);
-    --solid: #15171c; /* neutro iOS (antes #101d33 navy, a juego con el fondo viejo) */
-    --primary-grad: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
-    --blob-a: rgba(6,182,212,0.10);
-    --blob-b: rgba(30,58,138,0.24);
-    --cta-shadow: 0 12px 26px -12px rgba(34,211,238,0.6);
-
-    --side-bg: rgba(255,255,255,0.05);
-    --side-active-fg: #c2f5ff;          /* texto item activo (cian claro) */
-    --icon-rest-bg: rgba(255,255,255,0.055);
-    --side-hover-bg: rgba(255,255,255,0.05);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 36px -10px rgba(0, 0, 0, 0.6);
+    --shadow-modal: 0 28px 72px -16px rgba(0, 0, 0, 0.75);
   }
 }
 
@@ -249,62 +170,160 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply text-foreground;
-    /* Fondo degradado con blobs esmeralda/azul marino (Glass Esmeralda).
-       Cards, sidebar y header translúcidos flotan sobre este lienzo. */
-    background: var(--app-bg);
-    background-attachment: fixed;
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    transition: background 0.5s ease, color 0.35s ease;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Un scroll horizontal de la página entera solo puede ser un accidente:
+       lo único que se desplaza de costado es el carril de rutas del header.
+       Va en el BODY y no en <html> a propósito: con <html> recortado, cuando
+       un menú de Radix bloquea el scroll (overflow:hidden en el body) el body
+       pasa a ser su propio contenedor de scroll, y el header y el campo del
+       asistente —que son `sticky`— se despegan de la pantalla. */
+    overflow-x: clip;
+    font-size: 0.875rem;
+    -webkit-tap-highlight-color: transparent;
   }
-  /* Titulares y cifras grandes en Sora (display). */
-  h1 {
-    font-family: "Sora", "Plus Jakarta Sans", system-ui, sans-serif;
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary-soft));
+    color: hsl(var(--primary-soft-foreground));
+  }
+
+  /* Foco visible SIEMPRE con teclado, en todo lo que no traiga el suyo. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
+/* =============================================================================
+ * PIEZAS DEL SISTEMA
+ * ========================================================================== */
 @layer components {
-  /* El estado activo/hover del item del sidebar (pill esmeralda + tile de
-     icono con gradiente + riel) se define en el cva de sidebar.tsx
-     (sidebarMenuButtonVariants), replicando el dental. */
-
-  .sidebar-header {
-    @apply border-b border-sidebar-border;
+  /* Superficie base: tarjeta blanca con borde. Lo que usa <Card>. */
+  .superficie {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
   }
 
-  /* Sub-item activo: texto destacado + segmento verde en border-l */
-  [data-sidebar="menu-sub-button"][data-active="true"] {
-    background: hsl(161 89% 38% / 0.10);
-    @apply text-sidebar-accent-foreground font-semibold;
+  /* Bloque del header: los tres contenedores de arriba. */
+  .burbuja {
+    height: var(--alto-burbuja);
+    border-radius: 1.25rem;
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
   }
 
-  li:has(> [data-sidebar="menu-sub-button"][data-active="true"]) {
-    position: relative;
+  /* Título de pantalla: Sora, mayúsculas, apretado. */
+  .titulo-pantalla {
+    font-family: Sora, "Plus Jakarta Sans", system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    line-height: 1;
   }
 
-  /* Segmento esmeralda que pinta solo la porción del border-l */
-  li:has(> [data-sidebar="menu-sub-button"][data-active="true"])::before {
-    content: "";
-    position: absolute;
-    left: -11px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: hsl(160, 84%, 45%);
-    box-shadow: 0 0 8px hsl(160 84% 39% / 0.5);
+  /* El título de cada pantalla, en su tamaño: 22 px en el teléfono, 28 en
+     tablet, 30 en escritorio. Lo usan PageHeader y los títulos sueltos. */
+  .titulo-pagina {
+    font-family: Sora, "Plus Jakarta Sans", system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    line-height: 1.05;
+    font-size: 1.375rem;
+    color: hsl(var(--foreground));
+  }
+  @media (min-width: 640px) {
+    .titulo-pagina {
+      font-size: 1.75rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .titulo-pagina {
+      font-size: 1.875rem;
+    }
   }
 
-  [data-breadcrumb-page] {
-    @apply text-sidebar-primary font-medium;
+  /* Etiqueta chica en mayúsculas: cabeceras de tabla, contadores, secciones. */
+  .etiqueta {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
 
-  /* (.main-content-bg se define en @layer utilities para ganarle a
-     bg-background del primitivo SidebarInset.) */
+  /* Cifras: montos, stock, contadores. Monoespaciada para que alineen. */
+  .cifra {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
 
-  /* Animaciones suaves para collapsible */
+  /* Carril de desplazamiento horizontal sin barra visible (rutas, chips). */
+  .carril {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .carril::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Barra de scroll vertical fina, para listas largas dentro de un panel. */
+  .scroll-fino {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+
+  /*
+   * Festón del toldo: la terminación de la lona de una tienda, debajo del
+   * bloque de marca. Es el único adorno propio de Vendfy, y por eso es chico:
+   * semicírculos de 8 px en el cian de la marca, colgando del borde.
+   */
+  .feston {
+    height: 4px;
+    background-image: radial-gradient(circle at 4px 0, hsl(var(--acento) / 0.85) 3.5px, transparent 4px);
+    background-size: 8px 4px;
+    background-repeat: repeat-x;
+    background-position: 0 0;
+  }
+
+  /* Aparición discreta para listas y menús propios. */
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .aparecer {
+    animation: aparecer 140ms var(--ease);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aparecer {
+      animation: none;
+    }
+  }
+
+  /* Animaciones de los colapsables (Radix Collapsible). */
   @keyframes collapsible-down {
     from {
       height: 0;
@@ -315,7 +334,6 @@
       opacity: 1;
     }
   }
-
   @keyframes collapsible-up {
     from {
       height: var(--radix-collapsible-content-height);
@@ -326,235 +344,130 @@
       opacity: 0;
     }
   }
-
   .animate-collapsible-down {
     animation: collapsible-down 200ms ease-out;
   }
-
   .animate-collapsible-up {
     animation: collapsible-up 200ms ease-out;
   }
 
-  /* ButtonMagic - glowing border animation */
-  @keyframes glowing {
-    0% {
-      background-position: 0 0;
-    }
-    50% {
-      background-position: 400% 0;
-    }
-    100% {
-      background-position: 0 0;
-    }
-  }
-
-  .btn-magic {
-    background: hsl(222, 47%, 14%);
-  }
-
-  .btn-magic::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: -1;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      45deg,
-      hsl(222, 80%, 30%),
-      hsl(199, 89%, 48%),
-      hsl(262, 80%, 50%),
-      hsl(199, 89%, 48%),
-      hsl(222, 80%, 30%),
-      hsl(199, 89%, 48%),
-      hsl(262, 80%, 50%),
-      hsl(199, 89%, 48%)
-    );
-    background-size: 800%;
-    border-radius: 12px;
-    filter: blur(8px);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    animation: glowing 20s linear infinite;
-  }
-
-  .btn-magic::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    background: hsl(222, 47%, 14%);
-    border-radius: 10px;
-    z-index: -1;
-  }
-
-  .btn-magic:hover {
-    transform: translateY(-1px);
-  }
-
-  .btn-magic:hover::before {
-    opacity: 1;
-    filter: blur(12px);
-  }
-
-  .btn-magic:active {
-    transform: translateY(0);
-  }
-
-  .btn-magic--active::before {
-    opacity: 1;
-    filter: blur(12px);
-  }
-
-  .dark .btn-magic {
-    background: hsl(222, 47%, 12%);
-  }
-
-  .dark .btn-magic::after {
-    background: hsl(222, 47%, 12%);
-  }
-
-  /* Forzar que el carrusel respete el ancho del contenedor padre */
+  /* El carrusel respeta el ancho del contenedor padre. */
   [role="region"][aria-roledescription="carousel"] {
     max-width: 100% !important;
     width: 100% !important;
   }
-
-  /* Asegurar que el contenedor del carrusel tenga overflow hidden */
   [role="region"][aria-roledescription="carousel"] > div {
     overflow: hidden !important;
   }
 }
 
-/* =====================================================================
-   GLASS ESMERALDA · utilidades de superficie
-   ===================================================================== */
+/* =============================================================================
+ * COMPATIBILIDAD CON EL SISTEMA ANTERIOR
+ *
+ * Unas sesenta piezas de pantallas viejas todavía escriben `glass`,
+ * `glass-field`, `press` o `var(--primary-grad)`. En vez de migrarlas una por
+ * una, los nombres viejos pasan a significar lo nuevo: superficie plana, sin
+ * blur ni degradado. Cuando una pantalla se toque por otro motivo, conviene
+ * reemplazarlos por las clases del sistema (`bg-card border`, `bg-muted`).
+ * ========================================================================== */
+@layer base {
+  :root {
+    --primary-grad: hsl(var(--primary));
+    --cta-shadow: none;
+    --hairline: hsl(var(--border));
+    --hairline-strong: hsl(var(--border-strong));
+    --glass-bd: hsl(var(--border));
+    --side-hover-bg: hsl(var(--accent));
+    --side-active-bg: hsl(var(--primary-soft));
+    --side-active-fg: hsl(var(--primary-soft-foreground));
+    --icon-rest-bg: hsl(var(--muted));
+  }
+}
+
 @layer components {
-  /* Vidrio esmerilado Liquid Glass: tinte degradado + blur con saturación y
-     brillo + borde de luz + sombra profunda con luz interior superior. */
-  .glass {
-    background: var(--glass-tint);
-    border: 1px solid var(--glass-bd);
-    box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
-    -webkit-backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
-  }
-  /* Variante de menor elevación (botones flotantes, barras secundarias). */
-  .glass-sm {
-    background: var(--glass-tint);
-    border: 1px solid var(--glass-bd);
-    box-shadow: var(--glass-shadow-sm);
-    backdrop-filter: blur(20px) saturate(1.7) brightness(1.04);
-    -webkit-backdrop-filter: blur(20px) saturate(1.7) brightness(1.04);
-  }
-  /* Superficie glass secundaria (inputs/chips "hundidos" dentro del vidrio). */
-  .glass-2 {
-    background: var(--glass-2);
-    border: 1px solid var(--hairline);
-  }
-  /* Chip de vidrio elevado: botones redondos del header, botones secundarios. */
-  .glass-chip {
-    background: var(--chip-bg);
-    border: 1px solid var(--glass-bd);
-    box-shadow: var(--chip-shadow);
-  }
-  /* Campo de formulario: vidrio con luz superior y base ligeramente hundida. */
-  .glass-field {
-    background: var(--field-bg);
-    border: 1px solid var(--hairline);
-    box-shadow: var(--field-shadow);
-  }
-  /* Riel hundido (fondo de tabs segmentadas, steppers de cantidad). */
-  .glass-track {
-    background: var(--track-bg);
-    box-shadow: var(--track-shadow);
-  }
-  /* Panel sólido esmerilado para modales/menús flotantes (legible sobre todo). */
+  .glass,
+  .glass-sm,
   .glass-modal {
-    background: color-mix(in srgb, var(--solid) 88%, transparent);
-    backdrop-filter: blur(28px) saturate(1.6);
-    -webkit-backdrop-filter: blur(28px) saturate(1.6);
-    border: 1px solid var(--glass-bd);
-    box-shadow: var(--glass-shadow);
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
+  }
+  .glass-modal {
+    box-shadow: var(--shadow-float);
+  }
+  .glass-2,
+  .glass-chip {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--input));
+  }
+  .glass-field {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--input));
+  }
+  .glass-track {
+    background-color: hsl(var(--muted));
   }
 
-  /* Microinteracción iOS: se eleva al pasar y se comprime al presionar. */
-  .press {
-    transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease),
-      background-color 0.22s var(--ease), filter 0.22s var(--ease);
-  }
-  .press:hover {
-    transform: translateY(-1px);
-  }
-  .press:active {
-    transform: translateY(0) scale(0.97);
-  }
-  /* Versión para cards clickeables: elevación mayor. */
+  /* Microinteracción: solo se comprime al presionar. Nada se levanta. */
+  .press,
   .press-lift {
-    transition: transform 0.26s var(--ease), box-shadow 0.26s var(--ease);
+    transition:
+      transform 150ms var(--ease),
+      background-color 150ms var(--ease),
+      border-color 150ms var(--ease),
+      color 150ms var(--ease);
+  }
+  .press:active,
+  .press-lift:active {
+    transform: scale(0.98);
   }
   .press-lift:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--glass-shadow-hover);
-  }
-  .press-lift:active {
-    transform: translateY(-1px) scale(0.98);
+    border-color: hsl(var(--border-strong));
   }
   @media (prefers-reduced-motion: reduce) {
-    .press, .press-lift { transition: none; }
-    .press:hover, .press:active, .press-lift:hover, .press-lift:active { transform: none; }
+    .press,
+    .press-lift {
+      transition: none;
+    }
+    .press:active,
+    .press-lift:active {
+      transform: none;
+    }
   }
 
-  /* Tab segmentada iOS: el trigger activo es una pastilla de vidrio elevada. */
   .seg-trigger[data-state="active"] {
-    background: var(--chip-bg);
-    box-shadow: var(--chip-shadow);
+    background-color: hsl(var(--card));
     color: hsl(var(--foreground));
+    box-shadow: var(--shadow-card);
   }
 }
 
 @layer utilities {
-  /* Truco global: TODA card que use la clase bg-card pasa a vidrio sin migrar
-     cada archivo. El componente <Card> ya usa bg-card. Incluye el highlight
-     superior (inset) + sombra suave para que resalte igual que el sidebar. */
-  .bg-card {
-    background: var(--glass-tint);
-    border-color: var(--glass-bd);
-    box-shadow: var(--glass-shadow);
-    -webkit-backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
-    backdrop-filter: blur(24px) saturate(1.8) brightness(1.04);
-  }
-
-  /* El <main> (SidebarInset) es TRANSPARENTE para dejar ver --app-bg.
-     Va en utilities para ganarle al bg-background del primitivo.
-     (El panel del sidebar se estiliza como glass redondeado en el primitivo
-     sidebar.tsx, no aquí.) */
   .main-content-bg {
     background-color: transparent;
   }
-}
 
-@layer utilities {
-  /* Transición de entrada de pantalla (sin blobs: fondo calmado). */
+  /* Entrada de pantalla: un fundido corto, sin desplazamiento. */
   @keyframes screenIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .screen-in {
-    animation: screenIn 0.45s ease;
+    animation: screenIn 180ms ease-out;
   }
   @media (prefers-reduced-motion: reduce) {
-    .screen-in { animation: none; }
+    .screen-in {
+      animation: none;
+    }
   }
 
-  /*
-   * Fondo del chat tipo WhatsApp, con nuestro estilo: papel cian muy claro
-   * + doodles de e-commerce (carrito, etiqueta, bolsa, caja, ticket…) en
-   * cian de marca. En dark se oscurece el papel y se atenúan los doodles
-   * con un velo del mismo color (el SVG tiene su opacidad fija).
-   */
+  /* Fondo del chat de WhatsApp: papel claro con los dibujos de comercio. */
   .chat-doodle-bg {
-    background-color: #f1fafb;
+    background-color: #f5f9fa;
     background-image: url("/chat-ecommerce-pattern.svg");
     background-repeat: repeat;
     background-size: 300px 300px;
@@ -565,21 +478,7 @@
       linear-gradient(hsl(222 47% 9% / 0.55), hsl(222 47% 9% / 0.55)),
       url("/chat-ecommerce-pattern.svg");
   }
-
-  /**
-   * El hilo va "hundido" dentro de la card: sin esto el papel con textura
-   * parece una hoja flotando ENCIMA y la lista de la izquierda se lee como
-   * si estuviera por debajo. La sombra interior en los bordes que tocan la
-   * lista y la cabecera resuelve la profundidad sin cambiar los colores.
-   */
   .chat-thread-inset {
-    box-shadow:
-      inset 10px 0 14px -12px hsl(222 47% 11% / 0.28),
-      inset 0 10px 12px -12px hsl(222 47% 11% / 0.22);
-  }
-  .dark .chat-thread-inset {
-    box-shadow:
-      inset 10px 0 16px -12px hsl(0 0% 0% / 0.55),
-      inset 0 10px 14px -12px hsl(0 0% 0% / 0.45);
+    box-shadow: inset 1px 0 0 hsl(var(--border));
   }
 }

@@ -3,7 +3,9 @@ import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import McpConnectPage from "@/pages/mcp-connect";
 import OnboardingPage from "@/pages/onboarding";
-import DashboardPage from "@/pages/dashboard";
+// El dashboard dejó de ser la vista principal: ahora lo es el asistente.
+// Se deja comentado, no borrado, por si se retoma.
+// import DashboardPage from "@/pages/dashboard";
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
@@ -59,7 +61,9 @@ export default function AppRouter() {
           {/* Resto de la app: requiere onboarding completo */}
           <Route element={<LayoutShell />}>
             <Route path="/omnibox" element={<OmniboxPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
+            {/* Links y marcadores viejos a /dashboard caen en el asistente. */}
+            <Route path="/dashboard" element={<Navigate to="/omnibox" replace />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/sales" element={<SalesPage />} />
@@ -82,13 +86,13 @@ export default function AppRouter() {
             <Route path="/integrations" element={<IntegrationsPage />} />
 
             {/* Redirección por defecto al inicio */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/omnibox" replace />} />
           </Route>
         </Route>
       </Route>
 
       {/* Redirección para rutas no encontradas */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/omnibox" replace />} />
     </Routes>
   );
 }

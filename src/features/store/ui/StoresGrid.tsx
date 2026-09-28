@@ -64,7 +64,7 @@ export function StoresGrid({ stores, isLoading }: StoresGridProps) {
             onClick={() => navigate(`/stores/${store.id}`)}
           >
           {/* Banner/Header Image */}
-          <div className="relative h-32 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
+          <div className="relative h-32 bg-primary-soft overflow-hidden">
             {store.config?.branding?.bannerUrl ? (
               <img
                 src={store.config.branding.bannerUrl}

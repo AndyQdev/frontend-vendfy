@@ -66,7 +66,7 @@ const ResponsiveDialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+      "fixed inset-0 z-50 bg-tinta/40",
       "data-[state=open]:animate-in data-[state=open]:fade-in-0",
       "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
       className,
@@ -88,19 +88,19 @@ const ResponsiveDialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "glass-modal fixed z-50 flex flex-col overflow-hidden",
+          "fixed z-50 flex flex-col overflow-hidden border-border bg-card text-card-foreground shadow-modal",
           isMobile
             ? [
                 // Hoja anclada abajo. Sube deslizándose y baja igual.
-                "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-[28px] border-t",
+                "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-3xl border-t pb-[env(safe-area-inset-bottom)]",
                 "duration-300 ease-out",
                 "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
                 "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
               ]
             : [
                 // Modal centrado clásico, con el alto acotado a la pantalla.
-                "left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-                "max-h-[calc(100dvh-2rem)] rounded-[26px] border",
+                "left-1/2 top-1/2 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
+                "max-h-[calc(100dvh-2rem)] rounded-3xl border",
                 "duration-200",
                 "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
                 "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
@@ -113,7 +113,7 @@ const ResponsiveDialogContent = React.forwardRef<
         {isMobile && (
           <div
             aria-hidden
-            className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/25"
+            className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-border-strong"
           />
         )}
 
@@ -123,8 +123,8 @@ const ResponsiveDialogContent = React.forwardRef<
         {!isMobile && (
           <DialogPrimitive.Close
             className={cn(
-              "absolute right-4 top-4 rounded-sm opacity-70 transition-opacity",
-              "hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+              "absolute right-3.5 top-3.5 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors",
+              "hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               "disabled:pointer-events-none",
             )}
           >
@@ -205,7 +205,7 @@ const ResponsiveDialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    className={cn("font-display text-lg font-semibold leading-tight tracking-tight", className)}
     {...props}
   />
 ));
@@ -217,7 +217,7 @@ const ResponsiveDialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-[13px] leading-relaxed text-muted-foreground", className)}
     {...props}
   />
 ));

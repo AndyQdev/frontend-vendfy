@@ -43,7 +43,22 @@ export interface OrderStatusItem {
 export interface OrderChannelItem {
   channel: string;
   count: number;
+  sales: number;
   color: string;
+}
+
+export interface DepartmentSalesItem {
+  /** Código ISO 3166-2 sin prefijo de país, por ejemplo `S` para Santa Cruz. */
+  code: string;
+  name: string;
+  sales: number;
+  count: number;
+}
+
+export interface SalesByDepartment {
+  departments: DepartmentSalesItem[];
+  /** Ventas que no se pudieron ubicar en ningún departamento. */
+  unassigned: { sales: number; count: number };
 }
 
 export interface TopProductItem {

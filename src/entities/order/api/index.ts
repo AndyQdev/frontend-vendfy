@@ -105,3 +105,33 @@ export function useDeleteOrder() {
     },
   });
 }
+/**
+ * Cuántos pedidos esperan que alguien los atienda: los "por confirmar" (sin
+ * stock, a pedido) y los "pendientes" (recién entrados). Es el contador rojo de
+ * la ruta Pedidos en el header.
+ *
+ * Pide una sola fila de cada estado: lo único que importa es `countData`, el
+ * total que devuelve el servidor para la paginación. Se refresca cada minuto y
+ * al volver a la pestaña, que es cuando uno espera ver lo nuevo.
+ */
+export function usePendingOrdersCount(storeId: string | undefined) {
+  return useQuery<number>({
+    queryKey: ["orders", "pending-count", storeId ?? "all"],
+    queryFn: async () => {
+      const contar = async (status: string) => {
+        const params = new URLSearchParams({ limit: "1", status });
+        if (storeId) params.append("storeId", storeId);
+        const response = await apiFetch<Order[]>(`/api/order?${params.toString()}`);
+        return response.countData || 0;
+      };
+      const [porConfirmar, pendientes] = await Promise.all([
+        contar("por-confirmar"),
+        contar("pendiente"),
+      ]);
+      return porConfirmar + pendientes;
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}

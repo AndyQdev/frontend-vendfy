@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Circle,
   X,
-  Sparkles,
   Store as StoreIcon,
   Package,
   Truck,
@@ -12,6 +11,7 @@ import {
   Palette,
   Globe,
   ArrowRight,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/auth";
 import { useStores } from "@/entities/store/api";
@@ -118,13 +118,13 @@ export function OnboardingChecklist() {
   if (allDone) {
     return (
       <div className="fixed bottom-4 right-4 z-40 animate-in fade-in slide-in-from-bottom-4">
-        <div className="max-w-xs rounded-2xl border border-emerald-300 bg-card/95 p-4 shadow-xl backdrop-blur dark:border-emerald-800">
+        <div className="max-w-xs rounded-xl border border-border bg-card p-4 shadow-float">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-              <Sparkles className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success-soft">
+              <CheckCircle2 className="h-5 w-5 text-success" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold">¡Felicidades! 🎉</p>
+              <p className="text-sm font-semibold">¡Listo! Terminaste la guía</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Completaste tu configuración inicial.
               </p>
@@ -163,35 +163,32 @@ export function OnboardingChecklist() {
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)]">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-4">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-float animate-in fade-in slide-in-from-bottom-2">
         {/* Header */}
-        <div
-          className="flex items-center gap-3 px-4 py-3 text-white"
-          style={{ background: "var(--primary-grad)" }}
-        >
-          <Sparkles className="h-4 w-4 flex-shrink-0" />
+        <div className="flex items-center gap-3 bg-tinta px-4 py-3 text-tinta-foreground">
+          <ListChecks className="h-4 w-4 flex-shrink-0 text-acento" />
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold leading-tight">Primeros pasos</p>
-            <p className="text-[11px] leading-tight text-white/85">
+            <p className="text-[11px] leading-tight text-tinta-muted">
               {completedCount} de {TOTAL_ONBOARDING_STEPS} completados
             </p>
           </div>
-          <span className="text-xs font-bold">{progress}%</span>
+          <span className="cifra text-xs font-bold">{progress}%</span>
           <button
             type="button"
             onClick={cerrar}
             aria-label="Cerrar primeros pasos"
-            className="-mr-1 rounded-md p-1 transition-colors hover:bg-white/20"
+            className="-mr-1 grid size-8 place-items-center rounded-md transition-colors hover:bg-white/10"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Progress bar */}
-        <div className="h-1 bg-primary-soft/40">
+        <div className="h-1 bg-muted">
           <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${progress}%`, background: "var(--primary-grad)" }}
+            className="h-full bg-acento transition-all duration-500"
+            style={{ width: `${progress}%` }}
           />
         </div>
 
@@ -207,13 +204,13 @@ export function OnboardingChecklist() {
                   className={cn(
                     "px-4 py-3 transition-colors",
                     done && "opacity-60",
-                    isNext && "bg-primary-soft/20",
+                    isNext && "bg-primary-soft/50",
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 flex-shrink-0">
                       {done ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        <CheckCircle2 className="h-5 w-5 text-success" />
                       ) : (
                         <Circle className="h-5 w-5 text-muted-foreground/40" />
                       )}
@@ -233,7 +230,7 @@ export function OnboardingChecklist() {
                       {!done && (
                         <button
                           onClick={() => handleStepClick(step)}
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary-soft-foreground hover:underline"
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                         >
                           {step.ctaLabel}
                           <ArrowRight className="h-3 w-3" />
@@ -246,9 +243,9 @@ export function OnboardingChecklist() {
             })}
           </ul>
 
-          <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center justify-between border-t border-border bg-muted/50 px-4 py-3">
             <p className="text-[11px] text-muted-foreground">
-              Lo abrís cuando quieras desde "Primeros pasos", arriba.
+              Lo abrís cuando quieras desde la campana, arriba.
             </p>
             <p className="text-[10px] text-muted-foreground">A tu ritmo</p>
           </div>

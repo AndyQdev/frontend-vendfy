@@ -1,4 +1,4 @@
-import type { ProductoOpcion, Propuesta } from "@/entities/omnibox/model/types";
+import type { CompraRegistrada, ProductoOpcion, Propuesta, VentaCobrada } from "@/entities/omnibox/model/types";
 
 /**
  * Un intercambio del chat: lo que dijo la persona y lo que el sistema propuso.
@@ -12,6 +12,8 @@ export interface Mensaje {
   /** null mientras se transcribe un dictado: todavía no se sabe qué dijo. */
   texto: string | null;
   porVoz: boolean;
+  /** La foto o el PDF que se mandó (una factura), en vez de una frase. */
+  adjunto?: { url: string; nombre: string; esPdf: boolean };
   hora: Date;
   fase: "pensando" | "listo" | "error";
   propuesta?: Propuesta;
@@ -19,6 +21,31 @@ export interface Mensaje {
   error?: string;
   /** Qué pasó con la acción propuesta. */
   desenlace?: Desenlace;
+  /**
+   * Algo que pasó en el panel, no una respuesta a una frase: "Venta #1043
+   * cobrada". Va en el hilo para que la conversación cuente todo lo que se
+   * hizo, se haya hecho hablando o tocando. No lleva burbuja del usuario.
+   */
+  evento?: EventoVenta | EventoCompra;
+}
+
+export interface EventoCompra {
+  tipo: "compra";
+  compra: CompraRegistrada;
+  lineas: { nombre: string; imagen: string | null; cantidad: number; costo: number }[];
+}
+
+export interface EventoVenta {
+  tipo: "venta";
+  venta: VentaCobrada;
+  /** Lo que se vendió, para la tarjeta (el pedido no vuelve con fotos). */
+  lineas: { nombre: string; imagen: string | null; cantidad: number }[];
+  anulada?: boolean;
+}
+
+/** Un mensaje que no nace de una frase sino del panel. */
+export function mensajeDeEvento(evento: EventoVenta | EventoCompra): Mensaje {
+  return { id: crypto.randomUUID(), texto: null, porVoz: false, hora: new Date(), fase: "listo", evento };
 }
 
 export type Desenlace =
@@ -29,7 +56,9 @@ export type Desenlace =
       /** Con lo que se ejecutó de verdad: puede diferir de lo propuesto si corrigió. */
       entidades: Record<string, unknown>;
     }
-  | { tipo: "cancelado" };
+  | { tipo: "cancelado" }
+  /** Una frase aplicada a la venta del panel: "Agregado a la venta · 2 × Coca". */
+  | { tipo: "mesa"; resumen: string; imagen?: string | null };
 
 export function nuevoMensaje(texto: string | null, porVoz: boolean): Mensaje {
   return {
@@ -60,8 +89,9 @@ export function recalcularDespues(
   return cantidad; // ajustar_stock: dice cuánto QUEDA
 }
 
+/** "10:24": 24 horas. El "a. m." de es-BO duplica el ancho y no aporta. */
 export function hora(d: Date): string {
-  return d.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
 /**

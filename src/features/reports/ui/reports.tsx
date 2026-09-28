@@ -73,10 +73,10 @@ export function Reports() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+    <div className="flex flex-1 flex-col gap-6">
       {/* Header con Filtros */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-3xl font-bold">Dashboard de Reportes</h1>
+        <h1 className="titulo-pagina">Estadísticas</h1>
         <div className="flex gap-2 flex-wrap items-center">
           {periods.map((p) => (
             p.value === "custom" ? (

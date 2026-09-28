@@ -44,30 +44,27 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card overflow-hidden",
-        isWelcome && "bg-gradient-to-br from-emerald-50 via-card to-card dark:from-emerald-950/30 dark:via-card dark:to-card",
+        "overflow-hidden rounded-xl border border-border bg-card shadow-card",
         className,
       )}
     >
       <div className="px-6 py-12 lg:py-16 text-center max-w-2xl mx-auto">
         {badge && (
-          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 px-3 py-1 rounded-full mb-4">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-primary-soft-foreground">
             {badge}
           </div>
         )}
         {Icon && (
           <div
             className={cn(
-              "h-14 w-14 rounded-2xl mx-auto mb-5 flex items-center justify-center",
-              isWelcome
-                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
-                : "bg-muted text-muted-foreground",
+              "mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl",
+              isWelcome ? "bg-primary-soft text-primary-soft-foreground" : "bg-muted text-muted-foreground",
             )}
           >
             <Icon className="h-7 w-7" />
           </div>
         )}
-        <h3 className="text-xl lg:text-2xl font-semibold tracking-tight mb-2">{title}</h3>
+        <h3 className="mb-2 font-display text-xl font-bold tracking-tight lg:text-2xl">{title}</h3>
         <div className="text-sm lg:text-base text-muted-foreground mb-6">{description}</div>
 
         {(primaryAction || secondaryAction) && (
@@ -97,18 +94,18 @@ export function EmptyState({
       </div>
 
       {faqs && faqs.length > 0 && (
-        <div className="border-t border-border bg-muted/30 px-6 py-6">
-          <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground text-center mb-4">
+        <div className="border-t border-border bg-muted/50 px-6 py-6">
+          <p className="etiqueta mb-4 text-center">
             Lo que necesitas saber
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
             {faqs.map((faq) => (
               <div
                 key={faq.title}
-                className="bg-card border border-border rounded-lg p-4 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+                className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border-strong"
               >
                 {faq.icon && (
-                  <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mb-2">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-primary-soft text-primary-soft-foreground">
                     <faq.icon className="h-4 w-4" />
                   </div>
                 )}

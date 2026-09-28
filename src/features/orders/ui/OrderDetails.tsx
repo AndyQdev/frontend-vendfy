@@ -51,7 +51,7 @@ export function OrderDetailsModal({ order, open, onClose }: { order: Order | nul
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cliente</h3>
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-gradient-to-br from-purple-400 to-pink-400 text-white">
+                <AvatarFallback className="font-semibold">
                   {order.customer?.name?.charAt(0).toUpperCase() || "?"}
                 </AvatarFallback>
               </Avatar>
@@ -196,7 +196,7 @@ export function OrderDetailsModal({ order, open, onClose }: { order: Order | nul
           )}
 
           {/* Total */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">Total</span>
               <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatMoney(order.totalAmount)}</span>

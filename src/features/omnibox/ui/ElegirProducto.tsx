@@ -22,11 +22,17 @@ import { Input } from "@/shared/ui/input";
 export function ElegirProducto({
   storeId,
   textoInicial,
+  autoFoco = true,
   onElegir,
 }: {
   storeId: string;
   /** Lo que se buscó y no apareció. Arranca la búsqueda ahí. */
   textoInicial?: string;
+  /**
+   * Dentro de un pedido NO: la tarjeta llega mientras la persona sigue
+   * escribiendo en el chat, y el foco saltaría a este buscador.
+   */
+  autoFoco?: boolean;
   onElegir: (producto: ProductoOpcion) => void;
 }) {
   const [texto, setTexto] = useState(textoInicial ?? "");
@@ -58,12 +64,12 @@ export function ElegirProducto({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          autoFocus
+          autoFocus={autoFoco}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Buscá el producto en tu catálogo…"
           aria-label="Buscar el producto"
-          className="glass-field rounded-2xl pl-9"
+          className="pl-9"
         />
       </div>
 
@@ -75,19 +81,19 @@ export function ElegirProducto({
               type="button"
               data-testid="omnibox-opcion"
               onClick={() => onElegir(p)}
-              className="glass-field press-lift flex items-center gap-3 rounded-2xl p-3 text-left"
+              className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5 text-left transition-colors hover:border-border-strong hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
             >
               {p.imagen ? (
-                <img src={p.imagen} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+                <img src={p.imagen} alt="" className="h-10 w-10 shrink-0 rounded-md border border-border object-cover" />
               ) : (
-                <div className="glass-track flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </div>
               )}
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{p.nombre}</p>
+                <p className="truncate text-[13px] font-semibold">{p.nombre}</p>
                 <p className="text-xs text-muted-foreground">
-                  {p.stock} en stock · Bs {p.precio}
+                  <span className="cifra">{p.stock} un</span> en stock · <span className="cifra">Bs {p.precio}</span>
                 </p>
               </div>
             </button>
@@ -98,10 +104,10 @@ export function ElegirProducto({
       {sinResultados && (
         <div
           data-testid="omnibox-sin-producto"
-          className="glass-track flex flex-wrap items-center gap-3 rounded-2xl p-3"
+          className="flex flex-wrap items-center gap-3 rounded-lg bg-muted p-3"
         >
           <div className="min-w-[180px] flex-1">
-            <p className="text-sm font-medium">
+            <p className="text-[13px] font-semibold">
               No tenés “{consulta}” en tu catálogo
             </p>
             <p className="text-xs text-muted-foreground">

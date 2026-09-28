@@ -278,12 +278,12 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="titulo-pagina">
             {mode === "create" ? "Crear Nueva Tienda" : "Configuración de Tienda"}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
             {mode === "create" ? "Completa los datos para crear tu nueva tienda" : "Personaliza todos los aspectos de tu tienda online"}
           </p>
         </div>
@@ -682,7 +682,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
               <Label className="text-base font-semibold mb-3 block">Banner de Fondo</Label>
               <p className="text-xs text-muted-foreground mb-3">Click para cambiar el banner (JPG o WEBP 1920x600px)</p>
               <div 
-                className="relative w-full h-64 bg-gradient-to-br from-muted/50 to-muted rounded-lg overflow-hidden border-2 border-dashed border-border hover:border-primary transition-colors cursor-pointer group"
+                className="relative w-full h-64 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-border hover:border-primary transition-colors cursor-pointer group"
                 onClick={() => bannerInputRef.current?.click()}
               >
                 {/* Banner como fondo */}

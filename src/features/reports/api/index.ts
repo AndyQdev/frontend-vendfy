@@ -12,6 +12,7 @@ import type {
   FrequentCustomerItem,
   SalesByDayAndHour,
   FinancialComparisonItem,
+  SalesByDepartment,
 } from "../model/types";
 
 function buildQueryString(params: ReportQueryParams): string {
@@ -69,6 +70,16 @@ export function useReportOrderChannels(params: ReportQueryParams) {
     queryFn: async () => {
       const response = await apiFetch<OrderChannelItem[]>(`/api/reports/order-channels?${buildQueryString(params)}`);
       return response.data || [];
+    },
+  });
+}
+
+export function useReportSalesByDepartment(params: ReportQueryParams) {
+  return useQuery<SalesByDepartment>({
+    queryKey: ["reports", "sales-by-department", params],
+    queryFn: async () => {
+      const response = await apiFetch<SalesByDepartment>(`/api/reports/sales-by-department?${buildQueryString(params)}`);
+      return response.data ?? { departments: [], unassigned: { sales: 0, count: 0 } };
     },
   });
 }

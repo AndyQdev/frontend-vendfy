@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "../lib/cn"
+import { controlClasses } from "./control"
 
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
@@ -33,7 +34,10 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          "glass-field flex h-10 w-full rounded-2xl px-4 py-2 text-base ring-offset-background transition-[box-shadow,border-color] duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-0 focus-visible:border-[color:var(--glass-bd)] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          controlClasses,
+          // 16 px en el teléfono: con menos, iOS hace zoom al enfocar el campo.
+          "flex h-10 py-2 text-base md:text-sm",
+          "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground",
           // Quita las flechas internas en inputs numéricos (Chrome/Safari/Firefox)
           isNumber && "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0",
           className

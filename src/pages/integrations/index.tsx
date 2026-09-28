@@ -88,7 +88,7 @@ export default function IntegrationsPage() {
           <Plug className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold">Integraciones</h1>
+          <h1 className="titulo-pagina">Integraciones</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Conectá las plataformas donde hacés publicidad. Vendfy usa esa
             conexión para medir qué campaña generó cada venta.

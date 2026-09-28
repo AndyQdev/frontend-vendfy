@@ -23,7 +23,7 @@ export function Composer({
   };
 
   return (
-    <div className="flex items-end gap-2 border-t border-border/60 bg-card/60 px-3 py-2.5 backdrop-blur-sm">
+    <div className="flex items-end gap-2 border-t border-border bg-card px-3 py-2.5">
       <textarea
         ref={ref}
         rows={1}

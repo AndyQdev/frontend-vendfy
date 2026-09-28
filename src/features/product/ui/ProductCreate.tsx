@@ -375,16 +375,16 @@ export default function CreateProduct() {
     <TooltipProvider delayDuration={150}>
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={volverALista}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" onClick={volverALista} aria-label="Volver a productos">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="titulo-pagina">
               {isEditMode ? "Editar Producto" : "Crear Nuevo Producto"}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
               {isEditMode
                 ? "Modifica la información del producto"
                 : "Completa la información del nuevo producto"}

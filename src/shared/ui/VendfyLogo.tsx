@@ -77,3 +77,45 @@ export const VendfyIcon = ({ size = 32, className = '', dark = false }) => (
 );
 
 export default VendfyLogo;
+
+/**
+ * La marca sola: la tiendita con toldo, SIN los destellos.
+ *
+ * Es la que va en el header y en el avatar del asistente. Los destellos del
+ * logo completo dicen "magia", y el sistema no usa íconos de magia: Vendfy es
+ * una herramienta para tiendas, no un truco.
+ *
+ * - `onDark`: toldo blanco y frente cian, para el bloque azul marino.
+ * - `mono`: todo en `currentColor` (el frente más tenue), para ponerla chica
+ *   sobre un fondo suave con el color que diga el contenedor.
+ */
+export const VendfyMark = ({
+  size = 24,
+  variant = 'onDark',
+  className = '',
+}: {
+  size?: number;
+  variant?: 'onDark' | 'mono';
+  className?: string;
+}) => {
+  const mono = variant === 'mono';
+  const toldo = mono ? 'currentColor' : '#FFFFFF';
+  const frente = mono ? 'currentColor' : '#06B6D4';
+  const puerta = mono ? 'currentColor' : '#0F172A';
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="4 28 100 82"
+      fill="none"
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden
+    >
+      <rect x="13" y="48" width="82" height="58" rx="6" fill={frente} opacity={mono ? 0.3 : 1} />
+      <rect x="8" y="34" width="92" height="16" rx="4" fill={toldo} />
+      <path d="M8 50 Q18 60, 28 50 Q38 60, 48 50 Q58 60, 68 50 Q78 60, 88 50 Q96 60, 100 50" fill={toldo} />
+      <rect x="40" y="64" width="28" height="42" rx="5" fill={puerta} />
+    </svg>
+  );
+};

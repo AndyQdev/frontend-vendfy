@@ -14,7 +14,6 @@ import {
   Receipt,
   RotateCcw,
   Search,
-  Tag,
   UserPlus,
   X,
 } from "lucide-react";
@@ -23,6 +22,7 @@ import {
   estadoDe,
   textoAccion,
   tituloCorto,
+  type LineaContexto,
   type ProductoOpcion,
   type Propuesta,
 } from "@/entities/omnibox/model/types";
@@ -31,17 +31,22 @@ import { cn } from "@/shared/lib/cn";
 
 import { hora, recalcularDespues, type Mensaje } from "../model/mensaje";
 import { ElegirProducto } from "./ElegirProducto";
+import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaMesa, TarjetaPedido } from "./mesa/TarjetasVenta";
+import { TarjetaConfirmarCompra } from "./mesa/TarjetaCompra";
+import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import {
+  BloqueProducto,
   BotonCta,
   BotonSecundario,
   CLASE_CTA,
   Cabecera,
   Diff,
   Divisor,
+  Estado,
   FotoProducto,
-  Panel,
   Tarjeta,
   Total,
+  dinero,
   formato,
 } from "./piezas";
 
@@ -64,6 +69,23 @@ export interface AccionesRespuesta {
   onCompletarDato: (slot: string, valor: string) => void;
   onReintentar: () => void;
   onSugerencia: (texto: string) => void;
+  /** Abrir el producto en el panel de la derecha. Nada navega fuera del chat. */
+  onVerProducto: (p: ProductoOpcion) => void;
+  /** El producto que está abierto en el panel, para marcar su fila. */
+  productoAbierto?: string;
+  /** "Es para José" con dos José: el que se tocó. */
+  onElegirCliente: (c: { id: string; nombre: string }) => void;
+  /** "Sacá la coca" con dos cocas en la venta: la que se tocó. */
+  onElegirLinea: (l: LineaContexto) => void;
+  /** Un renglón dudoso de un pedido: el producto que se tocó. */
+  onElegirItem: (indice: number, p: ProductoOpcion) => void;
+  /** Un renglón de la factura que se descarta. */
+  onOmitirItem: (indice: number) => void;
+  /** "Registrá la compra": el toque que la confirma. */
+  onConfirmarCompra: () => void;
+  registrandoCompra: boolean;
+  /** Lo que tiene la compra ahora, para decirlo en la confirmación. */
+  resumenCompra: { lineas: number; total: number; proveedor: string };
 }
 
 export function Respuesta({
@@ -80,19 +102,23 @@ export function Respuesta({
   ejecutando: boolean;
   sugerencias: string[];
 } & AccionesRespuesta) {
+  const cuando = hora(m.hora);
+
   if (m.fase === "pensando") return <Pensando porVoz={m.porVoz && !m.texto} />;
 
   if (m.fase === "error" || !m.propuesta) {
     return (
-      <Tarjeta estado="error">
-        <Aviso icono={AlertCircle} tono="error">
+      <Tarjeta estado="error" hora={cuando}>
+        <Estado icono={AlertCircle} tono="error" titulo="No pude hacerlo">
           {m.error ?? "No pude procesarlo."}
-        </Aviso>
+        </Estado>
         {m.texto && (
-          <BotonSecundario onClick={acciones.onReintentar} className="w-full sm:w-auto">
-            <RotateCcw className="h-4 w-4" />
-            Reintentar
-          </BotonSecundario>
+          <div className="mt-3 sm:pl-11">
+            <BotonSecundario onClick={acciones.onReintentar} className="w-full sm:w-auto">
+              <RotateCcw />
+              Reintentar
+            </BotonSecundario>
+          </div>
         )}
       </Tarjeta>
     );
@@ -101,26 +127,73 @@ export function Respuesta({
   const p = m.propuesta;
 
   if (m.desenlace?.tipo === "hecho") {
-    return <Hecha propuesta={p} desenlace={m.desenlace} cuando={m.hora} />;
+    return <Hecha propuesta={p} desenlace={m.desenlace} hora={cuando} />;
   }
   if (m.desenlace?.tipo === "cancelado") {
     return (
       <div
         data-testid="omnibox-actividad"
         data-estado="cancelada"
-        className="glass flex items-center gap-2.5 rounded-[22px] px-4 py-3 text-sm text-muted-foreground opacity-70"
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-dashed border-border px-4 py-2.5 text-[13px] text-muted-foreground"
       >
         <X className="h-4 w-4 shrink-0" />
         <span>Cancelado</span>
         {p.producto && <span className="truncate line-through">{p.producto.nombre}</span>}
+        <span className="cifra ml-auto text-[11px]">{cuando}</span>
       </div>
     );
   }
 
-  const estado = estadoDe(p);
-  switch (estado) {
+  if (m.desenlace?.tipo === "mesa") {
+    return <TarjetaMesa resumen={m.desenlace.resumen} imagen={m.desenlace.imagen} hora={cuando} />;
+  }
+
+  switch (estadoDe(p)) {
+    case "confirmar-compra":
+      return (
+        <TarjetaConfirmarCompra
+          hora={cuando}
+          resumen={acciones.resumenCompra}
+          registrando={acciones.registrandoCompra}
+          onConfirmar={acciones.onConfirmarCompra}
+        />
+      );
+    case "pedido":
+      if ((p.entidades as any).factura) {
+        return (
+          <TarjetaFactura
+            propuesta={p}
+            storeId={storeId}
+            hora={cuando}
+            onElegirItem={acciones.onElegirItem}
+            onOmitirItem={acciones.onOmitirItem}
+          />
+        );
+      }
+      return (
+        <TarjetaPedido
+          propuesta={p}
+          storeId={storeId}
+          hora={cuando}
+          onElegirItem={acciones.onElegirItem}
+          onElegirCliente={acciones.onElegirCliente}
+        />
+      );
+    case "elegir-cliente":
+      return <ElegirClienteChat propuesta={p} hora={cuando} onElegir={acciones.onElegirCliente} />;
+    case "elegir-linea":
+      return <ElegirLineaChat propuesta={p} hora={cuando} onElegir={acciones.onElegirLinea} />;
+    case "aviso":
+      return <TarjetaAviso aviso={p.aviso!} hora={cuando} />;
     case "resuelta":
-      return <Resuelta propuesta={p} />;
+      return (
+        <Resuelta
+          propuesta={p}
+          hora={cuando}
+          productoAbierto={acciones.productoAbierto}
+          onVerProducto={acciones.onVerProducto}
+        />
+      );
     case "espera-confirmacion":
       return (
         <EsperaConfirmacion
@@ -131,31 +204,26 @@ export function Respuesta({
         />
       );
     case "ambiguedad":
-      return <Ambiguedad propuesta={p} onElegir={acciones.onElegirProducto} />;
+      return <Ambiguedad propuesta={p} hora={cuando} onElegir={acciones.onElegirProducto} />;
     case "sin-producto":
-      return (
-        <SinProducto
-          propuesta={p}
-          storeId={storeId}
-          onElegir={acciones.onElegirProducto}
-        />
-      );
+      return <SinProducto propuesta={p} storeId={storeId} hora={cuando} onElegir={acciones.onElegirProducto} />;
     case "falta-dato":
       return (
         <FaltaDato
           propuesta={p}
           storeId={storeId}
+          hora={cuando}
           onGuardar={acciones.onCompletarDato}
           onElegir={acciones.onElegirProducto}
         />
       );
     case "sin-permiso":
-      return <SinPermiso propuesta={p} tienda={tienda} />;
+      return <SinPermiso propuesta={p} tienda={tienda} hora={cuando} />;
     case "sin-entender":
       return p.bloqueo === "sin-ejecutor" ? (
-        <SinEjecutor propuesta={p} />
+        <SinEjecutor propuesta={p} hora={cuando} />
       ) : (
-        <SinEntender aviso={p.aviso} sugerencias={sugerencias} onSugerencia={acciones.onSugerencia} />
+        <SinEntender aviso={p.aviso} hora={cuando} sugerencias={sugerencias} onSugerencia={acciones.onSugerencia} />
       );
   }
 }
@@ -167,13 +235,13 @@ function Pensando({ porVoz }: { porVoz: boolean }) {
     <div
       data-testid="omnibox-pensando"
       aria-live="polite"
-      className="glass flex w-fit items-center gap-3 rounded-2xl px-4 py-3"
+      className="flex w-fit items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card"
     >
       <span className="flex gap-1" aria-hidden>
         {[0, 150, 300].map((d) => (
           <span
             key={d}
-            className="h-2 w-2 animate-bounce rounded-full bg-ring"
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-acento"
             style={{ animationDelay: `${d}ms` }}
           />
         ))}
@@ -190,9 +258,15 @@ function Pensando({ porVoz }: { porVoz: boolean }) {
 /**
  * El caso que justifica todo el módulo: algo que toca stock o dinero.
  *
- * "Corregir" edita ahí mismo, y el diff y el total cambian mientras escribe.
- * Mandarlo a otra pantalla para cambiar un 20 por un 24 sería devolverle el
- * formulario que vinimos a sacar.
+ *   escritorio:  [ producto ] │ [ 12 un → 32 un ] │ [ Confirmar / Cancelar ]
+ *   teléfono:    [ producto ]
+ *                Stock: 12 → 32 un
+ *                [ Confirmar ]
+ *                [ Cancelar  ]
+ *
+ * "Corregir" edita ahí mismo, y el cambio y el total se recalculan mientras
+ * escribe. Mandarlo a otra pantalla para cambiar un 20 por un 24 sería
+ * devolverle el formulario que vinimos a sacar.
  */
 function EsperaConfirmacion({
   propuesta: p,
@@ -232,42 +306,66 @@ function EsperaConfirmacion({
 
   return (
     <Tarjeta estado="espera-confirmacion">
-      <Cabecera icono={esPrecio ? Tag : Package}>{tituloCorto(p)}</Cabecera>
+      <p className="etiqueta mb-2.5 text-[10.5px]">{tituloCorto(p)}</p>
 
-      <Panel className="flex flex-wrap items-center gap-x-5 gap-y-3">
-        <BloqueProducto
-          producto={p.producto}
-          nombre={e.producto}
-          detalle={
-            esEntrada && e.cantidad
-              ? `${e.cantidad} unidades${e.costo ? ` × Bs ${formato(Number(e.costo))}` : ""}`
-              : null
-          }
-        />
+      {/* Tres disposiciones: apilada en el teléfono; en tablet la información
+          en fila y los botones abajo a la derecha; en escritorio, todo en una
+          fila. Achicar la fila de escritorio a 800 px cortaba el nombre. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-5">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+          <BloqueProducto
+            producto={p.producto}
+            nombre={e.producto}
+            detalle={
+              esEntrada && e.cantidad
+                ? `${e.cantidad} unidades${e.costo ? ` × Bs ${dinero(Number(e.costo))}` : ""}`
+                : null
+            }
+          />
 
-        {vp && despues != null && (
-          <>
-            <Divisor />
-            <Diff
-              etiqueta={vp.etiqueta}
-              antes={vp.antes}
-              despues={despues}
-              prefijo={esPrecio ? "Bs " : undefined}
-              icono={esPrecio ? Tag : Package}
-            />
-          </>
-        )}
+          {vp && despues != null ? (
+            <>
+              <Divisor />
+              <Diff etiqueta={vp.etiqueta} antes={vp.antes} despues={despues} precio={esPrecio} />
+            </>
+          ) : null}
 
-        {total != null && total > 0 && (
-          <>
-            <Divisor />
-            <Total monto={total} />
-          </>
-        )}
-      </Panel>
+          {total != null && total > 0 ? (
+            <>
+              <Divisor />
+              <Total monto={total} />
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start lg:w-[156px] lg:shrink-0 lg:flex-col">
+          <BotonCta
+            data-testid="omnibox-confirmar"
+            onClick={() => onConfirmar(entidades, despues)}
+            disabled={ejecutando || !valido}
+          >
+            {ejecutando ? <Loader2 className="animate-spin" /> : null}
+            {textoAccion(p.intencion)}
+          </BotonCta>
+
+          {/* El segundo botón depende del caso: un ajuste se cancela (es un
+              número que se dice, no hay más que corregir); una entrada o un
+              precio se corrigen, y ya corrigiendo se puede descartar. */}
+          {esAjuste || corrigiendo ? (
+            <BotonSecundario onClick={onCancelar} disabled={ejecutando}>
+              {corrigiendo ? "Descartar" : "Cancelar"}
+            </BotonSecundario>
+          ) : (
+            <BotonSecundario onClick={() => setCorrigiendo(true)} disabled={ejecutando}>
+              <Pencil />
+              Corregir
+            </BotonSecundario>
+          )}
+        </div>
+      </div>
 
       {corrigiendo && (
-        <div className="flex flex-wrap gap-3 px-1" data-testid="omnibox-corregir">
+        <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3" data-testid="omnibox-corregir">
           {esEntrada && (
             <>
               <Campo etiqueta="Cantidad" valor={e.cantidad} onCambio={(v) => poner("cantidad", v)} autoFocus />
@@ -286,127 +384,96 @@ function EsperaConfirmacion({
           onChange={(ev) => setEntidades((prev) => ({ ...prev, motivo: ev.target.value }))}
           placeholder="Motivo (opcional)"
           aria-label="Motivo del ajuste"
-          className="glass-field h-11 rounded-xl"
+          className="mt-3"
         />
       )}
-
-      <div className="grid grid-cols-2 gap-2">
-        <BotonCta
-          data-testid="omnibox-confirmar"
-          onClick={() => onConfirmar(entidades, despues)}
-          disabled={ejecutando || !valido}
-        >
-          {ejecutando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {textoAccion(p.intencion)}
-        </BotonCta>
-
-        {/* El segundo botón depende del caso: un ajuste se cancela (es un
-            número que se dice, no hay nada que corregir más que ese); una
-            entrada o un precio se corrigen, y ya corrigiendo se puede descartar. */}
-        {esAjuste || corrigiendo ? (
-          <BotonSecundario onClick={onCancelar} disabled={ejecutando}>
-            <X className="h-4 w-4" />
-            {corrigiendo ? "Descartar" : "Cancelar"}
-          </BotonSecundario>
-        ) : (
-          <BotonSecundario onClick={() => setCorrigiendo(true)} disabled={ejecutando}>
-            <Pencil className="h-4 w-4" />
-            Corregir
-          </BotonSecundario>
-        )}
-      </div>
     </Tarjeta>
   );
 }
 
+/** "Listo": compacta, bastante más baja que la tarjeta que la originó. */
 function Hecha({
   propuesta: p,
   desenlace,
-  cuando,
+  hora: cuando,
 }: {
   propuesta: Propuesta;
   desenlace: { resumen: string; despues: number | null; entidades: Record<string, unknown> };
-  cuando: Date;
+  hora: string;
 }) {
   const e = desenlace.entidades as Record<string, any>;
   const esPrecio = p.intencion === "cambiar_precio";
-  const total = e.cantidad != null && e.costo ? Number(e.cantidad) * Number(e.costo) : null;
+  const nombre = p.producto?.nombre ?? e.producto;
 
-  const titulo =
-    desenlace.despues != null
+  const detalle =
+    desenlace.despues != null && nombre
       ? esPrecio
-        ? `Listo · precio Bs ${formato(desenlace.despues)}`
-        : `Listo · stock ${formato(desenlace.despues)}`
-      : `Listo · ${desenlace.resumen}`;
+        ? `El precio de ${nombre} quedó en Bs ${dinero(desenlace.despues)}.`
+        : `El stock de ${nombre} se actualizó correctamente a ${formato(desenlace.despues)} unidades.`
+      : desenlace.resumen;
 
   return (
-    <Tarjeta estado="hecha" apagada>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        {/* `success` y no `emerald`: este proyecto remapea emerald a cian en
-            tailwind.config, y un check cian se confunde con los botones. */}
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
-          <Check className="h-5 w-5" strokeWidth={3} />
-        </span>
-        <FotoProducto src={p.producto?.imagen} className="h-14 w-14" />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{titulo}</p>
-          <p className="truncate text-sm text-muted-foreground">{p.producto?.nombre ?? e.producto}</p>
-          {e.cantidad != null && p.intencion === "registrar_entrada" && (
-            <p className="text-sm text-muted-foreground">
-              {e.cantidad} unidades{e.costo ? ` × Bs ${formato(Number(e.costo))}` : ""}
-            </p>
-          )}
-        </div>
-        {total != null && total > 0 && (
-          <>
-            <Divisor />
-            <Total monto={total} apagado />
-          </>
-        )}
-        <span className="ml-auto self-end text-xs text-muted-foreground">{hora(cuando)}</span>
-      </div>
+    <Tarjeta estado="hecha" hora={cuando} className="py-3 sm:py-3.5">
+      <Estado icono={Check} tono="exito" titulo="Listo">
+        {detalle}
+      </Estado>
     </Tarjeta>
   );
 }
 
 // ------------------------------------------------------------ lecturas
 
-function Resuelta({ propuesta: p }: { propuesta: Propuesta }) {
+function Resuelta({
+  propuesta: p,
+  hora: cuando,
+  productoAbierto,
+  onVerProducto,
+}: {
+  propuesta: Propuesta;
+  hora: string;
+  productoAbierto?: string;
+  onVerProducto: (p: ProductoOpcion) => void;
+}) {
   const datos = p.resultado?.datos as any;
 
   if (Array.isArray(datos?.productos)) {
-    const unidad = datos.tipo === "fractional" && datos.unidad ? datos.unidad : "u";
+    const unidad = datos.tipo === "fractional" && datos.unidad ? datos.unidad : "un";
     return (
-      <Tarjeta estado="resuelta">
+      <Tarjeta estado="resuelta" hora={cuando}>
         <Cabecera icono={Package}>{tituloCorto(p)}</Cabecera>
-        <ListaProductos productos={datos.productos} unidad={unidad} />
+        <ListaProductos
+          productos={datos.productos}
+          unidad={unidad}
+          abierto={productoAbierto}
+          onVer={onVerProducto}
+        />
       </Tarjeta>
     );
   }
 
   if (p.intencion === "consultar_ventas" && datos) {
     return (
-      <Tarjeta estado="resuelta">
+      <Tarjeta estado="resuelta" hora={cuando}>
         <Cabecera icono={Receipt}>Ventas · {periodo(Number(p.entidades.periodo))}</Cabecera>
-        <Panel className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
           <div>
             <p className="text-xs text-muted-foreground">Total vendido</p>
-            <p className="font-display text-3xl font-bold tabular-nums text-ring">
-              Bs {formato(Number(datos.total))}
-            </p>
+            <p className="cifra mt-1 text-2xl font-bold text-primary">Bs {dinero(Number(datos.total))}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Pedidos</p>
-            <p className="font-display text-2xl font-bold tabular-nums">{datos.pedidos}</p>
+            <p className="cifra mt-1 text-2xl font-bold text-foreground">{datos.pedidos}</p>
           </div>
-        </Panel>
+        </div>
       </Tarjeta>
     );
   }
 
   return (
-    <Tarjeta estado="resuelta">
-      <Aviso icono={Check}>{p.resultado!.resumen}</Aviso>
+    <Tarjeta estado="resuelta" hora={cuando}>
+      <Estado icono={Check} tono="exito" titulo="Listo">
+        {p.resultado!.resumen}
+      </Estado>
     </Tarjeta>
   );
 }
@@ -415,34 +482,50 @@ function Resuelta({ propuesta: p }: { propuesta: Propuesta }) {
  * Filas de producto con foto y stock. Tocar una abre la ficha: la respuesta ya
  * es el dato, pero si quiere ver más, está a un toque.
  */
-function ListaProductos({ productos, unidad }: { productos: ProductoOpcion[]; unidad: string }) {
+function ListaProductos({
+  productos,
+  unidad,
+  abierto,
+  onVer,
+}: {
+  productos: ProductoOpcion[];
+  unidad: string;
+  abierto?: string;
+  onVer: (p: ProductoOpcion) => void;
+}) {
   return (
-    <Panel className="divide-y divide-[var(--hairline)] overflow-hidden p-0">
+    <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
       {productos.map((pr) => (
-        <Link
+        <button
           key={pr.storeProductId}
-          to={`/products/${pr.productId}`}
+          type="button"
+          onClick={() => onVer(pr)}
+          aria-pressed={abierto === pr.productId}
           data-testid="omnibox-fila-stock"
-          className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-ring/5"
+          className={cn(
+            "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/60",
+            // La fila cuya ficha está a la derecha se marca: se ve de dónde salió.
+            abierto === pr.productId && "bg-primary-soft hover:bg-primary-soft",
+          )}
         >
-          <FotoProducto src={pr.imagen} className="h-11 w-11" />
+          <FotoProducto src={pr.imagen} className="size-11" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{pr.nombre}</p>
-            <p className="text-xs text-muted-foreground">Bs {formato(Number(pr.precio))}</p>
+            <p className="truncate text-sm font-semibold">{pr.nombre}</p>
+            <p className="cifra text-xs text-muted-foreground">Bs {dinero(Number(pr.precio))}</p>
           </div>
           <p
             className={cn(
-              "font-display text-lg font-bold tabular-nums",
-              Number(pr.stock) <= 0 && "text-red-600 dark:text-red-400",
+              "cifra text-[15px] font-bold",
+              Number(pr.stock) <= 0 ? "text-destructive" : "text-foreground",
             )}
           >
             {formato(Number(pr.stock))}
-            <span className="ml-0.5 text-sm font-semibold text-ring">{unidad}</span>
+            <span className="ml-1 text-xs font-semibold text-muted-foreground">{unidad}</span>
           </p>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </Link>
+        </button>
       ))}
-    </Panel>
+    </div>
   );
 }
 
@@ -450,34 +533,37 @@ function ListaProductos({ productos, unidad }: { productos: ProductoOpcion[]; un
 
 function Ambiguedad({
   propuesta: p,
+  hora: cuando,
   onElegir,
 }: {
   propuesta: Propuesta;
+  hora: string;
   onElegir: (o: ProductoOpcion) => void;
 }) {
   return (
-    <Tarjeta estado="ambiguedad">
+    <Tarjeta estado="ambiguedad" hora={cuando}>
       <Cabecera icono={HelpCircle}>{tituloCorto(p)} · ¿cuál es?</Cabecera>
-      <Panel className="divide-y divide-[var(--hairline)] overflow-hidden p-0">
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {p.opciones.map((o) => (
           <button
             key={o.storeProductId}
             type="button"
             data-testid="omnibox-opcion"
             onClick={() => onElegir(o)}
-            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-ring/5"
+            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
           >
-            <FotoProducto src={o.imagen} className="h-11 w-11" />
+            <FotoProducto src={o.imagen} className="size-11" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{o.nombre}</p>
+              <p className="truncate text-sm font-semibold">{o.nombre}</p>
               <p className="text-xs text-muted-foreground">
-                {formato(Number(o.stock))} en stock · Bs {formato(Number(o.precio))}
+                <span className="cifra">{formato(Number(o.stock))} un</span> en stock ·{" "}
+                <span className="cifra">Bs {dinero(Number(o.precio))}</span>
               </p>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
         ))}
-      </Panel>
+      </div>
     </Tarjeta>
   );
 }
@@ -489,10 +575,12 @@ function Ambiguedad({
 function SinProducto({
   propuesta: p,
   storeId,
+  hora: cuando,
   onElegir,
 }: {
   propuesta: Propuesta;
   storeId: string;
+  hora: string;
   onElegir: (o: ProductoOpcion) => void;
 }) {
   const [buscando, setBuscando] = useState(false);
@@ -500,26 +588,27 @@ function SinProducto({
   const nombre = p.noEncontrado ?? "";
 
   return (
-    <Tarjeta estado="sin-producto">
-      <Aviso icono={Search}>
-        No está en tu catálogo.{" "}
-        <span className="text-muted-foreground">Buscaste “{nombre}”.</span>
-      </Aviso>
+    <Tarjeta estado="sin-producto" hora={cuando}>
+      <Estado icono={Search} tono="neutro" titulo="No está en tu catálogo">
+        Buscaste “{nombre}”.
+      </Estado>
 
-      {buscando ? (
-        <ElegirProducto storeId={storeId} textoInicial="" onElegir={onElegir} />
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <BotonCta onClick={() => navigate(`/products/create?nombre=${encodeURIComponent(nombre)}`)}>
-            <PackagePlus className="h-4 w-4" />
-            Crear ahora
-          </BotonCta>
-          <BotonSecundario onClick={() => setBuscando(true)}>
-            <Search className="h-4 w-4" />
-            Buscar otro nombre
-          </BotonSecundario>
-        </div>
-      )}
+      <div className="mt-3 sm:pl-11">
+        {buscando ? (
+          <ElegirProducto storeId={storeId} textoInicial="" onElegir={onElegir} />
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <BotonCta onClick={() => navigate(`/products/create?nombre=${encodeURIComponent(nombre)}`)}>
+              <PackagePlus />
+              Crear ahora
+            </BotonCta>
+            <BotonSecundario onClick={() => setBuscando(true)}>
+              <Search />
+              Buscar otro nombre
+            </BotonSecundario>
+          </div>
+        )}
+      </div>
     </Tarjeta>
   );
 }
@@ -528,11 +617,13 @@ function SinProducto({
 function FaltaDato({
   propuesta: p,
   storeId,
+  hora: cuando,
   onGuardar,
   onElegir,
 }: {
   propuesta: Propuesta;
   storeId: string;
+  hora: string;
   onGuardar: (slot: string, valor: string) => void;
   onElegir: (o: ProductoOpcion) => void;
 }) {
@@ -544,36 +635,54 @@ function FaltaDato({
   // nombre tipeado llega sin él y falla después de que la persona ya lo puso.
   if (falta.slot === "producto") {
     return (
-      <Tarjeta estado="falta-dato">
-        <Cabecera icono={Package}>{tituloCorto(p)} · {falta.pregunta}</Cabecera>
+      <Tarjeta estado="falta-dato" hora={cuando}>
+        <Cabecera icono={Package}>
+          {tituloCorto(p)} · {falta.pregunta}
+        </Cabecera>
         <ElegirProducto storeId={storeId} onElegir={onElegir} />
       </Tarjeta>
     );
   }
 
+  // El pago no se escribe: son tres opciones y se tocan.
+  if (falta.slot === "pago") {
+    return (
+      <Tarjeta estado="falta-dato" hora={cuando}>
+        <Cabecera icono={Receipt}>{falta.pregunta}</Cabecera>
+        <div className="grid grid-cols-3 gap-2">
+          {(["efectivo", "qr", "tarjeta"] as const).map((pago) => (
+            <BotonSecundario key={pago} onClick={() => onGuardar("pago", pago)}>
+              {pago === "qr" ? "QR" : pago[0].toUpperCase() + pago.slice(1)}
+            </BotonSecundario>
+          ))}
+        </div>
+      </Tarjeta>
+    );
+  }
+
   const decimal = falta.slot === "precio" || falta.slot === "costo";
+  const esTexto = falta.slot === "nombre";
 
   return (
-    <Tarjeta estado="falta-dato">
-      <Cabecera icono={Package}>{tituloCorto(p)}</Cabecera>
+    <Tarjeta estado="falta-dato" hora={cuando}>
+      <p className="etiqueta mb-2.5 text-[10.5px]">{tituloCorto(p)}</p>
       <form
-        className="space-y-3"
+        className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-5"
         onSubmit={(ev) => {
           ev.preventDefault();
           if (valor.trim()) onGuardar(falta.slot, valor.trim());
         }}
       >
-        <Panel className="flex flex-wrap items-end gap-x-5 gap-y-3">
-          {(p.producto || e.producto) && <BloqueProducto producto={p.producto} nombre={e.producto} />}
-          <Campo
-            etiqueta={falta.pregunta}
-            valor={valor}
-            onCambio={setValor}
-            decimal={decimal}
-            autoFocus
-          />
-        </Panel>
-        <BotonCta type="submit" disabled={!valor.trim()} className="w-full">
+        {(p.producto || e.producto) && <BloqueProducto producto={p.producto} nombre={e.producto} />}
+        {esTexto ? (
+          <label className="flex-1 space-y-1">
+            <span className="block text-xs text-muted-foreground">{falta.pregunta}</span>
+            <Input autoFocus value={valor} onChange={(ev) => setValor(ev.target.value)} className="h-11" />
+          </label>
+        ) : (
+          <Campo etiqueta={falta.pregunta} valor={valor} onCambio={setValor} decimal={decimal} autoFocus />
+        )}
+        <BotonCta type="submit" disabled={!valor.trim()} className="sm:w-[156px]">
           Seguir
         </BotonCta>
       </form>
@@ -599,35 +708,37 @@ const PARA: Record<string, string> = {
 };
 
 /**
- * Sin permiso: un candado y a quién pedírselo. No es un error del sistema y
- * no tiene que parecerlo — el sistema entendió perfecto.
+ * Sin permiso: un candado ámbar y a quién pedírselo. No es un error del
+ * sistema y no tiene que parecerlo — el sistema entendió perfecto.
  *
  * El botón solo aparece si hay a quién escribirle (`VITE_SOPORTE_WHATSAPP`).
  * Un botón de "pedir acceso" que no le llega a nadie es peor que no tenerlo.
  */
-function SinPermiso({ propuesta: p, tienda }: { propuesta: Propuesta; tienda: string }) {
+function SinPermiso({ propuesta: p, tienda, hora: cuando }: { propuesta: Propuesta; tienda: string; hora: string }) {
   const accion = (p.intencion && PARA[p.intencion]) || "hacer eso";
   const soporte = (import.meta.env.VITE_SOPORTE_WHATSAPP as string | undefined)?.replace(/\D/g, "");
   const texto = `Hola, necesito permiso para ${accion} en Vendfy (tienda ${tienda}).`;
 
   return (
-    <Tarjeta estado="sin-permiso">
-      <Aviso icono={Lock}>No tenés permiso para {accion}.</Aviso>
+    <Tarjeta estado="sin-permiso" hora={cuando}>
+      <Estado icono={Lock} tono="aviso" titulo="No tenés permiso">
+        Solo los administradores pueden {accion}.
+        <br />
+        Si necesitás hacerlo, pedile a un administrador de la tienda.
+      </Estado>
       {soporte ? (
-        <a
-          href={`https://wa.me/${soporte}?text=${encodeURIComponent(texto)}`}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(CLASE_CTA, "w-full")}
-        >
-          <UserPlus className="h-4 w-4" />
-          Pedir acceso al administrador
-        </a>
-      ) : (
-        <p className="px-1 text-xs text-muted-foreground">
-          Pedíselo a quien administra tu cuenta.
-        </p>
-      )}
+        <div className="mt-3 sm:pl-11">
+          <a
+            href={`https://wa.me/${soporte}?text=${encodeURIComponent(texto)}`}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(CLASE_CTA, "w-full sm:w-auto")}
+          >
+            <UserPlus />
+            Pedir acceso al administrador
+          </a>
+        </div>
+      ) : null}
     </Tarjeta>
   );
 }
@@ -642,20 +753,21 @@ const DONDE: Record<string, [string, string]> = {
   buscar_cliente: ["/customers", "Ir a Clientes"],
 };
 
-function SinEjecutor({ propuesta: p }: { propuesta: Propuesta }) {
+function SinEjecutor({ propuesta: p, hora: cuando }: { propuesta: Propuesta; hora: string }) {
   const navigate = useNavigate();
   const destino = p.intencion ? DONDE[p.intencion] : undefined;
   return (
-    <Tarjeta estado="sin-ejecutor">
-      <Aviso icono={Construction}>
-        Entendí: <span className="font-semibold">{p.titulo?.toLowerCase()}</span>. Todavía no lo
-        hago desde acá.
-      </Aviso>
+    <Tarjeta estado="sin-ejecutor" hora={cuando}>
+      <Estado icono={Construction} tono="neutro" titulo={`Entendí: ${p.titulo?.toLowerCase() ?? "eso"}`}>
+        Todavía no lo hago desde acá.
+      </Estado>
       {destino && (
-        <BotonSecundario onClick={() => navigate(destino[0])} className="w-full sm:w-auto">
-          {destino[1]}
-          <ChevronRight className="h-4 w-4" />
-        </BotonSecundario>
+        <div className="mt-3 sm:pl-11">
+          <BotonSecundario onClick={() => navigate(destino[0])} className="w-full sm:w-auto">
+            {destino[1]}
+            <ChevronRight />
+          </BotonSecundario>
+        </div>
       )}
     </Tarjeta>
   );
@@ -663,25 +775,27 @@ function SinEjecutor({ propuesta: p }: { propuesta: Propuesta }) {
 
 function SinEntender({
   aviso,
+  hora: cuando,
   sugerencias,
   onSugerencia,
 }: {
   aviso: string | null;
+  hora: string;
   sugerencias: string[];
   onSugerencia: (t: string) => void;
 }) {
   return (
-    <Tarjeta estado="sin-entender">
-      <Aviso icono={HelpCircle}>{aviso ?? "No entendí qué querés hacer."}</Aviso>
+    <Tarjeta estado="sin-entender" hora={cuando}>
+      <Estado icono={HelpCircle} tono="neutro" titulo={aviso ?? "No entendí qué querés hacer."} />
       {sugerencias.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-1">
+        <div className="mt-3 flex flex-wrap items-center gap-2 sm:pl-11">
           <span className="text-xs text-muted-foreground">Probá así:</span>
           {sugerencias.slice(0, 3).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => onSugerencia(s)}
-              className="glass-chip press rounded-full px-3 py-1.5 text-xs"
+              className="rounded-full border border-input bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:border-border-strong hover:bg-muted"
             >
               {s}
             </button>
@@ -693,48 +807,6 @@ function SinEntender({
 }
 
 // ------------------------------------------------------------ piezas locales
-
-function Aviso({
-  icono: Icono,
-  tono,
-  children,
-}: {
-  icono: typeof Lock;
-  tono?: "error";
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-2.5 px-1">
-      <Icono
-        className={cn(
-          "mt-0.5 h-5 w-5 shrink-0",
-          tono === "error" ? "text-red-600 dark:text-red-400" : "text-muted-foreground",
-        )}
-      />
-      <p className="text-sm font-medium sm:text-[15px]">{children}</p>
-    </div>
-  );
-}
-
-function BloqueProducto({
-  producto,
-  nombre,
-  detalle,
-}: {
-  producto: ProductoOpcion | null;
-  nombre?: string;
-  detalle?: string | null;
-}) {
-  return (
-    <div className="flex min-w-0 flex-1 basis-[12rem] items-center gap-3">
-      <FotoProducto src={producto?.imagen} className="h-16 w-16" />
-      <div className="min-w-0">
-        <p className="truncate font-semibold">{producto?.nombre ?? nombre}</p>
-        {detalle && <p className="text-sm text-muted-foreground">{detalle}</p>}
-      </div>
-    </div>
-  );
-}
 
 function Campo({
   etiqueta,
@@ -750,8 +822,8 @@ function Campo({
   autoFocus?: boolean;
 }) {
   return (
-    <label className="space-y-1">
-      <span className="block text-xs text-muted-foreground">{etiqueta}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs text-muted-foreground">{etiqueta}</span>
       <Input
         type="number"
         inputMode={decimal ? "decimal" : "numeric"}
@@ -760,7 +832,7 @@ function Campo({
         autoFocus={autoFocus}
         value={valor == null ? "" : String(valor)}
         onChange={(ev) => onCambio(ev.target.value)}
-        className="glass-field h-11 w-32 rounded-xl text-base font-semibold tabular-nums"
+        className="cifra w-full font-semibold sm:w-36"
       />
     </label>
   );

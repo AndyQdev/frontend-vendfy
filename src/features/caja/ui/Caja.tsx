@@ -50,6 +50,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
+import { NativeSelect } from "@/shared/ui/native-select";
 import { toast } from "sonner";
 import { useCustomers, useCreateCustomer, useAddCustomerAddress, type Customer } from "@/entities/customer";
 import { useInfiniteInventory } from "@/entities/inventory/api";
@@ -611,7 +612,7 @@ export default function Caja() {
   };
 
   return (
-    <div className="relative h-[calc(100vh-5.5rem)] min-w-0 overflow-hidden">
+    <div className="relative h-[calc(100dvh-var(--alto-header)-2.25rem)] min-w-0 overflow-hidden">
       {/* Layout: Catálogo + Carrito */}
         <div className="grid h-full gap-4 grid-cols-1 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_420px]">
             <div className="flex flex-col gap-3 sm:gap-4 min-w-0 h-full overflow-hidden">
@@ -841,7 +842,7 @@ export default function Caja() {
                     }`}
                     onClick={() => addToCart(product)}
                     >
-                    <div className="aspect-square bg-gradient-to-br from-muted to-muted/50 overflow-hidden relative">
+                    <div className="aspect-square bg-muted overflow-hidden relative">
                         <img
                         src={product.imageUrl}
                         alt={product.name}
@@ -1242,9 +1243,8 @@ export default function Caja() {
             {/* Número de Cuotas */}
             <div className="space-y-2">
               <Label htmlFor="installments">Número de Cuotas</Label>
-              <select
+              <NativeSelect
                 id="installments"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={installmentData.numberOfInstallments}
                 onChange={(e) => setInstallmentData(prev => ({ ...prev, numberOfInstallments: e.target.value }))}
               >
@@ -1253,7 +1253,7 @@ export default function Caja() {
                 <option value="4">4 cuotas</option>
                 <option value="6">6 cuotas</option>
                 <option value="12">12 cuotas</option>
-              </select>
+              </NativeSelect>
             </div>
             
             {/* Monto por Cuota */}

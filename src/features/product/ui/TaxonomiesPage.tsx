@@ -95,13 +95,10 @@ export function TaxonomiesPage() {
   const isDeleting = deleteBrand.isPending || deleteCategory.isPending;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+    <div className="space-y-6 w-full">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Layers className="h-6 w-6 text-emerald-500" />
-          Marcas y Categorías
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="titulo-pagina">Marcas y categorías</h1>
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
           Organiza tu catálogo con las marcas que vendes y las categorías de productos.
         </p>
       </div>

@@ -39,7 +39,7 @@ export function ChatLayout({
   const pending = connectionStatus === "pending";
 
   return (
-    <Card className="grid h-[calc(100dvh-7.5rem)] min-h-[30rem] grid-cols-1 overflow-hidden p-0 lg:grid-cols-[23rem_1fr]">
+    <Card className="grid h-[calc(100dvh-var(--alto-header)-2.25rem)] min-h-[30rem] grid-cols-1 overflow-hidden p-0 lg:grid-cols-[23rem_1fr]">
       {/* Columna izquierda: cabecera + aviso + conversaciones */}
       <div
         className={cn(

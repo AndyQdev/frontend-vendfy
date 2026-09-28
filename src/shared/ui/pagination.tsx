@@ -90,10 +90,11 @@ const Pagination = React.forwardRef<HTMLDivElement, PaginationProps>(
                 <span className="px-2 text-muted-foreground">...</span>
               ) : (
                 <Button
-                  variant={currentPage === page ? "default" : "outline"}
+                  variant={currentPage === page ? "navy" : "ghost"}
                   size="sm"
                   onClick={() => onPageChange(page as number)}
-                  className="h-9 w-9 p-0"
+                  aria-current={currentPage === page ? "page" : undefined}
+                  className="cifra h-9 w-9 p-0 text-[13px]"
                 >
                   {page}
                 </Button>

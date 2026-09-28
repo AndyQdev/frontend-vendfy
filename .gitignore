@@ -129,3 +129,7 @@ temp/
 # Tailwind CSS
 # (usually not needed as it's generated, but in case you have custom builds)
 /src/styles/generated/
+# Playwright
+e2e/.auth/
+playwright-report/
+test-results/

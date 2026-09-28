@@ -151,12 +151,12 @@ export function PurchaseOrderCreate() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/purchases")}>
+        <Button variant="outline" size="icon" onClick={() => navigate("/purchases")} aria-label="Volver a compras">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">Nueva Compra</h1>
-          <p className="text-muted-foreground mt-1">Selecciona productos y registra la compra</p>
+          <h1 className="titulo-pagina">Nueva compra</h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">Selecciona productos y registra la compra</p>
         </div>
       </div>
 

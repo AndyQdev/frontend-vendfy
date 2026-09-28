@@ -109,7 +109,7 @@ export function OrderCard({ order, onViewDetails }: { order: Order; onViewDetail
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Avatar className="h-6 w-6 shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-purple-400 to-pink-400 text-white text-[10px] font-semibold">
+                <AvatarFallback className="text-[10px] font-semibold">
                   {order.customer?.name?.charAt(0).toUpperCase() || "?"}
                 </AvatarFallback>
               </Avatar>

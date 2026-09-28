@@ -13,7 +13,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex bg-background">
       {/* Lado izquierdo - Branding */}
-      <aside className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-slate-900 dark:from-emerald-700 dark:via-emerald-900 dark:to-slate-950 overflow-hidden">
+      <aside className="hidden lg:flex lg:w-1/2 relative bg-tinta overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{
           backgroundImage: "radial-gradient(circle at 25% 25%, white 1px, transparent 1px), radial-gradient(circle at 75% 75%, white 1px, transparent 1px)",
           backgroundSize: "60px 60px",
@@ -35,7 +35,7 @@ export default function RegisterPage() {
 
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <div className="h-9 w-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Rocket className="h-4 w-4" />
                 </div>
                 <div>
@@ -44,7 +44,7 @@ export default function RegisterPage() {
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <div className="h-9 w-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Wand2 className="h-4 w-4" />
                 </div>
                 <div>
@@ -53,7 +53,7 @@ export default function RegisterPage() {
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <div className="h-9 w-9 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                   <ShieldCheck className="h-4 w-4" />
                 </div>
                 <div>

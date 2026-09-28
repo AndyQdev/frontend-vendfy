@@ -368,7 +368,7 @@ export default function OnboardingPage() {
     <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Topbar minimal */}
-        <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
+        <header className="border-b border-border bg-background sticky top-0 z-10">
           <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
             <VendfyLogo variant={resolvedDark ? "full-white" : "full"} size={32} />
             <button
@@ -769,7 +769,7 @@ function Step2({
         </FieldLabel>
         <div
           onClick={onBannerClick}
-          className="relative w-full h-56 bg-gradient-to-br from-muted/50 to-muted rounded-lg overflow-hidden border-2 border-dashed border-border hover:border-emerald-500 transition-colors cursor-pointer group"
+          className="relative w-full h-56 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-border hover:border-emerald-500 transition-colors cursor-pointer group"
         >
           {data.bannerUrl ? (
             <img
