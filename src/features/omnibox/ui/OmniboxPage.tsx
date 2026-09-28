@@ -1,15 +1,5 @@
-import { useRef, useState, type FormEvent } from "react";
-import {
-  ArrowUp,
-  Camera,
-  Clock,
-  Loader2,
-  Mic,
-  Search,
-  Sparkles,
-  Square,
-  Store,
-} from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { Sparkles, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -19,35 +9,37 @@ import {
   useIntenciones,
   useInterpretar,
 } from "@/entities/omnibox/api";
-import type { ProductoOpcion } from "@/entities/omnibox/model/types";
+import type { ProductoOpcion, Propuesta } from "@/entities/omnibox/model/types";
 import { useStore } from "@/app/providers/auth";
-import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
-import { cn } from "@/shared/lib/cn";
 
+import { completar, nuevoMensaje, type Mensaje } from "../model/mensaje";
 import { useDictado } from "../model/use-dictado";
-import { TarjetaActividad, type Actividad } from "./TarjetaActividad";
+import { Burbuja } from "./Burbuja";
+import { Compositor } from "./Compositor";
+import { Respuesta } from "./Respuesta";
 
 /**
- * El omnibox: la vista operativa del comerciante.
+ * El asistente: un chat donde las respuestas son tarjetas, no párrafos.
  *
- * Escribe (o dicta) lo que quiere hacer y el sistema responde con una tarjeta
- * ya llena que él confirma de un toque. No es un chat: no hay burbujas, no hay
- * avatar, no hay prosa. La IA no ejecuta — la IA llena el formulario.
+ * Se escribe (o se dicta) como se le hablaría a un empleado, y el sistema
+ * contesta con la acción ya armada —foto, lo que va a quedar, el total, los
+ * botones— que se confirma de un toque. La IA no ejecuta: la IA llena el
+ * formulario, y lo que toca stock o dinero siempre pasa por la tarjeta.
  *
- * Los chips de sugerencia no son adorno: un cuadro de texto vacío no le dice a
- * nadie qué puede pedir, y ese es el problema que hunde a las interfaces
- * conversacionales.
+ * Es un chat porque así se entiende el ida y vuelta: qué pedí, qué me
+ * contestó, qué quedó hecho. La versión anterior era un buscador con un
+ * historial abajo y no se entendía qué respondía a qué.
  */
 export function OmniboxPage() {
   const { selectedStore } = useStore();
-  const storeId =
-    selectedStore && selectedStore !== "all" ? selectedStore.id : null;
+  const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
+  const storeId = tienda?.id ?? null;
 
   const [texto, setTexto] = useState("");
-  const [actividades, setActividades] = useState<Actividad[]>([]);
+  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [ejecutandoId, setEjecutandoId] = useState<string | null>(null);
   const campo = useRef<HTMLInputElement>(null);
+  const hilo = useRef<HTMLDivElement>(null);
 
   const { data: intenciones } = useIntenciones();
   const { data: estadoVoz, isLoading: consultandoVoz } = useEstadoVoz();
@@ -55,331 +47,271 @@ export function OmniboxPage() {
   const confirmar = useConfirmar();
   const dictar = useDictar();
 
+  // Los ejemplos salen del catálogo del backend, no de una lista escrita acá:
+  // una intención nueva aparece sola en las sugerencias.
+  const sugerencias = (intenciones ?? [])
+    .filter((i) => i.disponible)
+    .map((i) => i.ejemplos[0])
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const actualizar = (id: string, f: (m: Mensaje) => Mensaje) =>
+    setMensajes((prev) => prev.map((m) => (m.id === id ? f(m) : m)));
+
+  // Bajar hasta lo último cuando llega algo nuevo o cuando una respuesta
+  // termina de pensar. NO cuando se confirma una tarjeta de más arriba: ahí
+  // la persona está mirando esa, y saltar al fondo la haría perderla.
+  const ultimo = mensajes[mensajes.length - 1];
+  useEffect(() => {
+    const el = hilo.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [mensajes.length, ultimo?.fase]);
+
+  // ------------------------------------------------------------ preguntar
+
+  async function interpretarEn(id: string, consulta: string) {
+    if (!storeId) return;
+    try {
+      const propuesta = await interpretar.mutateAsync({ texto: consulta, storeId });
+      actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
+    } catch (error: any) {
+      actualizar(id, (m) => ({
+        ...m,
+        fase: "error",
+        error: error?.message ?? "No pude procesarlo. Revisá tu conexión.",
+      }));
+    }
+  }
+
+  function enviar() {
+    const consulta = texto.trim();
+    if (!consulta || !storeId) return;
+    setTexto("");
+    const m = nuevoMensaje(consulta, false);
+    setMensajes((prev) => [...prev, m]);
+    interpretarEn(m.id, consulta);
+  }
+
+  function reintentar(m: Mensaje) {
+    if (!m.texto) return;
+    actualizar(m.id, (x) => ({ ...x, fase: "pensando", error: undefined }));
+    interpretarEn(m.id, m.texto);
+  }
+
   /**
-   * El dictado entrega el audio; el servidor transcribe E interpreta, porque es
-   * el único que conoce el catálogo y puede sesgar el reconocimiento hacia los
-   * nombres de los productos de ESTA tienda.
+   * El dictado entrega el audio; el servidor transcribe E interpreta en una
+   * sola llamada, porque es el único que conoce el catálogo y puede sesgar el
+   * reconocimiento hacia los nombres de ESTA tienda.
+   *
+   * La burbuja aparece en el acto, con "Transcribiendo…": sin eso, soltar el
+   * botón y no ver nada durante tres segundos parece que no anduvo.
    */
   const voz = useDictado(async (audio) => {
     if (!storeId) return;
+    const m = nuevoMensaje(null, true);
+    setMensajes((prev) => [...prev, m]);
     try {
       const r = await dictar.mutateAsync({ audio, storeId });
-      if (!r?.transcripcion.texto) {
+      const dicho = r?.transcripcion.texto?.trim();
+      if (!dicho) {
+        setMensajes((prev) => prev.filter((x) => x.id !== m.id));
         toast.info("No se entendió nada. Probá de nuevo, más cerca del micrófono.");
         return;
       }
-      if (!r.propuesta) {
-        // Se entendió el audio pero no la intención: se deja el texto en el
-        // campo para que lo corrija en vez de obligarlo a dictar otra vez.
-        setTexto(r.transcripcion.texto);
-        return;
-      }
-      setActividades((prev) => [
-        {
-          id: crypto.randomUUID(),
-          texto: r.transcripcion.texto,
-          propuesta: r.propuesta!,
-          hora: new Date(),
-        },
-        ...prev,
-      ]);
+      actualizar(m.id, (x) =>
+        r!.propuesta
+          ? { ...x, texto: dicho, fase: "listo", propuesta: r!.propuesta }
+          : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué querés hacer." },
+      );
     } catch (error: any) {
-      toast.error(error?.message ?? "No se pudo procesar el dictado");
+      actualizar(m.id, (x) => ({
+        ...x,
+        fase: "error",
+        error: error?.message ?? "No se pudo procesar el dictado.",
+      }));
     } finally {
       voz.cancelar();
     }
   });
 
-  // Los ejemplos salen del catálogo del backend, no de una lista escrita acá:
-  // así una intención nueva aparece sola en las sugerencias.
-  const sugerencias = (intenciones ?? [])
-    .filter((i) => i.disponible)
-    .slice(0, 5)
-    .map((i) => ({ id: i.id, texto: i.ejemplos[0] }));
+  // ------------------------------------------------------------ actuar
 
-  async function enviar(e: FormEvent) {
-    e.preventDefault();
-    const consulta = texto.trim();
-    if (!consulta || !storeId) return;
-
-    setTexto("");
+  async function ejecutar(m: Mensaje, entidades: Record<string, unknown>, despues: number | null) {
+    if (!storeId || !m.propuesta?.intencion) return;
+    setEjecutandoId(m.id);
     try {
-      const propuesta = await interpretar.mutateAsync({ texto: consulta, storeId });
-      setActividades((prev) => [
-        {
-          id: crypto.randomUUID(),
-          texto: consulta,
-          propuesta: propuesta!,
-          hora: new Date(),
-        },
-        ...prev,
-      ]);
-    } catch (error: any) {
-      toast.error(error?.message ?? "No se pudo interpretar");
-      setTexto(consulta); // se devuelve el texto: reescribirlo es el peor castigo
-    }
-  }
-
-  async function ejecutar(
-    a: Actividad,
-    entidades: Record<string, unknown>,
-  ) {
-    if (!storeId || !a.propuesta.intencion) return;
-    setEjecutandoId(a.id);
-    try {
-      const resultado = await confirmar.mutateAsync({
-        intencion: a.propuesta.intencion,
+      const r = await confirmar.mutateAsync({
+        intencion: m.propuesta.intencion,
         entidades,
         storeId,
       });
-      setActividades((prev) =>
-        prev.map((x) =>
-          x.id === a.id ? { ...x, cerrada: { resumen: resultado!.resumen } } : x,
-        ),
-      );
-      toast.success(resultado!.resumen);
+      // Sin toast de éxito: la tarjeta misma pasa a "Listo · stock 32". Un
+      // cartel arriba diciendo lo mismo es ruido.
+      actualizar(m.id, (x) => ({
+        ...x,
+        desenlace: { tipo: "hecho", resumen: r!.resumen, despues, entidades },
+      }));
     } catch (error: any) {
-      toast.error(error?.message ?? "No se pudo ejecutar");
+      toast.error(error?.message ?? "No se pudo hacer");
     } finally {
       setEjecutandoId(null);
     }
   }
 
   /**
-   * Elegir entre productos ambiguos NO ejecuta: completa la entidad y vuelve a
-   * pasar por la política de confirmación. Ejecutar de una sería saltarse el
-   * paso que hace segura toda la pantalla.
+   * Completar lo que faltaba (el producto, un número) NO ejecuta lo que
+   * escribe: vuelve a la tarjeta con su diff. Lo que solo LEE sí se resuelve
+   * en el acto: pedir confirmación para ver un stock es el paso que vinimos a
+   * sacar.
    */
-  function elegirProducto(a: Actividad, opcion: ProductoOpcion) {
-    const entidades = {
-      ...a.propuesta.entidades,
-      producto: opcion.nombre,
-      productId: opcion.productId,
-    };
-    setActividades((prev) =>
-      prev.map((x) =>
-        x.id === a.id
-          ? {
-              ...x,
-              propuesta: {
-                ...x.propuesta,
-                entidades,
-                opciones: [],
-                ejecutable: x.propuesta.faltan.length === 0,
-              },
-            }
-          : x,
-      ),
-    );
+  async function seguir(m: Mensaje, p: Propuesta) {
+    if (!storeId) return;
+    if (p.requiereConfirmacion || !p.ejecutable || !p.intencion) {
+      actualizar(m.id, (x) => ({ ...x, propuesta: p }));
+      return;
+    }
+
+    actualizar(m.id, (x) => ({ ...x, fase: "pensando", propuesta: p }));
+    try {
+      const r = await confirmar.mutateAsync({ intencion: p.intencion, entidades: p.entidades, storeId });
+      const datos = r!.datos as any;
+      const prod = p.producto;
+      const resultado = {
+        resumen: r!.resumen,
+        // Misma forma que devuelve el servidor para una consulta de stock:
+        // la fila con foto.
+        datos:
+          prod && datos?.stock !== undefined
+            ? { ...datos, productos: [{ ...prod, stock: datos.stock, precio: datos.precio }] }
+            : datos,
+      };
+      actualizar(m.id, (x) => ({ ...x, fase: "listo", propuesta: { ...p, resultado } }));
+    } catch (error: any) {
+      actualizar(m.id, (x) => ({ ...x, fase: "error", error: error?.message ?? "No se pudo consultar" }));
+    }
   }
 
-  function completarDato(a: Actividad, slot: string, valor: string) {
-    const numerico = ["precio", "cantidad", "costo"].includes(slot);
-    const entidades = {
-      ...a.propuesta.entidades,
-      [slot]: numerico ? Number(valor) : valor,
-    };
-    ejecutar({ ...a, propuesta: { ...a.propuesta, entidades } }, entidades);
+  function elegirProducto(m: Mensaje, op: ProductoOpcion) {
+    seguir(m, completar(m.propuesta!, { producto: op.nombre, productId: op.productId }, op));
   }
+
+  function completarDato(m: Mensaje, slot: string, valor: string) {
+    const numerico = ["precio", "cantidad", "costo"].includes(slot);
+    seguir(m, completar(m.propuesta!, { [slot]: numerico ? Number(valor) : valor }));
+  }
+
+  function usarSugerencia(s: string) {
+    setTexto(s);
+    campo.current?.focus();
+  }
+
+  // ------------------------------------------------------------ pantalla
 
   if (!storeId) {
     return (
-      <div className="p-4 sm:p-6">
-        <div className="glass rounded-[26px] py-16 text-center">
-          <Store className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-          <p className="font-medium">Elegí una tienda</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            El asistente trabaja sobre una tienda a la vez. Elegila arriba a la
-            izquierda: con “todas” no sabe a cuál sumarle el stock.
-          </p>
-        </div>
+      <div className="glass rounded-[26px] py-16 text-center">
+        <Store className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+        <p className="font-medium">Elegí una tienda</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+          El asistente trabaja sobre una tienda a la vez. Elegila arriba a la izquierda: con
+          “todas” no sabe a cuál sumarle el stock.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 p-4 sm:p-6">
-      {/* --- el campo ---
-          `.glass` y `rounded-[26px]`: son las convenciones del panel (ver
-          index.css). Con `bg-card` a secas la tarjeta se ve como un rectángulo
-          gris sobre el fondo con textura, en vez de un panel del sistema. */}
-      <section className="glass rounded-[26px] p-4">
-        <form onSubmit={enviar} className="flex items-center gap-2">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            {interpretar.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            ) : (
-              <Search className="h-5 w-5 text-primary" />
-            )}
-          </div>
-
-          <Input
-            ref={campo}
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Escribí o dictá lo que querés hacer…"
-            aria-label="Qué querés hacer"
-            disabled={interpretar.isPending}
-            className="glass-field h-11 rounded-2xl border-0 text-base focus-visible:ring-0"
-          />
-
-          {/* Dictar: el caso que gana por goleada es hablarle mientras se
-              desempaca, con las manos ocupadas. El anillo crece con la voz
-              para que se vea que está escuchando — un botón que solo cambia de
-              color no distingue "grabando" de "colgado". */}
-          <Button
-            type="button"
-            variant={voz.estado === "grabando" ? "destructive" : "outline"}
-            size="icon"
-            className="relative h-11 w-11 shrink-0"
-            aria-label={voz.estado === "grabando" ? "Detener el dictado" : "Dictar"}
-            onClick={voz.alternar}
-            disabled={
-              !voz.soportado ||
-              !estadoVoz?.disponible ||
-              voz.estado === "procesando" ||
-              interpretar.isPending
-            }
-            title={
-              !voz.soportado
-                ? "Tu navegador no puede grabar audio"
-                : // Mientras la consulta viaja no se sabe si hay dictado, y decir
-                  // "no está configurado" es afirmar algo que puede ser falso.
-                  consultandoVoz
-                  ? "Preparando el dictado…"
-                  : !estadoVoz?.disponible
-                    ? "El dictado no está configurado en el servidor"
-                    : voz.estado === "grabando"
-                      ? "Tocá para terminar"
-                      : "Dictar"
-            }
-          >
-            {voz.estado === "procesando" ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : voz.estado === "grabando" ? (
-              <Square className="h-4 w-4 fill-current" />
-            ) : (
-              <Mic className="h-5 w-5" />
-            )}
-
-            {voz.estado === "grabando" && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-destructive/60"
-                style={{ transform: `scale(${1 + voz.nivel * 0.35})` }}
-              />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label="Sacar una foto"
-            disabled
-            title="Pronto: cargar desde una foto"
-          >
-            <Camera className="h-5 w-5" />
-          </Button>
-
-          {/* El botón de enviar no es opcional.
-              Sin un submit en el formulario, Enter no envía nada: se escribe,
-              se aprieta Enter y no pasa absolutamente nada. Y en un teléfono ni
-              siquiera hay Enter a mano. Se ve al probarlo, no al leerlo. */}
-          <Button
-            type="submit"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label="Enviar"
-            disabled={!texto.trim() || interpretar.isPending}
-          >
-            <ArrowUp className="h-5 w-5" />
-          </Button>
-        </form>
-
-        {voz.estado === "grabando" && (
-          // `text-destructive` es rojo oscuro y sobre el fondo oscuro del
-          // panel queda ilegible. El par claro/oscuro es el que se usa en el
-          // resto del proyecto.
-          <p className="mt-2 flex items-center gap-2 text-xs font-medium text-red-700 dark:text-red-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-600 dark:bg-red-400" />
-            Escuchando… tocá el cuadrado para terminar
-          </p>
-        )}
-        {voz.estado === "procesando" && (
-          <p className="mt-2 text-xs text-muted-foreground">Transcribiendo…</p>
-        )}
-        {voz.error && (
-          <p
-            role="alert"
-            className="mt-2 text-xs font-medium text-red-700 dark:text-red-400"
-          >
-            {voz.error}
-          </p>
-        )}
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Por ejemplo:
-          </span>
-          {sugerencias.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              data-testid="omnibox-sugerencia"
-              onClick={() => {
-                setTexto(s.texto);
-                campo.current?.focus();
-              }}
-              className="glass-chip press rounded-full px-3 py-1.5 text-xs"
-            >
-              {s.texto}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* --- historial --- */}
-      {actividades.length > 0 && (
-        <>
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Actividad de esta sesión
-          </h2>
-
-          <div className="space-y-3">
-            {actividades.map((a) => (
-              <TarjetaActividad
-                key={a.id}
-                actividad={a}
-                storeId={storeId}
-                ejecutando={ejecutandoId === a.id}
-                onConfirmar={(x) => ejecutar(x, x.propuesta.entidades)}
-                onElegirProducto={elegirProducto}
-                onCompletarDato={completarDato}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {actividades.length === 0 && (
-        <div
-          data-testid="omnibox-vacio"
-          className={cn(
-            "glass rounded-[26px] py-16 text-center",
-            "text-sm text-muted-foreground",
+    // Misma altura que el chat de WhatsApp del panel: la pantalla menos la
+    // cabecera. El hilo scrollea adentro y el campo queda siempre abajo.
+    <div className="flex h-[calc(100dvh-7.5rem)] min-h-[26rem] flex-col">
+      {/* Barra de scroll fina y cian: la gris del navegador corta el vidrio. */}
+      <div
+        ref={hilo}
+        className="-mx-1 flex-1 overflow-y-auto px-1 [scrollbar-color:hsl(var(--ring)/0.35)_transparent] [scrollbar-width:thin]"
+      >
+        <div className="mx-auto flex min-h-full w-full max-w-[52rem] flex-col gap-3 pb-2">
+          {mensajes.length === 0 ? (
+            <Bienvenida sugerencias={sugerencias} onSugerencia={usarSugerencia} />
+          ) : (
+            mensajes.map((m) => (
+              <Fragment key={m.id}>
+                <Burbuja mensaje={m} />
+                <Respuesta
+                  mensaje={m}
+                  storeId={storeId}
+                  tienda={tienda!.name}
+                  ejecutando={ejecutandoId === m.id}
+                  sugerencias={sugerencias}
+                  onConfirmar={(entidades, despues) => ejecutar(m, entidades, despues)}
+                  onCancelar={() => actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "cancelado" } }))}
+                  onElegirProducto={(op) => elegirProducto(m, op)}
+                  onCompletarDato={(slot, valor) => completarDato(m, slot, valor)}
+                  onReintentar={() => reintentar(m)}
+                  onSugerencia={usarSugerencia}
+                />
+              </Fragment>
+            ))
           )}
-        >
-          <Sparkles className="mx-auto mb-3 h-8 w-8 opacity-40" />
-          <p className="font-medium text-foreground">Pedile algo a tu sistema</p>
-          <p className="mx-auto mt-1 max-w-sm">
-            Preguntá por stock, registrá lo que llegó o cambiá un precio. Lo que
-            toque inventario o dinero te lo muestra antes de hacerlo.
-          </p>
         </div>
-      )}
+      </div>
+
+      <div className="mx-auto w-full max-w-[52rem]">
+        <Compositor
+          ref={campo}
+          texto={texto}
+          onTexto={setTexto}
+          onEnviar={enviar}
+          voz={voz}
+          vozDisponible={Boolean(estadoVoz?.disponible)}
+          consultandoVoz={consultandoVoz}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * La pantalla vacía. Los ejemplos no son adorno: un campo vacío no le dice a
+ * nadie qué puede pedir, y ese es el problema que hunde a los chats.
+ */
+function Bienvenida({
+  sugerencias,
+  onSugerencia,
+}: {
+  sugerencias: string[];
+  onSugerencia: (s: string) => void;
+}) {
+  return (
+    <div
+      data-testid="omnibox-vacio"
+      className="flex flex-1 flex-col items-center justify-center gap-5 py-10 text-center"
+    >
+      <div
+        className="flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-[var(--cta-shadow)]"
+        style={{ background: "var(--primary-grad)" }}
+      >
+        <Sparkles className="h-7 w-7" />
+      </div>
+      <div>
+        <h2 className="font-display text-xl font-bold">¿Qué necesitás?</h2>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+          Escribí o dictá como se lo dirías a tu empleado. Lo que toque stock o plata te lo
+          muestro antes de hacerlo.
+        </p>
+      </div>
+      <div className="flex max-w-xl flex-wrap justify-center gap-2">
+        {sugerencias.map((s) => (
+          <button
+            key={s}
+            type="button"
+            data-testid="omnibox-sugerencia"
+            onClick={() => onSugerencia(s)}
+            className="glass-chip press rounded-full px-3.5 py-2 text-sm"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { AiModelPicker } from "@/shared/ui/ai-model-picker";
@@ -26,6 +26,9 @@ import { toast } from "sonner";
 
 export default function CreateProduct() {
   const { id: productId } = useParams();
+  // El asistente manda acá lo que no encontró en el catálogo ("coca 2
+  // litros"): hacérselo escribir otra vez sería pedirle lo mismo dos veces.
+  const [params] = useSearchParams();
   const { selectedStore } = useStore();
   const isEditMode = Boolean(productId);
   // Vuelve a la lista tal como estaba -con su búsqueda y sus filtros- y no al
@@ -34,7 +37,7 @@ export default function CreateProduct() {
 
   // State for form data
   const [formData, setFormData] = useState<ProductInput>({
-    name: "",
+    name: productId ? "" : (params.get("nombre") ?? ""),
     description: "",
     imageUrls: [],
     sku: "",

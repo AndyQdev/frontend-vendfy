@@ -33,6 +33,10 @@ export interface Propuesta {
   ejecutable: boolean;
   resultado: { resumen: string; datos?: any } | null;
   aviso: string | null;
+  /** El producto resuelto, con foto: lo que deja reconocerlo de un vistazo. */
+  producto: ProductoOpcion | null;
+  /** Se entendió pero no se puede: sin permiso, o sin ejecutor todavía. */
+  bloqueo: "sin-permiso" | "sin-ejecutor" | null;
   ms: number;
 }
 
@@ -53,6 +57,7 @@ export interface IntencionDisponible {
  */
 export type EstadoTarjeta =
   | "resuelta"
+  | "sin-permiso"
   | "espera-confirmacion"
   | "ambiguedad"
   | "sin-producto"
@@ -61,6 +66,7 @@ export type EstadoTarjeta =
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (p.resultado) return "resuelta";
+  if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";
   if (p.opciones.length > 0) return "ambiguedad";
   // Nombró un producto que no existe: no es un dato que falte, y preguntarle
@@ -82,7 +88,7 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
  */
 const ACCION: Record<string, string> = {
   registrar_entrada: "Confirmar entrada",
-  ajustar_stock: "Guardar ajuste",
+  ajustar_stock: "Ajustar",
   cambiar_precio: "Guardar precio",
   crear_producto: "Crear producto",
   venta_mostrador: "Registrar venta",
@@ -97,4 +103,23 @@ export function textoAccion(intencion: string | null): string {
 /** Las que no se pueden deshacer de un clic piden un botón más serio. */
 export function esDestructiva(intencion: string | null): boolean {
   return intencion === "cancelar_pedido" || intencion === "cambiar_precio";
+}
+
+/**
+ * El título de la tarjeta, corto.
+ *
+ * El del catálogo ("Registrar mercadería que llegó") está pensado para el
+ * router; en la tarjeta, al lado de la foto, sobra la mitad.
+ */
+const TITULO: Record<string, string> = {
+  registrar_entrada: "Registrar mercadería",
+  ajustar_stock: "Ajustar stock",
+  cambiar_precio: "Cambiar precio",
+  consultar_stock: "Resultados de stock",
+  buscar_producto: "Resultados de stock",
+  consultar_ventas: "Ventas",
+};
+
+export function tituloCorto(p: Propuesta): string {
+  return (p.intencion && TITULO[p.intencion]) || p.titulo || "Resultado";
 }
