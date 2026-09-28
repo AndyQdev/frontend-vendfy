@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "@/app/providers/auth"
 
 
 export function NavUser({
@@ -27,6 +28,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   return (
     <SidebarMenu>
@@ -84,7 +86,15 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                logout()
+                // `replace` y no `navigate` a secas: sin esto, el botón de
+                // atrás del navegador vuelve a la pantalla anterior del panel,
+                // que se dibuja un instante antes de que el guard la eche.
+                navigate("/login", { replace: true })
+              }}
+            >
               <LogOut />
               Cerrar Sesión
             </DropdownMenuItem>

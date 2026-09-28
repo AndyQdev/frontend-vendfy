@@ -8,6 +8,7 @@ import {
   Search,
   Sparkles,
   Square,
+  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -183,10 +184,15 @@ export function OmniboxPage() {
 
   if (!storeId) {
     return (
-      <div className="p-6">
-        <p className="text-sm text-muted-foreground">
-          Elegí una tienda para usar el asistente.
-        </p>
+      <div className="p-4 sm:p-6">
+        <div className="glass rounded-[26px] py-16 text-center">
+          <Store className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+          <p className="font-medium">Elegí una tienda</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            El asistente trabaja sobre una tienda a la vez. Elegila arriba a la
+            izquierda: con “todas” no sabe a cuál sumarle el stock.
+          </p>
+        </div>
       </div>
     );
   }
@@ -343,6 +349,7 @@ export function OmniboxPage() {
               <TarjetaActividad
                 key={a.id}
                 actividad={a}
+                storeId={storeId}
                 ejecutando={ejecutandoId === a.id}
                 onConfirmar={(x) => ejecutar(x, x.propuesta.entidades)}
                 onElegirProducto={elegirProducto}

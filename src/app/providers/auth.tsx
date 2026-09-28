@@ -110,6 +110,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   function logout() {
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
+    // La tienda elegida también: si no, el siguiente que entre en este
+    // navegador la hereda y opera sobre una tienda que nunca eligió —y que
+    // puede no ser suya—.
+    localStorage.removeItem("selectedStore");
     setUser(null);
   }
 
@@ -155,7 +159,17 @@ type StoreCtx = {
 
 const StoreContext = createContext<StoreCtx | undefined>(undefined);
 
+/**
+ * La tienda con la que se está trabajando.
+ *
+ * Vive en el navegador para que no haya que elegirla en cada visita, y por eso
+ * puede quedar una de una SESIÓN ANTERIOR: si después entra otra persona en la
+ * misma máquina, el panel entero le manda al backend una tienda que no es suya
+ * y todo responde error —sin decir por qué, porque la pantalla se ve normal—.
+ * Por eso se valida contra las tiendas del usuario en cuanto se conoce.
+ */
 export function StoreProvider({ children }: PropsWithChildren) {
+  const { user, isLoading } = useAuth();
   const [selectedStore, setSelectedStoreState] = useState<Store | "all" | null>(() => {
     const saved = localStorage.getItem("selectedStore");
     if (!saved) return null;
@@ -175,6 +189,26 @@ export function StoreProvider({ children }: PropsWithChildren) {
       localStorage.setItem("selectedStore", JSON.stringify(store));
     }
   };
+
+  /**
+   * Descarta la tienda guardada si no es del usuario que entró.
+   *
+   * Solo actúa con el usuario YA cargado y con tiendas: mientras carga, la
+   * lista viene vacía y limpiar ahí borraría una selección buena en cada
+   * recarga. "all" no se toca, que no es una tienda concreta.
+   */
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (!selectedStore || selectedStore === "all") return;
+
+    const propias = user.stores ?? [];
+    if (!propias.length) return;
+
+    if (!propias.some((s) => s.id === selectedStore.id)) {
+      localStorage.removeItem("selectedStore");
+      setSelectedStoreState(null);
+    }
+  }, [user, isLoading, selectedStore]);
 
   return (
     <StoreContext.Provider value={{ selectedStore, setSelectedStore }}>

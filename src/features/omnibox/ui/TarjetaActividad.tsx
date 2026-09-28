@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Loader2,
   Package,
+  PackageSearch,
   Pencil,
   Search,
   Tag,
@@ -21,6 +22,7 @@ import {
   type ProductoOpcion,
 } from "@/entities/omnibox/model/types";
 import { Button } from "@/shared/ui/button";
+import { ElegirProducto } from "./ElegirProducto";
 import { Input } from "@/shared/ui/input";
 import { cn } from "@/shared/lib/cn";
 
@@ -47,12 +49,14 @@ export interface Actividad {
  */
 export function TarjetaActividad({
   actividad,
+  storeId,
   onConfirmar,
   onElegirProducto,
   onCompletarDato,
   ejecutando,
 }: {
   actividad: Actividad;
+  storeId: string;
   onConfirmar: (a: Actividad) => void;
   onElegirProducto: (a: Actividad, opcion: ProductoOpcion) => void;
   onCompletarDato: (a: Actividad, slot: string, valor: string) => void;
@@ -104,11 +108,28 @@ export function TarjetaActividad({
           />
         )}
 
+        {estado === "sin-producto" && (
+          <div className="space-y-3">
+            <p className="text-sm">
+              <span className="font-medium">{p.titulo}</span> — no encontré{" "}
+              <span className="font-medium">“{p.noEncontrado}”</span> en tu
+              catálogo.
+            </p>
+            <ElegirProducto
+              storeId={storeId}
+              textoInicial={p.noEncontrado ?? ""}
+              onElegir={(op) => onElegirProducto(actividad, op)}
+            />
+          </div>
+        )}
+
         {estado === "falta-dato" && (
           <FaltaDato
             propuesta={p}
+            storeId={storeId}
             ejecutando={ejecutando}
             onGuardar={(slot, valor) => onCompletarDato(actividad, slot, valor)}
+            onElegirProducto={(op) => onElegirProducto(actividad, op)}
           />
         )}
 
@@ -260,14 +281,35 @@ function Ambiguedad({
 /** Falta un dato: se pide ahí mismo, sin abrir otra pantalla. */
 function FaltaDato({
   propuesta: p,
+  storeId,
   ejecutando,
   onGuardar,
+  onElegirProducto,
 }: {
   propuesta: Propuesta;
+  storeId: string;
   ejecutando: boolean;
   onGuardar: (slot: string, valor: string) => void;
+  onElegirProducto: (op: ProductoOpcion) => void;
 }) {
   const falta = p.faltan[0];
+
+  /**
+   * Un producto se ELIGE, no se escribe.
+   *
+   * La ejecución necesita el id; un nombre escrito a mano llega sin él y falla
+   * con "ese producto no está en tu tienda" DESPUÉS de que la persona ya lo
+   * escribió. Es la clase de error que hace desconfiar de toda la pantalla.
+   */
+  if (falta.slot === "producto") {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium">{p.titulo}</p>
+        <ElegirProducto storeId={storeId} onElegir={onElegirProducto} />
+      </div>
+    );
+  }
+
   const [valor, setValor] = useState("");
   const e = p.entidades as Record<string, any>;
   // Precio y cantidad son números; el resto, texto.
@@ -325,6 +367,7 @@ const INSIGNIAS = {
   resuelta: { icono: CheckCircle2, texto: "Consulta resuelta", clase: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400" },
   "espera-confirmacion": { icono: Clock, texto: "Espera confirmación", clase: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400" },
   ambiguedad: { icono: HelpCircle, texto: "Ambigüedad", clase: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400" },
+  "sin-producto": { icono: PackageSearch, texto: "No está en tu catálogo", clase: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400" },
   "falta-dato": { icono: AlertCircle, texto: "Falta un dato", clase: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
   "sin-entender": { icono: HelpCircle, texto: "Sin resolver", clase: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" },
 } as const;

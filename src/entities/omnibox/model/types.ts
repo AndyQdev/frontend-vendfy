@@ -25,6 +25,8 @@ export interface Propuesta {
   entidades: Record<string, unknown>;
   faltan: { slot: string; pregunta: string }[];
   opciones: ProductoOpcion[];
+  /** Lo que se buscó en el catálogo y no apareció. */
+  noEncontrado: string | null;
   requiereConfirmacion: boolean;
   /** Qué va a cambiar si confirma. Lo que hace revisable la tarjeta. */
   vistaPrevia: { etiqueta: string; antes: number; despues: number } | null;
@@ -53,6 +55,7 @@ export type EstadoTarjeta =
   | "resuelta"
   | "espera-confirmacion"
   | "ambiguedad"
+  | "sin-producto"
   | "falta-dato"
   | "sin-entender";
 
@@ -60,6 +63,9 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (p.resultado) return "resuelta";
   if (!p.intencion) return "sin-entender";
   if (p.opciones.length > 0) return "ambiguedad";
+  // Nombró un producto que no existe: no es un dato que falte, y preguntarle
+  // "¿qué producto?" a quien acaba de nombrarlo no tiene sentido.
+  if (p.noEncontrado) return "sin-producto";
   if (p.faltan.length > 0) return "falta-dato";
   if (p.requiereConfirmacion && p.ejecutable) return "espera-confirmacion";
   // Entendió pero no puede: sin permiso, o sin ejecutor todavía.
