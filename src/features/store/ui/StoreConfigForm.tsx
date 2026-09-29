@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Monitor, Tablet, Smartphone } from "lucide-react";
+import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Monitor, Tablet, Smartphone, Sparkles } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -10,6 +10,7 @@ import { Textarea } from "@/shared/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { useUpdateStore, useCreateStore } from "@/entities/store/api";
 import { StoreReviewsManager } from "./StoreReviewsManager";
+import { WebConTuIa } from "./WebConTuIa";
 import { apiFetch } from "@/shared/api/client";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [seccionDiseno, setSeccionDiseno] = useState<'temas' | 'ia'>('temas');
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -532,6 +534,37 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
 
         {/* Branding Tab */}
         <TabsContent value="design" className="space-y-6">
+          {/* Dos caminos para la web: el tema de Vendfy (lo que viene por
+              defecto) o una web a medida hecha con la IA del dueño (MCP). */}
+          {mode === "edit" && store?.id && (
+            <div role="tablist" aria-label="Cómo querés tu web" className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+              {([
+                { id: "temas", label: "Tema de Vendfy", icon: Palette },
+                { id: "ia", label: "Tu web con IA (MCP)", icon: Sparkles },
+              ] as const).map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={seccionDiseno === s.id}
+                  onClick={() => setSeccionDiseno(s.id)}
+                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    seccionDiseno === s.id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <s.icon className="h-4 w-4" />
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {seccionDiseno === "ia" && mode === "edit" && store?.id ? (
+            <WebConTuIa nombreTienda={formData.name} />
+          ) : (
+            <>
           <Card className="p-6 space-y-4">
             <h3 className="text-lg font-semibold">Diseño y Temas</h3>
             <p className="text-sm text-muted-foreground">
@@ -669,6 +702,8 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                 </div>
               </div>
             </Card>
+          )}
+            </>
           )}
         </TabsContent>
 
