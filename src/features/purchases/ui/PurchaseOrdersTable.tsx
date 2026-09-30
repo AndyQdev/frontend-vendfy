@@ -17,6 +17,9 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { Button } from "@/shared/ui/button";
+import { ButtonMagic } from "@/shared/ui/button-magic";
+import { Sparkles } from "lucide-react";
+import { CompraConIaModal } from "./CompraConIaModal";
 import { Badge } from "@/shared/ui/badge";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { EmptyState } from "@/shared/ui/empty-state";
@@ -50,6 +53,7 @@ export function PurchaseOrdersTable() {
   const navigate = useNavigate();
   const { selectedStore } = useStore();
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
+  const [iaAbierto, setIaAbierto] = useState(false);
 
   const { data: response, isLoading } = usePurchaseOrders({
     limit: 50,
@@ -113,11 +117,23 @@ export function PurchaseOrdersTable() {
             Registra y gestiona tus compras por lote
           </p>
         </div>
-        <Button onClick={() => navigate("/purchases/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Compra
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ButtonMagic
+            onClick={() => setIaAbierto(true)}
+            disabled={!storeId}
+            title={storeId ? "Cargar la compra desde la nota o factura del proveedor" : "Elegí una tienda para usar Crear con IA"}
+            alwaysActive
+          >
+            <Sparkles />
+            Crear con IA
+          </ButtonMagic>
+          <Button onClick={() => navigate("/purchases/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Compra
+          </Button>
+        </div>
       </div>
+      {storeId && <CompraConIaModal open={iaAbierto} onOpenChange={setIaAbierto} storeId={storeId} />}
 
       {/* Table */}
       {isLoading ? (
