@@ -29,7 +29,7 @@ export function OnboardingGuard() {
   }
 
   if (!needsOnboarding && location.pathname.startsWith("/onboarding")) {
-    return <Navigate to="/omnibox" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

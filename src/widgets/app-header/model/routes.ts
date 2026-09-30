@@ -42,8 +42,8 @@ export interface NavRoute {
 
 export const NAV_ROUTES: NavRoute[] = [
   // El asistente va primero: es la puerta de entrada del comerciante.
-  { href: "/omnibox", label: "Asistente", icon: MessageSquareText },
-  // { href: "/dashboard", label: "Inicio", icon: House }, // el asistente es el inicio
+  // { href: "/omnibox", label: "Asistente", icon: MessageSquareText }, // oculto para la presentación del Sprint 1
+  { href: "/dashboard", label: "Inicio", icon: House },
   { href: "/caja", label: "Caja", icon: Calculator },
   { href: "/orders", label: "Pedidos", icon: ClipboardList, badge: "pending-orders" },
   { href: "/sales", label: "Ventas", icon: ReceiptText },
@@ -51,7 +51,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/inventory", label: "Inventario", icon: Layers },
   { href: "/purchases", label: "Compras", icon: Truck },
   { href: "/customers", label: "Clientes", icon: Users },
-  { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp" },
+  // { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp" }, // oculto para la presentación del Sprint 1
   // Lo que se configura, al final.
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags },
   { href: "/stores", label: "Tienda", icon: Store, match: "/stores" },

@@ -682,7 +682,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                   >
                     <iframe
                       key={`theme-preview-${formData.config.themeId}-${previewDevice}`}
-                      src={`http://localhost:3000/${formData.slug}?theme=${formData.config.themeId}&preview=true`}
+                      src={`${import.meta.env.VITE_URL_PUBLIC || 'https://compras.vendfy.shop'}/${formData.slug}?theme=${formData.config.themeId}&preview=true`}
                       className="w-full h-[600px] border-0 rounded-lg shadow-lg"
                       title="Vista previa del tema"
                       loading="lazy"

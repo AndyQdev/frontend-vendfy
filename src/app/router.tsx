@@ -5,7 +5,7 @@ import McpConnectPage from "@/pages/mcp-connect";
 import OnboardingPage from "@/pages/onboarding";
 // El dashboard dejó de ser la vista principal: ahora lo es el asistente.
 // Se deja comentado, no borrado, por si se retoma.
-// import DashboardPage from "@/pages/dashboard";
+import DashboardPage from "@/pages/dashboard";
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
@@ -18,7 +18,7 @@ import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
-import WhatsAppPage from "@/pages/whatsapp";
+// import WhatsAppPage from "@/pages/whatsapp"; // oculto para la presentación del Sprint 1
 import CampaignsPage from "@/pages/campaigns";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
@@ -29,7 +29,7 @@ import PurchaseCreatePage from "@/pages/purchases/create";
 import PurchaseDetailPage from "@/pages/purchases/detail";
 import VendfyLoader from "@/shared/loading/VendfyLoader";
 import { OnboardingGuard } from "./guards/OnboardingGuard";
-import { OmniboxPage } from "@/features/omnibox/ui/OmniboxPage";
+// import { OmniboxPage } from "@/features/omnibox/ui/OmniboxPage"; // oculto para la presentación del Sprint 1
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -60,10 +60,9 @@ export default function AppRouter() {
 
           {/* Resto de la app: requiere onboarding completo */}
           <Route element={<LayoutShell />}>
-            <Route path="/omnibox" element={<OmniboxPage />} />
-            {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
-            {/* Links y marcadores viejos a /dashboard caen en el asistente. */}
-            <Route path="/dashboard" element={<Navigate to="/omnibox" replace />} />
+            {/* Asistente y WhatsApp ocultos para la presentación del Sprint 1. */}
+            {/* <Route path="/omnibox" element={<OmniboxPage />} /> */}
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/sales" element={<SalesPage />} />
@@ -81,18 +80,18 @@ export default function AppRouter() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/movements" element={<MovementPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/whatsapp" element={<WhatsAppPage />} />
+            {/* <Route path="/whatsapp" element={<WhatsAppPage />} /> */}
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
 
             {/* Redirección por defecto al inicio */}
-            <Route path="/" element={<Navigate to="/omnibox" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Route>
       </Route>
 
       {/* Redirección para rutas no encontradas */}
-      <Route path="*" element={<Navigate to="/omnibox" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
