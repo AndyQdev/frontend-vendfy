@@ -130,7 +130,7 @@ export default function McpConnectCard({ externalAuthId }: Props) {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/caja")}
           disabled={connecting}
         >
           Cancelar

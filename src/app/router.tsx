@@ -85,13 +85,13 @@ export default function AppRouter() {
             <Route path="/integrations" element={<IntegrationsPage />} />
 
             {/* Redirección por defecto al inicio */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/caja" replace />} />
           </Route>
         </Route>
       </Route>
 
       {/* Redirección para rutas no encontradas */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/caja" replace />} />
     </Routes>
   );
 }

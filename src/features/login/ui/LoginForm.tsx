@@ -29,7 +29,7 @@ export default function LoginForm() {
 
     try {
       await login(email, password);
-      navigate(safeRedirect(searchParams.get("redirect")) ?? "/dashboard");
+      navigate(safeRedirect(searchParams.get("redirect")) ?? "/caja");
     } catch (err: any) {
       setError(err.message || "Email o contraseña incorrectos");
     } finally {
