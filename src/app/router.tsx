@@ -5,7 +5,7 @@ import McpConnectPage from "@/pages/mcp-connect";
 import OnboardingPage from "@/pages/onboarding";
 // El dashboard dejó de ser la vista principal: ahora lo es el asistente.
 // Se deja comentado, no borrado, por si se retoma.
-import DashboardPage from "@/pages/dashboard";
+// import DashboardPage from "@/pages/dashboard"; // oculto para la presentación del Sprint 1
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
@@ -62,7 +62,8 @@ export default function AppRouter() {
           <Route element={<LayoutShell />}>
             {/* Asistente y WhatsApp ocultos para la presentación del Sprint 1. */}
             {/* <Route path="/omnibox" element={<OmniboxPage />} /> */}
-            <Route path="/dashboard" element={<DashboardPage />} />
+            {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
+            <Route path="/dashboard" element={<Navigate to="/caja" replace />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/sales" element={<SalesPage />} />

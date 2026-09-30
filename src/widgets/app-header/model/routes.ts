@@ -43,7 +43,7 @@ export interface NavRoute {
 export const NAV_ROUTES: NavRoute[] = [
   // El asistente va primero: es la puerta de entrada del comerciante.
   // { href: "/omnibox", label: "Asistente", icon: MessageSquareText }, // oculto para la presentación del Sprint 1
-  { href: "/dashboard", label: "Inicio", icon: House },
+  // { href: "/dashboard", label: "Inicio", icon: House }, // oculto para la presentación del Sprint 1
   { href: "/caja", label: "Caja", icon: Calculator },
   { href: "/orders", label: "Pedidos", icon: ClipboardList, badge: "pending-orders" },
   { href: "/sales", label: "Ventas", icon: ReceiptText },
