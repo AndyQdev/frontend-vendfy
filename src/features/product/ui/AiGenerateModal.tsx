@@ -35,6 +35,7 @@ import { CategoryIcon } from "@/shared/ui/category-icon";
 import { apiFetch } from "@/shared/api/client";
 import { AiModelPicker } from "@/shared/ui/ai-model-picker";
 import { SpecsCell } from "./SpecsCell";
+import { DescripcionCell } from "./DescripcionCell";
 import { useModeloIa } from "@/shared/hooks/use-modelo-ia";
 import { useStore, useAuth } from "@/app/providers/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -471,6 +472,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                     <TableHead className="w-[60px]">Stock</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead>Tags</TableHead>
+                    <TableHead className="w-[90px]">Descripción</TableHead>
                     <TableHead className="w-[110px]">Especificaciones</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -515,6 +517,12 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                             <Badge variant="outline" className="text-xs py-0">+{product.tags!.length - 2}</Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <DescripcionCell
+                          value={product.description}
+                          onChange={(v) => handleProductChange(index, "description", v)}
+                        />
                       </TableCell>
                       <TableCell>
                         <SpecsCell
