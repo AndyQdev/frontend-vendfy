@@ -149,12 +149,18 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
     case "claude-code":
       return (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">En la terminal, dentro de la carpeta donde va a vivir tu web:</p>
-          <Copiable valor={`claude mcp add --transport http vendfy ${MCP_URL}`} etiqueta="Comando" codigo />
           <p className="text-sm text-muted-foreground">
-            Después abrí <code className="rounded bg-muted px-1">claude</code>, escribí{" "}
-            <code className="rounded bg-muted px-1">/mcp</code> y elegí “vendfy” para entrar con tu cuenta.
+            En la terminal (con <code className="rounded bg-muted px-1">--scope user</code> queda disponible en
+            todas tus carpetas):
           </p>
+          <Copiable valor={`claude mcp add --transport http --scope user vendfy ${MCP_URL}`} etiqueta="Comando" codigo />
+          <Pasos
+            items={[
+              <>Abrí <code className="rounded bg-muted px-1">claude</code> en la carpeta donde va a vivir tu web.</>,
+              <>Escribí <code className="rounded bg-muted px-1">/mcp</code>, elegí <strong>vendfy</strong> y tocá <strong>Authenticate</strong>.</>,
+              <>Se abre el navegador: entrá con tu cuenta de Vendfy y tocá <strong>Conectar</strong>. Al volver, “vendfy” aparece como conectado.</>,
+            ]}
+          />
         </div>
       );
     case "antigravity":
