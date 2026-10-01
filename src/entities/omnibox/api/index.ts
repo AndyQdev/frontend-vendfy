@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/shared/api/client";
 import type {
@@ -8,7 +8,9 @@ import type {
   IntencionDisponible,
   LineaContexto,
   Propuesta,
+  TablaVista,
   VentaCobrada,
+  VistaSpec,
 } from "../model/types";
 
 export interface RespuestaVoz {
@@ -233,5 +235,51 @@ export function useCrearProductoRapido() {
       qc.invalidateQueries({ queryKey: ["omnibox", "productos"] });
       qc.invalidateQueries({ queryKey: ["products"] });
     },
+  });
+}
+
+// ------------------------------------------------------------ vistas (G3)
+
+/**
+ * Los datos de UNA pieza de una vista. Cada pieza pide lo suyo y se dibuja
+ * apenas llega, sin esperar a las demás. Dos piezas que leen lo mismo
+ * comparten la consulta (misma clave).
+ *
+ * Al cambiar el período se queda el dibujo anterior, atenuado, hasta que
+ * llega el nuevo: un esqueleto en cada cambio hace saltar todo el panel.
+ */
+export function useFuenteVista(storeId: string, fuente: string, params: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ["omnibox", "vista", "fuente", storeId, fuente, params],
+    queryFn: async () =>
+      (
+        await apiFetch<TablaVista>("/api/omnibox/vista/fuente", {
+          method: "POST",
+          body: { storeId, fuente, params },
+        })
+      ).data!,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * La conclusión: la escribe el modelo sobre los números ya calculados, y el
+ * servidor descarta toda frase con una cifra que no está en los datos.
+ * Cuesta una llamada a la IA: no se repite al volver a abrir la misma vista.
+ */
+export function useConclusionVista(storeId: string, pregunta: string, vista: VistaSpec) {
+  return useQuery({
+    queryKey: ["omnibox", "vista", "conclusion", storeId, pregunta, vista],
+    queryFn: async () =>
+      (
+        await apiFetch<{ conclusion: string }>("/api/omnibox/vista/conclusion", {
+          method: "POST",
+          body: { storeId, pregunta, vista },
+        })
+      ).data?.conclusion ?? "",
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
   });
 }

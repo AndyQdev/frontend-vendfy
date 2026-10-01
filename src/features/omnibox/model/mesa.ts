@@ -1,4 +1,6 @@
-import type { CostoProducto, ItemPedido, ProductoOpcion } from "@/entities/omnibox/model/types";
+import type { CostoProducto, ItemPedido, Periodo, ProductoOpcion, VistaSpec } from "@/entities/omnibox/model/types";
+
+import { conPeriodo } from "./vistas";
 
 /**
  * La mesa de trabajo: lo que se construye a la derecha del chat.
@@ -17,6 +19,12 @@ import type { CostoProducto, ItemPedido, ProductoOpcion } from "@/entities/omnib
  */
 
 export type TipoMesa = "venta" | "compra";
+
+/**
+ * Lo que puede estar a la vista en el panel: una de las dos mesas o el
+ * análisis (G3). El análisis no es una mesa: no se arma ni se cobra, se mira.
+ */
+export type TipoPanel = TipoMesa | "analisis";
 
 export type Pestana = "producto" | "borrador";
 
@@ -78,8 +86,16 @@ export interface BorradorCompra {
   porResolver: string[];
 }
 
+/** Una pregunta de análisis y la vista que la responde. */
+export interface Analisis {
+  /** El mensaje del chat que la pidió: su tarjeta dice si está abierta. */
+  mensajeId: string;
+  pregunta: string;
+  vista: VistaSpec;
+}
+
 export interface Mesa {
-  abierta: TipoMesa | null;
+  abierta: TipoPanel | null;
   pestana: Pestana;
   /** El producto en la pestaña "Producto". */
   producto: ProductoOpcion | null;
@@ -92,6 +108,11 @@ export interface Mesa {
    * con cada frase, así que "que sean 3" necesita saber de cuál se hablaba.
    */
   ultima: TipoMesa;
+  /**
+   * El último análisis. Como los borradores, cerrar el panel o ir a la venta
+   * no lo borra: queda en su pestaña para volver.
+   */
+  analisis: Analisis | null;
 }
 
 export const VENTA_VACIA: BorradorVenta = {
@@ -118,10 +139,15 @@ export const MESA_INICIAL: Mesa = {
   venta: VENTA_VACIA,
   compra: COMPRA_VACIA,
   ultima: "venta",
+  analisis: null,
 };
 
 export type AccionMesa =
-  | { tipo: "abrir"; mesa: TipoMesa; pestana?: Pestana }
+  | { tipo: "abrir"; mesa: TipoPanel; pestana?: Pestana }
+  /** Mostrar un análisis en el panel (el que se acaba de pedir, o uno anterior del chat). */
+  | { tipo: "analizar"; analisis: Analisis }
+  /** El filtro de arriba del análisis: todas las piezas pasan al mismo período. */
+  | { tipo: "periodoAnalisis"; periodo: Periodo }
   | { tipo: "cerrar" }
   | { tipo: "pestana"; pestana: Pestana }
   | { tipo: "ampliar"; valor?: boolean }
@@ -160,6 +186,7 @@ export type AccionMesa =
 export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
   switch (a.tipo) {
     case "abrir":
+      if (a.mesa === "analisis") return m.analisis ? { ...m, abierta: "analisis" } : m;
       return {
         ...m,
         abierta: a.mesa,
@@ -178,8 +205,21 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
     case "ampliar":
       return { ...m, ampliada: a.valor ?? !m.ampliada };
 
+    case "analizar":
+      return { ...m, abierta: "analisis", analisis: a.analisis };
+
+    case "periodoAnalisis":
+      if (!m.analisis) return m;
+      return { ...m, analisis: { ...m.analisis, vista: conPeriodo(m.analisis.vista, a.periodo) } };
+
     case "verProducto":
-      return { ...m, abierta: m.abierta ?? "venta", pestana: "producto", producto: a.producto };
+      // Mirando un análisis, el producto va a la mesa con la que se venía trabajando.
+      return {
+        ...m,
+        abierta: m.abierta === "analisis" ? m.ultima : (m.abierta ?? "venta"),
+        pestana: "producto",
+        producto: a.producto,
+      };
 
     case "agregarVenta": {
       const cantidad = Math.max(1, Math.floor(a.cantidad ?? 1));

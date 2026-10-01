@@ -1,9 +1,11 @@
 import type { Dispatch, ReactNode } from "react";
-import { Maximize2, Minimize2, Package, ShoppingCart, Truck, X } from "lucide-react";
+import { BarChart3, Maximize2, Minimize2, Package, ShoppingCart, Truck, X } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 
-import { unidades, type AccionMesa, type Mesa } from "../../model/mesa";
+import { unidades, type AccionMesa, type Mesa, type TipoMesa } from "../../model/mesa";
+import { resumenPiezas } from "../../model/vistas";
+import { PanelVista } from "../vista/PanelVista";
 import { FotoProducto } from "../piezas";
 import { FichaProducto } from "./FichaProducto";
 import { VentaBorrador } from "./VentaBorrador";
@@ -42,16 +44,19 @@ export function PanelMesa({
   enHoja?: boolean;
 }) {
   if (!mesa.abierta) return null;
+  // El análisis (G3) se muestra en el mismo panel, con su propia pestaña.
+  const analisis = mesa.abierta === "analisis" ? mesa.analisis : null;
+  if (mesa.abierta === "analisis" && !analisis) return null;
 
   const esVenta = mesa.abierta === "venta";
   const lineas = esVenta ? mesa.venta.lineas : mesa.compra.lineas;
-  const verProducto = mesa.pestana === "producto" && mesa.producto;
+  const verProducto = !analisis && mesa.pestana === "producto" && mesa.producto;
 
   return (
     <aside
       data-testid="omnibox-mesa"
       data-mesa={mesa.abierta}
-      aria-label={esVenta ? "Venta" : "Compra"}
+      aria-label={analisis ? "Análisis" : esVenta ? "Venta" : "Compra"}
       className={cn(
         "flex h-full min-h-0 flex-col overflow-hidden bg-card",
         !enHoja && "rounded-xl border border-border shadow-card",
@@ -59,7 +64,21 @@ export function PanelMesa({
     >
       {/* ---- cabecera */}
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        {verProducto ? (
+        {analisis ? (
+          <>
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+              <BarChart3 className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p data-testid="vista-titulo" className="truncate font-semibold leading-tight">
+                {analisis.vista.titulo}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                Análisis · {resumenPiezas(analisis.vista).length} piezas
+              </p>
+            </div>
+          </>
+        ) : verProducto ? (
           <>
             <FotoProducto src={mesa.producto!.imagen} className="size-11" />
             <div className="min-w-0 flex-1">
@@ -100,17 +119,24 @@ export function PanelMesa({
 
       {/* ---- pestañas: el producto, la venta y la compra. Tocar Venta o
           Compra cambia de mesa sin perder la otra (queda en el chip). */}
-      <div role="tablist" className="flex border-b border-border px-2">
+      <div role="tablist" className="flex overflow-x-auto border-b border-border px-2 [scrollbar-width:none]">
         <Pestana
-          activa={mesa.pestana === "producto"}
-          onClick={() => despachar({ tipo: "pestana", pestana: "producto" })}
+          activa={!analisis && mesa.pestana === "producto"}
+          onClick={() =>
+            // Desde el análisis, el producto es de la mesa con la que se venía trabajando.
+            despachar(
+              analisis
+                ? { tipo: "abrir", mesa: mesa.ultima, pestana: "producto" }
+                : { tipo: "pestana", pestana: "producto" },
+            )
+          }
           icono={<Package className="size-4" />}
         >
           Producto
         </Pestana>
         <Pestana
           destino="venta"
-          activa={mesa.pestana === "borrador" && esVenta}
+          activa={!analisis && mesa.pestana === "borrador" && esVenta}
           onClick={() => despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" })}
           icono={<ShoppingCart className="size-4" />}
         >
@@ -119,23 +145,40 @@ export function PanelMesa({
         </Pestana>
         <Pestana
           destino="compra"
-          activa={mesa.pestana === "borrador" && !esVenta}
+          activa={!analisis && mesa.pestana === "borrador" && mesa.abierta === "compra"}
           onClick={() => despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" })}
           icono={<Truck className="size-4" />}
         >
           Compra
           <Cuenta n={mesa.compra.lineas.length} />
         </Pestana>
+        {mesa.analisis ? (
+          <Pestana
+            activa={Boolean(analisis)}
+            onClick={() => despachar({ tipo: "abrir", mesa: "analisis" })}
+            icono={<BarChart3 className="size-4" />}
+          >
+            Análisis
+          </Pestana>
+        ) : null}
       </div>
 
       {/* ---- cuerpo */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {mesa.pestana === "producto" ? (
+        {analisis ? (
+          <PanelVista
+            key={analisis.mensajeId}
+            analisis={analisis}
+            storeId={storeId}
+            despachar={despachar}
+            ampliada={mesa.ampliada && !enHoja}
+          />
+        ) : mesa.pestana === "producto" ? (
           mesa.producto ? (
             <FichaProducto
               producto={mesa.producto}
               storeId={storeId}
-              mesa={mesa.abierta}
+              mesa={mesa.abierta as TipoMesa}
               onAgregar={(cantidad, costo, costoAnterior) => {
                 if (esVenta) {
                   despachar({ tipo: "agregarVenta", producto: mesa.producto!, cantidad });
@@ -223,7 +266,7 @@ function Pestana({
       data-pestana={destino}
       onClick={onClick}
       className={cn(
-        "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+        "-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors sm:px-4",
         activa
           ? "border-primary text-primary"
           : "border-transparent text-muted-foreground hover:text-foreground",

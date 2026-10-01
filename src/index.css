@@ -90,6 +90,19 @@
     --chart-4: 38 92% 50%;
     --chart-5: 215 16% 62%;
 
+    /* Series de las vistas del asistente (G3). Colores completos, no tripletes:
+       van directo al fill de los SVG. El orden es parte de la paleta: se validó
+       así (separación con daltonismo, luminosidad, croma) contra la tarjeta
+       blanca. Amarillo y rosa quedan bajo 3:1, por eso toda pieza tiene su
+       tabla y la torta lleva leyenda con valores. */
+    --viz-1: #0891b2;
+    --viz-2: #eb6834;
+    --viz-3: #4a3aa7;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-otros: #94a3b8;
+
     /* ---------- Forma y profundidad ---------- */
     --radius: 0.75rem;
     --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(15, 23, 42, 0.04);
@@ -159,6 +172,15 @@
     --chart-3: 189 94% 60%;
     --chart-4: 38 92% 56%;
     --chart-5: 215 16% 50%;
+
+    /* Los mismos tonos, escalonados para la tarjeta oscura (validados contra #111827). */
+    --viz-1: #0ea5c6;
+    --viz-2: #d95926;
+    --viz-3: #9085e9;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-otros: #64748b;
 
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 36px -10px rgba(0, 0, 0, 0.6);

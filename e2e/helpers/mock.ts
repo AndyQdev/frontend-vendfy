@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page, Request } from "@playwright/test";
 
-import type { ProductoOpcion, Propuesta, VentaCobrada } from "../../src/entities/omnibox/model/types";
+import type { ProductoOpcion, Propuesta, TablaVista, VentaCobrada, VistaSpec } from "../../src/entities/omnibox/model/types";
 import { API_URL, COMERCIO_EMAIL, COMERCIO_PASSWORD, TIENDA } from "./env";
 
 /**
@@ -116,4 +116,39 @@ export async function simularSugerencias(
     return route.fulfill({ json: { statusCode: 200, data: porMesa[mesa] ?? [] } });
   });
   return eventos;
+}
+
+/** Lo que devuelve una fuente de las vistas (G3) con los datos reales de la tienda. */
+export async function fuenteReal(
+  request: APIRequestContext,
+  fuente: string,
+  params: Record<string, unknown>,
+): Promise<TablaVista> {
+  const login = await request.post(`${API_URL}/api/auth/login`, {
+    data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD },
+  });
+  const token = (await login.json()).data.accessToken as string;
+  const r = await request.post(`${API_URL}/api/omnibox/vista/fuente`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { storeId: TIENDA.id, fuente, params },
+  });
+  return (await r.json()).data;
+}
+
+/** Una pregunta de análisis ya planificada: la vista que habría armado la IA. */
+export function analizar(vista: VistaSpec, aviso: string | null = null): Propuesta {
+  return propuesta({ intencion: "analizar", titulo: vista.titulo, capa: "C2", vista, aviso });
+}
+
+/**
+ * La conclusión simulada (la escribe la IA: no se gastan créditos en cada
+ * corrida). Devuelve lo que pidió la pantalla, para revisar la vista que mandó.
+ */
+export async function simularConclusion(page: Page, texto: string): Promise<{ pregunta: string; vista: VistaSpec }[]> {
+  const pedidos: { pregunta: string; vista: VistaSpec }[] = [];
+  await page.route("**/api/omnibox/vista/conclusion", async (route) => {
+    pedidos.push(route.request().postDataJSON());
+    return route.fulfill({ json: { statusCode: 200, data: { conclusion: texto } } });
+  });
+  return pedidos;
 }

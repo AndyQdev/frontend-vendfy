@@ -105,7 +105,7 @@ export function OmniboxPage() {
     return {
       // La que está a la vista; en el teléfono (panel cerrado), la última
       // con la que se trabajó: "que sean 3" es sobre esa.
-      abierta: m.abierta ?? m.ultima,
+      abierta: m.abierta && m.abierta !== "analisis" ? m.abierta : m.ultima,
       venta: { lineas: lineas(m.venta.lineas) },
       compra: { lineas: lineas(m.compra.lineas) },
     };
@@ -332,6 +332,7 @@ export function OmniboxPage() {
       const propuesta = await interpretar.mutateAsync({ texto: consulta, storeId, contexto: contextoMesa() });
       actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
       if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
+      if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
     } catch (error: any) {
       actualizar(id, (m) => ({
         ...m,
@@ -388,6 +389,7 @@ export function OmniboxPage() {
           : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué querés hacer." },
       );
       if (r!.propuesta && esDeVenta(r!.propuesta)) aplicarVenta(m.id, r!.propuesta);
+      if (r!.propuesta?.vista) mostrarAnalisis(m.id, dicho, r!.propuesta);
     } catch (error: any) {
       actualizar(m.id, (x) => ({
         ...x,
@@ -398,6 +400,22 @@ export function OmniboxPage() {
       voz.cancelar();
     }
   });
+
+  // ------------------------------------------------------------ análisis (G3)
+
+  /**
+   * Una pregunta de análisis se responde con una vista: se abre en el panel
+   * (también en el teléfono: la vista ES la respuesta). Volver a abrir la de
+   * un mensaje que ya está en la pestaña la deja como estaba, con su período.
+   */
+  function mostrarAnalisis(id: string, pregunta: string, p: Propuesta) {
+    if (!p.vista) return;
+    if (mesaRef.current.analisis?.mensajeId === id) {
+      despachar({ tipo: "abrir", mesa: "analisis" });
+      return;
+    }
+    despachar({ tipo: "analizar", analisis: { mensajeId: id, pregunta, vista: p.vista } });
+  }
 
   // ------------------------------------------------------------ factura (Fase 5)
 
@@ -938,6 +956,8 @@ export function OmniboxPage() {
                       total: totalCompra(mesa.compra),
                       proveedor: mesa.compra.proveedor,
                     }}
+                    onAbrirVista={() => m.propuesta && mostrarAnalisis(m.id, m.texto ?? "", m.propuesta)}
+                    vistaAbierta={mesa.abierta === "analisis" && mesa.analisis?.mensajeId === m.id}
                   />
                 </FilaAsistente>
               </Fragment>
@@ -996,7 +1016,9 @@ export function OmniboxPage() {
       {!ancho && (
         <Drawer open={panelAbierto} onOpenChange={(abierto) => !abierto && despachar({ tipo: "cerrar" })}>
           <DrawerContent className="h-[92dvh]">
-            <DrawerTitle className="sr-only">{mesa.abierta === "compra" ? "Compra" : "Venta"}</DrawerTitle>
+            <DrawerTitle className="sr-only">
+              {mesa.abierta === "analisis" ? "Análisis" : mesa.abierta === "compra" ? "Compra" : "Venta"}
+            </DrawerTitle>
             <PanelMesa
               mesa={mesa}
               despachar={despachar}

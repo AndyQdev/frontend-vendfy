@@ -47,7 +47,48 @@ export interface Propuesta {
   clienteAplicado?: string;
   /** Último costo y promedio por producto: lo que se precarga en la compra. */
   costos?: Record<string, CostoProducto>;
+  /** Una pregunta de análisis: la vista que armó la IA (G3). Se dibuja en el panel. */
+  vista?: VistaSpec;
   ms: number;
+}
+
+// ------------------------------------------------------------ vistas (G3)
+// Espejo de `ventas-service/src/omnibox/model/vistas.ts`.
+
+export type Periodo = "hoy" | "ayer" | "7dias" | "30dias" | "90dias" | "este_mes" | "mes_pasado" | "este_anio";
+
+export type TipoColumna = "texto" | "dinero" | "numero" | "porcentaje" | "fecha" | "hora" | "producto";
+
+export interface ColumnaVista {
+  clave: string;
+  titulo: string;
+  tipo: TipoColumna;
+}
+
+/** Lo que devuelve una fuente: siempre la misma forma, lea lo que lea. */
+export interface TablaVista {
+  columnas: ColumnaVista[];
+  /** Las claves que empiezan con "_" (la foto del producto) no son columnas. */
+  filas: Record<string, unknown>[];
+  /** "Últimos 7 días": el subtítulo de la pieza. */
+  periodo?: string;
+}
+
+export type FormaGrafico = "barras" | "lineas" | "area" | "torta";
+
+type Params = Record<string, unknown>;
+
+export type PiezaVista =
+  | { id: string; tipo: "indicadores"; fuente: "kpis"; params: Params; titulo?: string }
+  | { id: string; tipo: "grafico"; forma: FormaGrafico; fuente: string; params: Params; x: string; y: string[]; titulo: string }
+  | { id: string; tipo: "tabla"; fuente: string; params: Params; columnas?: string[]; titulo: string }
+  | { id: string; tipo: "ranking"; fuente: string; params: Params; etiqueta: string; valor: string; titulo: string }
+  | { id: string; tipo: "conclusion" };
+
+/** Ya validada por el servidor: fuentes, columnas y parámetros existen. */
+export interface VistaSpec {
+  titulo: string;
+  piezas: PiezaVista[];
 }
 
 export interface CostoProducto {
@@ -146,12 +187,15 @@ export type EstadoTarjeta =
   | "elegir-cliente"
   | "elegir-linea"
   | "aviso"
+  | "vista"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";
+  // Un análisis: la respuesta es la vista del panel, no una tarjeta con botones.
+  if (p.vista) return "vista";
   if (p.items) return "pedido";
   // Una compra recibida no se puede anular: se confirma con su propia tarjeta.
   if (p.intencion === "registrar_compra" && p.ejecutable) return "confirmar-compra";

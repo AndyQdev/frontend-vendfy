@@ -34,6 +34,7 @@ import { ElegirProducto } from "./ElegirProducto";
 import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaGuia, TarjetaMesa, TarjetaPedido } from "./mesa/TarjetasVenta";
 import { TarjetaConfirmarCompra } from "./mesa/TarjetaCompra";
 import { TarjetaFactura } from "./mesa/TarjetaFactura";
+import { TarjetaVista } from "./vista/TarjetaVista";
 import {
   BloqueProducto,
   BotonCta,
@@ -86,6 +87,10 @@ export interface AccionesRespuesta {
   registrandoCompra: boolean;
   /** Lo que tiene la compra ahora, para decirlo en la confirmación. */
   resumenCompra: { lineas: number; total: number; proveedor: string };
+  /** Un análisis (G3): mostrar su vista en el panel. */
+  onAbrirVista: () => void;
+  /** La vista de ESTE mensaje es la que está abierta en el panel. */
+  vistaAbierta: boolean;
 }
 
 export function Respuesta({
@@ -189,6 +194,10 @@ export function Respuesta({
       return <ElegirLineaChat propuesta={p} hora={cuando} onElegir={acciones.onElegirLinea} />;
     case "aviso":
       return <TarjetaAviso aviso={p.aviso!} hora={cuando} />;
+    case "vista":
+      return (
+        <TarjetaVista propuesta={p} hora={cuando} abierta={acciones.vistaAbierta} onAbrir={acciones.onAbrirVista} />
+      );
     case "resuelta":
       return (
         <Resuelta

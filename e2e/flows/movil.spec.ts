@@ -79,3 +79,44 @@ test("teléfono: la sugerencia aparece sobre el campo con el panel cerrado y se 
   await page.getByTestId("omnibox-chip-mesa").click();
   await expect(page.getByTestId("omnibox-mesa").getByRole("spinbutton", { name: `Cantidad de ${coca.nombre}` }).first()).toHaveValue("3");
 });
+
+test("teléfono: un análisis sube como hoja con la vista, y se vuelve a abrir desde el chat", async ({ page }) => {
+  const { analizar, simularConclusion, simularFrases } = await import("../helpers/mock");
+  const vista = {
+    titulo: "Cómo vamos este año",
+    piezas: [
+      { id: "p1", tipo: "indicadores" as const, fuente: "kpis" as const, params: { periodo: "este_anio" } },
+      {
+        id: "p2",
+        tipo: "ranking" as const,
+        fuente: "top_productos",
+        params: { periodo: "este_anio", limite: 5, orden: "monto" },
+        etiqueta: "producto",
+        valor: "monto",
+        titulo: "Lo que más se vendió",
+      },
+      { id: "p3", tipo: "conclusion" as const },
+    ],
+  };
+  await simularFrases(page, { "cómo vamos este año": analizar(vista) });
+  await simularConclusion(page, "Vendiste poco este año.");
+
+  await page.goto("/omnibox");
+  await decir(page, "cómo vamos este año");
+
+  // La vista ES la respuesta: en el teléfono también se abre.
+  const mesa = page.getByTestId("omnibox-mesa");
+  await expect(mesa).toHaveAttribute("data-mesa", "analisis");
+  const caja = await mesa.boundingBox();
+  expect(caja!.width).toBeGreaterThan(page.viewportSize()!.width * 0.9);
+  await expect(mesa.getByTestId("vista-indicador").first()).toBeVisible();
+  // Las cuatro pestañas entran (o se desplazan) sin romper el ancho de la hoja.
+  const ancho = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(ancho).toBeLessThanOrEqual(page.viewportSize()!.width);
+
+  await mesa.getByRole("button", { name: "Cerrar el panel" }).click();
+  await expect(page.getByTestId("omnibox-mesa")).toHaveCount(0);
+  await ultimaRespuesta(page).getByTestId("vista-abrir").click();
+  await expect(page.getByTestId("omnibox-mesa")).toHaveAttribute("data-mesa", "analisis");
+  await expect(page.getByTestId("vista-conclusion")).toContainText("Vendiste poco este año.");
+});
