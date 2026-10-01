@@ -31,7 +31,7 @@ import { cn } from "@/shared/lib/cn";
 
 import { hora, recalcularDespues, type Mensaje } from "../model/mensaje";
 import { ElegirProducto } from "./ElegirProducto";
-import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaMesa, TarjetaPedido } from "./mesa/TarjetasVenta";
+import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaGuia, TarjetaMesa, TarjetaPedido } from "./mesa/TarjetasVenta";
 import { TarjetaConfirmarCompra } from "./mesa/TarjetaCompra";
 import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import {
@@ -147,6 +147,9 @@ export function Respuesta({
   if (m.desenlace?.tipo === "mesa") {
     return <TarjetaMesa resumen={m.desenlace.resumen} imagen={m.desenlace.imagen} hora={cuando} />;
   }
+  if (m.desenlace?.tipo === "guia") {
+    return <TarjetaGuia texto={m.desenlace.texto} nivel={m.desenlace.nivel} hora={cuando} />;
+  }
 
   switch (estadoDe(p)) {
     case "confirmar-compra":
@@ -162,6 +165,7 @@ export function Respuesta({
       if ((p.entidades as any).factura) {
         return (
           <TarjetaFactura
+            mensajeId={m.id}
             propuesta={p}
             storeId={storeId}
             hora={cuando}

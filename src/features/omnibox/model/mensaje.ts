@@ -58,7 +58,13 @@ export type Desenlace =
     }
   | { tipo: "cancelado" }
   /** Una frase aplicada a la venta del panel: "Agregado a la venta · 2 × Coca". */
-  | { tipo: "mesa"; resumen: string; imagen?: string | null };
+  | { tipo: "mesa"; resumen: string; imagen?: string | null }
+  /**
+   * La frase no se pudo aplicar todavía: falta algo que la Guía está pidiendo
+   * ("cobrá" sin método de pago). Cuando se resuelve, la tarjeta pasa a ser
+   * la venta cobrada.
+   */
+  | { tipo: "guia"; texto: string; nivel: "error" | "advertencia" };
 
 export function nuevoMensaje(texto: string | null, porVoz: boolean): Mensaje {
   return {

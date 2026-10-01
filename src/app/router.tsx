@@ -29,7 +29,7 @@ import PurchaseCreatePage from "@/pages/purchases/create";
 import PurchaseDetailPage from "@/pages/purchases/detail";
 import VendfyLoader from "@/shared/loading/VendfyLoader";
 import { OnboardingGuard } from "./guards/OnboardingGuard";
-// import { OmniboxPage } from "@/features/omnibox/ui/OmniboxPage"; // oculto para la presentación del Sprint 1
+import { OmniboxPage } from "@/features/omnibox/ui/OmniboxPage";
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -60,8 +60,8 @@ export default function AppRouter() {
 
           {/* Resto de la app: requiere onboarding completo */}
           <Route element={<LayoutShell />}>
-            {/* Asistente y WhatsApp ocultos para la presentación del Sprint 1. */}
-            {/* <Route path="/omnibox" element={<OmniboxPage />} /> */}
+            {/* WhatsApp oculto para la presentación del Sprint 1. */}
+            <Route path="/omnibox" element={<OmniboxPage />} />
             {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
             <Route path="/dashboard" element={<Navigate to="/caja" replace />} />
             <Route path="/caja" element={<CajaPage />} />

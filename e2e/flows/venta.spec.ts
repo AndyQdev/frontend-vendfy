@@ -76,6 +76,7 @@ test("si no hay stock, el motivo aparece al lado del botón y el carrito queda",
   // D3: se avisa en la línea...
   await expect(mesa.getByRole("alert").first()).toContainText("Pedís 999");
   // ...y no bloquea: el servidor decide y dice por qué.
+  await mesa.getByRole("radio", { name: "QR" }).click();
   await mesa.getByTestId("omnibox-cobrar").click();
   await expect(mesa.getByRole("alert").last()).toContainText("No hay stock suficiente");
   await expect(mesa.getByTestId("omnibox-linea-venta")).toHaveCount(1);

@@ -20,11 +20,13 @@ setup("entrar como el comerciante de prueba", async ({ page }) => {
   await form.locator("input[type=password]").fill(COMERCIO_PASSWORD);
   await form.locator("button[type=submit]").click();
 
-  await expect(page).toHaveURL(/\/omnibox/);
+  // A dónde lleva el login depende de la configuración del momento (hoy la
+  // Caja): basta con que haya salido del formulario.
+  await expect(page).not.toHaveURL(/\/login/);
 
   // La tienda se elige por localStorage, como lo hace el selector.
   await page.evaluate((t) => localStorage.setItem("selectedStore", JSON.stringify(t)), TIENDA);
-  await page.reload();
+  await page.goto("/omnibox");
   await expect(page.getByLabel("Qué necesitás")).toBeVisible();
 
   await page.context().storageState({ path: ARCHIVO_SESION });

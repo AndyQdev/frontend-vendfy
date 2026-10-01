@@ -51,7 +51,12 @@ export interface BorradorVenta {
   /** null = consumidor final. */
   clienteId: string | null;
   clienteNombre: string;
-  pago: MetodoPago;
+  /**
+   * null = todavía no se eligió. Arranca así a propósito (G0): registrar el
+   * método equivocado descuadra la caja, y "efectivo" por defecto lo hacía
+   * pasar desapercibido. Al cobrar sin método, la Guía lo pide.
+   */
+  pago: MetodoPago | null;
 }
 
 export interface BorradorCompra {
@@ -91,7 +96,7 @@ export const VENTA_VACIA: BorradorVenta = {
   lineas: [],
   clienteId: null,
   clienteNombre: "Consumidor final",
-  pago: "efectivo",
+  pago: null,
 };
 
 export const COMPRA_VACIA: BorradorCompra = {

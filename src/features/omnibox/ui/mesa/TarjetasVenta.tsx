@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Info, ShoppingCart, User, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, Check, CircleAlert, Info, ShoppingCart, User, UserPlus, Users } from "lucide-react";
 
 import type { ClienteOpcion, LineaContexto, ProductoOpcion, Propuesta } from "@/entities/omnibox/model/types";
 import { cn } from "@/shared/lib/cn";
@@ -37,6 +37,25 @@ export function TarjetaMesa({
       </span>
       {imagen !== undefined && <FotoProducto src={imagen} className="size-8" />}
       <p className="min-w-0 flex-1 truncate text-[13px] font-medium">{resumen}</p>
+      <span className="cifra shrink-0 text-[11px] text-muted-foreground">{hora}</span>
+    </div>
+  );
+}
+
+/**
+ * La frase quedó esperando algo que la Guía pide abajo ("falta el método de
+ * pago"). Ámbar y no verde: todavía no pasó nada.
+ */
+export function TarjetaGuia({ texto, nivel, hora }: { texto: string; nivel: "error" | "advertencia"; hora: string }) {
+  const Icono = nivel === "error" ? CircleAlert : AlertTriangle;
+  return (
+    <div
+      data-testid="omnibox-actividad"
+      data-estado="guia"
+      className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-warning/40 bg-warning-soft px-3.5 py-2.5"
+    >
+      <Icono className="size-4 shrink-0 text-warning-soft-foreground" />
+      <p className="min-w-0 flex-1 text-[13px] font-medium text-warning-soft-foreground">{texto}</p>
       <span className="cifra shrink-0 text-[11px] text-muted-foreground">{hora}</span>
     </div>
   );

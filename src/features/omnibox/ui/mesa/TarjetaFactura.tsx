@@ -21,12 +21,15 @@ import { BotonCta, Cabecera, FotoProducto, Tarjeta, dinero } from "../piezas";
  * Mientras quede un renglón sin resolver, la compra no se registra.
  */
 export function TarjetaFactura({
+  mensajeId,
   propuesta: p,
   storeId,
   hora,
   onElegirItem,
   onOmitirItem,
 }: {
+  /** Para que la Guía pueda señalar un renglón: data-campo="renglon:<id>:<i>". */
+  mensajeId: string;
   propuesta: Propuesta;
   storeId: string;
   hora: string;
@@ -82,6 +85,7 @@ export function TarjetaFactura({
           <li
             key={i}
             data-testid="omnibox-renglon-factura"
+            data-campo={`renglon:${mensajeId}:${i}`}
             data-estado={it.producto ? "reconocido" : it.omitido ? "omitido" : it.agregados?.length ? "resuelto" : it.opciones.length ? "dudoso" : "nuevo"}
             className="px-3 py-2.5"
           >

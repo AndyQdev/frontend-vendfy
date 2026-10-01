@@ -21,3 +21,27 @@ test("la ficha sube como hoja y se cierra sin perder la venta", async ({ page })
 
   await expect(page.getByTestId("omnibox-chip-mesa")).toHaveText(/Venta en curso · 1/);
 });
+
+test('teléfono: "cobrá" sin método sube la hoja con el método brillando, y elegirlo cobra', async ({ page, request }) => {
+  const { agregarAVenta, productoReal, propuesta, simularCobro, simularFrases } = await import("../helpers/mock");
+  const aceite = await productoReal(request, "aceite");
+  await simularFrases(page, {
+    "vendé un aceite": agregarAVenta(aceite),
+    "cobrá": propuesta({ intencion: "cobrar" }),
+  });
+  const cobros = await simularCobro(page, { total: aceite.precio });
+
+  await page.goto("/omnibox");
+  await decir(page, "vendé un aceite");
+  // En el teléfono el panel no se abre con cada frase: queda el chip.
+  await expect(page.getByTestId("omnibox-mesa")).toHaveCount(0);
+  await decir(page, "cobrá");
+
+  const mesa = page.getByTestId("omnibox-mesa");
+  await expect(mesa).toBeVisible();
+  await expect(mesa.locator('[data-campo="pago"]')).toHaveClass(/campo-brilla/);
+  await mesa.getByRole("radio", { name: "QR" }).click();
+
+  await expect(page.getByTestId("omnibox-venta")).toHaveAttribute("data-estado", "cobrada");
+  expect(cobros[0].postDataJSON().pago).toBe("qr");
+});

@@ -30,6 +30,8 @@ import {
   costoSugerido,
   efectoDeVenta,
   facturaDe,
+  type AccionMesa,
+  type Mesa,
   marcarAplicados,
   mesaReducer,
   totalCompra,
@@ -37,6 +39,20 @@ import {
   type TipoMesa,
 } from "../model/mesa";
 import { useDictado } from "../model/use-dictado";
+import { crearCoreografia, efectosDeCambio } from "../model/coreografia";
+import {
+  errorDeCobro,
+  errores,
+  MENSAJES,
+  nuevasAdvertencias,
+  revisarCompra,
+  revisarVenta,
+  sigueVigente,
+  type AccionGuia,
+  type MensajeGuia,
+} from "../model/guia";
+import { brillar } from "./guia/brillar";
+import { FranjaGuia } from "./guia/FranjaGuia";
 import { Burbuja, FilaAsistente } from "./Burbuja";
 import { Compositor } from "./Compositor";
 import { Respuesta } from "./Respuesta";
@@ -102,6 +118,88 @@ export function OmniboxPage() {
   const [errorCompra, setErrorCompra] = useState<string | null>(null);
   const [errorCobro, setErrorCobro] = useState<string | null>(null);
   const [anulandoId, setAnulandoId] = useState<string | null>(null);
+
+  // ------------------------------------------------------------ la Guía (G0)
+  // Un solo mensaje a la vez. `luego`: lo que estaba por hacerse cuando la
+  // Guía lo frenó ("cobrá" sin método): al resolverlo, se hace solo.
+  const [guia, setGuia] = useState<{ mensaje: MensajeGuia; luego?: { cobrar: { mensajeId?: string } } } | null>(null);
+  const guiaRef = useRef(guia);
+  guiaRef.current = guia;
+
+  // La coreografía: qué se tiene que VER cuando cambia la mesa. En G0 los
+  // efectos ya se calculan y se emiten; la Fase G1 los dibuja.
+  const coreografia = useRef(crearCoreografia()).current;
+  const mesaPrevia = useRef(mesa);
+  useEffect(() => {
+    const antes = mesaPrevia.current;
+    mesaPrevia.current = mesa;
+    coreografia.emitir(efectosDeCambio(antes, mesa));
+    // "Cobrá" quedó esperando el método de pago: apenas se elige —desde la
+    // Guía o tocando el panel, que en el teléfono la tapa— se cobra. La
+    // persona ya había pedido cobrar; elegir el método es contestar.
+    const pendiente = guiaRef.current;
+    if (pendiente?.luego?.cobrar && mesa.venta.pago && !antes.venta.pago) {
+      setGuia(null);
+      cobrarVenta({ mensajeId: pendiente.luego.cobrar.mensajeId, pago: mesa.venta.pago });
+      return;
+    }
+    // La Guía calla sola cuando lo que decía ya se arregló. Lo que respondió
+    // el servidor vale hasta que se toca el borrador de esa mesa.
+    setGuia((g) => {
+      if (!g) return g;
+      const m = g.mensaje;
+      if (m.codigo === "SERVIDOR") {
+        const tocado = m.mesa === "venta" ? antes.venta !== mesa.venta : antes.compra !== mesa.compra;
+        return tocado ? null : g;
+      }
+      return sigueVigente(m, mesa.venta, mesa.compra) ? g : null;
+    });
+  }, [mesa, coreografia]);
+
+  /** Llevar la vista al campo del problema y hacerlo brillar. */
+  function senalar(m: MensajeGuia, campo = m.campo) {
+    if (!campo) return;
+    if (campo.startsWith("renglon:")) {
+      // Los renglones de la factura están en el chat: en el teléfono, la hoja
+      // del panel los taparía.
+      if (!ancho) despachar({ tipo: "cerrar" });
+    } else {
+      despachar({ tipo: "abrir", mesa: m.mesa, pestana: "borrador" });
+    }
+    void brillar(campo, m.nivel);
+  }
+
+  /**
+   * Que la Guía diga algo. Los errores señalan su campo solos; las
+   * advertencias no se roban el foco (tienen su botón "Ver").
+   * Una advertencia no pisa un error que todavía espera respuesta.
+   */
+  function avisar(mensaje: MensajeGuia, opciones: { luego?: { cobrar: { mensajeId?: string } }; senalar?: boolean } = {}) {
+    const actual = guiaRef.current;
+    if (mensaje.nivel === "advertencia" && actual?.mensaje.nivel === "error") return;
+    setGuia({ mensaje, luego: opciones.luego });
+    if (opciones.senalar ?? mensaje.nivel === "error") senalar(mensaje);
+  }
+
+  function alAccionGuia(a: AccionGuia) {
+    const actual = guiaRef.current;
+    if (!actual) return;
+    if (a.tipo === "ver") {
+      senalar(actual.mensaje, a.campo);
+      return;
+    }
+    // Elegir el pago desde la Guía es lo mismo que tocarlo en el panel: si se
+    // venía cobrando, el efecto de la mesa (arriba) completa el cobro.
+    despachar({ tipo: "pago", pago: a.pago });
+  }
+
+  /** Las advertencias que trae un cambio que vino del chat (no se estaba mirando el panel). */
+  function anunciarAdvertencias(antes: Mesa, acciones: AccionMesa[]) {
+    const despues = acciones.reduce(mesaReducer, antes);
+    const revisar = (m: Mesa) => [...revisarVenta(m.venta), ...revisarCompra(m.compra)];
+    const nueva = nuevasAdvertencias(revisar(antes), revisar(despues))[0];
+    if (nueva) avisar(nueva, { senalar: false });
+  }
 
   const { data: intenciones } = useIntenciones();
   const { data: estadoVoz, isLoading: consultandoVoz } = useEstadoVoz();
@@ -380,6 +478,7 @@ export function OmniboxPage() {
   function aplicarVenta(id: string, p: Propuesta) {
     const efecto = efectoDeVenta(p);
     if (!efecto) return; // falta algo: la tarjeta del chat lo pide
+    anunciarAdvertencias(mesaRef.current, efecto.acciones);
     efecto.acciones.forEach(despachar);
     const destino = mesaDe(p);
 
@@ -420,15 +519,17 @@ export function OmniboxPage() {
    */
   async function registrarCompra(mensajeId?: string) {
     const compra0 = mesaRef.current.compra;
-    if (!storeId || compra0.lineas.length === 0) return;
+    if (!storeId) return;
     setErrorCompra(null);
-    // Con renglones de la factura sin resolver, la compra quedaría con
-    // productos de menos y el total no cerraría con el papel.
-    const faltan = compra0.porResolver.length;
-    if (faltan > 0) {
-      const motivo = `Falta${faltan === 1 ? "" : "n"} ${faltan} ${faltan === 1 ? "renglón" : "renglones"} de la factura: elegí el producto, crealo o descartalo en el chat.`;
-      setErrorCompra(motivo);
-      if (mensajeId) toast.error(motivo);
+    // La Guía revisa antes de registrar: compra vacía, o renglones de la
+    // factura sin resolver (la compra quedaría con productos de menos y el
+    // total no cerraría con el papel).
+    const bloquea = errores(revisarCompra(compra0))[0];
+    if (bloquea) {
+      if (mensajeId) {
+        actualizar(mensajeId, (x) => ({ ...x, desenlace: { tipo: "guia", texto: bloquea.texto, nivel: "error" } }));
+      }
+      avisar(bloquea);
       return;
     }
     const lineas = compra0.lineas;
@@ -454,7 +555,7 @@ export function OmniboxPage() {
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo registrar la compra. Revisá tu conexión.";
       setErrorCompra(motivo);
-      if (mensajeId) toast.error(motivo);
+      avisar(MENSAJES.servidor(motivo, "compra"));
     }
   }
 
@@ -526,17 +627,21 @@ export function OmniboxPage() {
   async function cobrarVenta(opciones: { mensajeId?: string; pago?: MetodoPago } = {}) {
     const venta0 = mesaRef.current.venta;
     if (!storeId) return;
-    if (venta0.lineas.length === 0) {
-      // Pudo vaciarse entre la frase y la respuesta ("borrá todo" y "cobrá"
-      // seguidos): sin esto la tarjeta quedaría en "Cobrando…" para siempre.
+    const pago = opciones.pago ?? venta0.pago;
+    // La Guía revisa antes de cobrar: venta vacía (pudo vaciarse entre la
+    // frase y la respuesta), o sin método de pago. Al resolverlo desde la
+    // Guía, se cobra solo.
+    const bloquea = errores(revisarVenta(venta0, pago))[0];
+    if (bloquea || !pago) {
+      const m = bloquea ?? MENSAJES.faltaPago();
       if (opciones.mensajeId) {
         actualizar(opciones.mensajeId, (x) => ({
           ...x,
-          desenlace: undefined,
-          fase: "error",
-          error: "No hay nada en la venta para cobrar.",
+          fase: "listo",
+          desenlace: { tipo: "guia", texto: m.texto, nivel: "error" },
         }));
       }
+      avisar(m, m.codigo === "FALTA_PAGO" ? { luego: { cobrar: { mensajeId: opciones.mensajeId } } } : {});
       return;
     }
     setErrorCobro(null);
@@ -545,7 +650,7 @@ export function OmniboxPage() {
       const venta = await cobrar.mutateAsync({
         storeId,
         clienteId: venta0.clienteId,
-        pago: opciones.pago ?? venta0.pago,
+        pago,
         lineas: lineas.map((l) => ({ storeProductId: l.storeProductId, cantidad: l.cantidad, precio: l.precio })),
       });
       const evento = {
@@ -561,6 +666,8 @@ export function OmniboxPage() {
       despachar({ tipo: "limpiarVenta" });
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo cobrar. Revisá tu conexión.";
+      // La Guía lo dice y, si nombra un producto del carrito, señala su cantidad.
+      avisar(errorDeCobro(motivo, venta0));
       if (opciones.mensajeId) {
         // Desde el chat: el motivo va en la tarjeta de la frase, y el carrito
         // queda intacto para corregir y volver a decir "cobrá".
@@ -735,6 +842,9 @@ export function OmniboxPage() {
             )}
           >
             <div className={cn("mx-auto w-full", anchoChat)}>
+              {guia && (
+                <FranjaGuia mensaje={guia.mensaje} onAccion={alAccionGuia} onCerrar={() => setGuia(null)} />
+              )}
               <ChipsEnCurso mesa={mesa} despachar={despachar} />
               {compositor}
             </div>

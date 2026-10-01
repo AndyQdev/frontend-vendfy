@@ -67,13 +67,15 @@ export function VentaBorrador({
           const falta = l.cantidad > l.stock;
           const controles = (
             <>
-              <Cantidad
-                compacta
-                minimo={0}
-                valor={l.cantidad}
-                etiqueta={`Cantidad de ${l.nombre}`}
-                onCambio={(v) => despachar({ tipo: "cantidadVenta", productId: l.productId, cantidad: v })}
-              />
+              <span data-campo={`cantidad:${l.productId}`} className="inline-flex">
+                <Cantidad
+                  compacta
+                  minimo={0}
+                  valor={l.cantidad}
+                  etiqueta={`Cantidad de ${l.nombre}`}
+                  onCambio={(v) => despachar({ tipo: "cantidadVenta", productId: l.productId, cantidad: v })}
+                />
+              </span>
               <p className="cifra w-24 text-right text-sm font-semibold">Bs {dinero(l.precio * l.cantidad)}</p>
             </>
           );
@@ -118,7 +120,7 @@ export function VentaBorrador({
 
       {/* ---- cliente y pago */}
       <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-        <div>
+        <div data-campo="cliente">
           <p className="mb-1 text-xs font-medium text-muted-foreground">Cliente</p>
           <SelectorCliente
             storeId={storeId}
@@ -127,8 +129,11 @@ export function VentaBorrador({
             onElegir={(id, nombre) => despachar({ tipo: "cliente", clienteId: id, nombre })}
           />
         </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Método de pago</p>
+        <div data-campo="pago">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            Método de pago
+            {!venta.pago && <span className="ml-1 font-normal">· elegí cómo paga</span>}
+          </p>
           <div role="radiogroup" aria-label="Método de pago" className="flex gap-2">
             {METODOS.map((m) => (
               <button

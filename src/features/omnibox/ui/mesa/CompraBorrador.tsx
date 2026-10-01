@@ -100,16 +100,18 @@ export function CompraBorrador({
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pl-14">
-                <Cantidad
-                  compacta
-                  minimo={0}
-                  valor={l.cantidad}
-                  etiqueta={`Cantidad de ${l.nombre}`}
-                  onCambio={(v) => despachar({ tipo: "cantidadCompra", productId: l.productId, cantidad: v })}
-                />
+                <span data-campo={`cantidad:${l.productId}`} className="inline-flex">
+                  <Cantidad
+                    compacta
+                    minimo={0}
+                    valor={l.cantidad}
+                    etiqueta={`Cantidad de ${l.nombre}`}
+                    onCambio={(v) => despachar({ tipo: "cantidadCompra", productId: l.productId, cantidad: v })}
+                  />
+                </span>
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   a
-                  <span className="relative">
+                  <span className="relative" data-campo={`costo:${l.productId}`}>
                     <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">Bs</span>
                     <input
                       type="number"
@@ -139,12 +141,14 @@ export function CompraBorrador({
       {/* ---- proveedor y factura */}
       <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
         <Campo
+          campo="proveedor"
           etiqueta="Proveedor"
           valor={compra.proveedor}
           placeholder="Distribuidora, marca…"
           onCambio={(v) => despachar({ tipo: "proveedor", proveedor: v })}
         />
         <Campo
+          campo="referencia"
           etiqueta="N° de factura o remito"
           valor={compra.referencia}
           placeholder="Opcional"
@@ -245,18 +249,20 @@ export function CompraBorrador({
 }
 
 function Campo({
+  campo,
   etiqueta,
   valor,
   placeholder,
   onCambio,
 }: {
+  campo: string;
   etiqueta: string;
   valor: string;
   placeholder: string;
   onCambio: (v: string) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block" data-campo={campo}>
       <span className="mb-1 block text-xs font-medium text-muted-foreground">{etiqueta}</span>
       <input
         value={valor}
