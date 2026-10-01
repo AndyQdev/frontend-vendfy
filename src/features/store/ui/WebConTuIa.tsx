@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Copy, Globe, LogIn, MessageSquareText, PlugZap, Rocket, ShieldCheck } from "lucide-react";
+import { Check, Copy, Globe, LogIn, MessageSquareText, Palette, PlugZap, Rocket, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card } from "@/shared/ui/card";
@@ -31,10 +31,10 @@ const HERRAMIENTAS: { id: Herramienta; nombre: string }[] = [
 export function WebConTuIa({ nombreTienda }: { nombreTienda: string }) {
   const [herramienta, setHerramienta] = useState<Herramienta>("claude");
 
-  const pedido =
-    `Usando el conector de Vendfy, creá la web de mi tienda "${nombreTienda}". ` +
-    `Quiero un diseño [moderno / elegante / divertido…] con [lo que imagines: colores, secciones, estilo]. ` +
-    `Los productos, precios y stock tienen que leerse en vivo desde Vendfy, y los pedidos tienen que llegar a mi panel.`;
+  // El pedido es corto a propósito: la IA ya trae instrucciones para preguntar
+  // lo que falte (color, logo, frase de inicio) y para elegir la tecnología.
+  // Un prompt largo compite con esa guía en vez de ayudar.
+  const pedido = `Usando el conector de Vendfy, creá la web de mi tienda "${nombreTienda}".`;
 
   return (
     <Card className="space-y-6 p-6">
@@ -51,6 +51,22 @@ export function WebConTuIa({ nombreTienda }: { nombreTienda: string }) {
           </p>
         </div>
       </header>
+
+      {/* Mientras mejor cargada esté la tienda, menos tiene que preguntar la IA
+          y mejor sale la web. Esto evita el ida y vuelta. */}
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
+        <Palette className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div className="space-y-1 text-sm">
+          <p className="font-semibold">Antes de empezar, cargá tu marca</p>
+          <p className="text-muted-foreground">
+            Mientras más completa esté tu tienda, mejor sale la web y menos preguntas te hace la IA. Lo que más
+            importa: tu <strong className="text-foreground">color</strong>, tu{" "}
+            <strong className="text-foreground">logo</strong> y las{" "}
+            <strong className="text-foreground">fotos de los productos</strong>. Lo que falte lo resuelve igual, pero
+            con algo provisional que vas a querer cambiar después.
+          </p>
+        </div>
+      </div>
 
       <ol className="space-y-5">
         {/* 1 */}
@@ -94,9 +110,30 @@ export function WebConTuIa({ nombreTienda }: { nombreTienda: string }) {
         {/* 4 */}
         <Paso numero={4} icono={MessageSquareText} titulo="Pedile la web">
           <p className="mb-2 text-sm text-muted-foreground">
-            Escribí cómo la querés. Podés empezar con esto y cambiar lo que está entre corchetes:
+            Con esta frase alcanza. No hace falta que expliques el diseño: la IA te va a preguntar lo que necesite.
           </p>
           <Copiable valor={pedido} etiqueta="Pedido para tu IA" multilinea />
+          <div className="mt-3 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+            <p className="font-semibold">Trabaja en tres pasos y te pide permiso dos veces</p>
+            <ol className="list-decimal space-y-1 pl-5 text-muted-foreground marker:text-foreground">
+              <li>
+                <strong className="text-foreground">Te pregunta.</strong> Tu color, tu logo, qué frase querés al
+                entrar. Si no tenés algo, te propone una alternativa; nunca se lo inventa.
+              </li>
+              <li>
+                <strong className="text-foreground">Te muestra el plan.</strong> Qué pantallas va a hacer y cómo se
+                va a ver, antes de escribir nada.
+              </li>
+              <li>
+                <strong className="text-foreground">La construye</strong> y revisa una lista de control antes de
+                decirte que terminó.
+              </li>
+            </ol>
+            <p className="text-muted-foreground">
+              Si se pone a programar sin preguntarte nada, pedile que use primero la herramienta{" "}
+              <code className="rounded bg-muted px-1">describe_storefront_flow</code> del conector.
+            </p>
+          </div>
         </Paso>
 
         {/* 5 */}
