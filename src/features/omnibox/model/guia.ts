@@ -1,4 +1,6 @@
-import type { BorradorCompra, BorradorVenta, MetodoPago, TipoMesa } from "./mesa";
+import type { ProductoOpcion } from "@/entities/omnibox/model/types";
+
+import type { BorradorCompra, BorradorVenta, LineaVenta, MetodoPago, TipoMesa } from "./mesa";
 
 /**
  * La Guía: lo que el asistente le DICE a la persona sobre lo que está armando.
@@ -12,7 +14,12 @@ import type { BorradorCompra, BorradorVenta, MetodoPago, TipoMesa } from "./mesa
  * Ver ASISTENTE-GENERATIVO.md, sección 4.
  */
 
-export type NivelGuia = "error" | "advertencia";
+/**
+ * error: bloquea (catálogo fijo). advertencia: no bloquea (catálogo fijo).
+ * sugerencia: propone algo útil (reglas del servidor, "no dijiste cuántas",
+ * tips del modo aprendiz); tiene reglas anti-molestia (memoria-guia.ts).
+ */
+export type NivelGuia = "error" | "advertencia" | "sugerencia";
 
 export type CodigoGuia =
   | "VENTA_VACIA"
@@ -22,14 +29,39 @@ export type CodigoGuia =
   | "RENGLON_SIN_RESOLVER"
   | "COSTO_CERO"
   | "COSTO_SUBIO"
-  | "SERVIDOR";
+  | "SERVIDOR"
+  // ---- sugerencias (G2a): las del servidor y las de la pantalla
+  | "CANTIDAD_NO_DICHA"
+  | "CANTIDAD_INUSUAL"
+  | "QUEDA_POCO"
+  | "COMPLEMENTO_CLIENTE"
+  | "VENTA_GRANDE_SIN_CLIENTE"
+  | "DESCUENTO"
+  | "PROVEEDOR_HABITUAL"
+  | "COMPRA_CORTA"
+  | "MARGEN_BAJO"
+  | "TIP_DECIR_CANTIDAD"
+  | "TIP_COBRAR_HABLANDO"
+  | "TIP_FOTO_FACTURA";
 
 /** Lo que resuelve el mensaje con un toque. */
 export type AccionGuia =
   /** Elegir el método de pago (y, si venía de "cobrar", cobrar enseguida). */
   | { tipo: "pago"; pago: MetodoPago; etiqueta: string }
   /** Llevar la vista al campo del problema. */
-  | { tipo: "ver"; campo: string; etiqueta: string };
+  | { tipo: "ver"; campo: string; etiqueta: string }
+  | { tipo: "cantidad"; mesa: TipoMesa; productId: string; cantidad: number; etiqueta: string }
+  | { tipo: "precio"; productId: string; precio: number; etiqueta: string }
+  | { tipo: "agregar"; producto: ProductoOpcion; cantidad: number; etiqueta: string }
+  /**
+   * Abrir la compra con el producto cargado. `costo` null: se busca el último
+   * que se pagó al tocarlo (la venta no lo conoce).
+   */
+  | { tipo: "comprar"; producto: ProductoOpcion; cantidad: number; costo: number | null; costoAnterior: number | null; etiqueta: string }
+  | { tipo: "proveedor"; proveedor: string; etiqueta: string }
+  | { tipo: "verProducto"; producto: ProductoOpcion; etiqueta: string }
+  /** "No, gracias": cierra y se recuerda. */
+  | { tipo: "descartar"; etiqueta: string };
 
 export interface MensajeGuia {
   codigo: CodigoGuia;
@@ -45,6 +77,37 @@ export interface MensajeGuia {
   acciones: AccionGuia[];
   /** Identifica el problema concreto: el mismo error en otra línea es otro. */
   clave: string;
+  /** Sugerencias: 0 a 1. Por debajo de CONFIANZA_MINIMA no se dicen. */
+  confianza?: number;
+}
+
+/** La sugerencia tal como llega de `POST /api/omnibox/sugerencias`. */
+export interface SugerenciaServidor {
+  codigo: CodigoGuia;
+  mesa: TipoMesa;
+  texto: string;
+  campo?: string;
+  acciones: AccionGuia[];
+  confianza: number;
+  clave: string;
+}
+
+export function deSugerencia(s: SugerenciaServidor): MensajeGuia {
+  return { ...s, nivel: "sugerencia" };
+}
+
+/** Una línea de la venta como producto (para "Cargar compra"). */
+export function productoDeLinea(l: LineaVenta): ProductoOpcion {
+  return {
+    storeProductId: l.storeProductId,
+    productId: l.productId,
+    nombre: l.nombre,
+    codigo: null,
+    imagen: l.imagen,
+    precio: l.precio,
+    stock: l.stock,
+    similitud: 1,
+  };
 }
 
 /** Cuánto tiene que subir el costo para avisar: ruido no, cambios reales sí. */
@@ -84,8 +147,34 @@ export const MENSAJES = {
       clave: "FALTA_PAGO",
     };
   },
-  sinStock(l: { productId: string; nombre: string; cantidad: number; stock: number }, nivel: NivelGuia = "advertencia"): MensajeGuia {
+  sinStock(
+    l: { productId: string; nombre: string; cantidad: number; stock: number; storeProductId?: string; imagen?: string | null; precio?: number },
+    nivel: NivelGuia = "advertencia",
+  ): MensajeGuia {
     const campo = `cantidad:${l.productId}`;
+    // D3: "No tenés stock, ¿querés agregar?": se ofrece cargar la compra de lo
+    // que falta. Necesita la línea completa (storeProductId) para armarla.
+    const comprar: AccionGuia[] =
+      l.storeProductId != null
+        ? [
+            {
+              tipo: "comprar",
+              producto: productoDeLinea({
+                productId: l.productId,
+                storeProductId: l.storeProductId,
+                nombre: l.nombre,
+                imagen: l.imagen ?? null,
+                precio: l.precio ?? 0,
+                cantidad: l.cantidad,
+                stock: l.stock,
+              }),
+              cantidad: Math.max(1, l.cantidad - Math.max(0, l.stock)),
+              costo: null,
+              costoAnterior: null,
+              etiqueta: "Cargar compra",
+            },
+          ]
+        : [];
     return {
       codigo: "SIN_STOCK",
       nivel,
@@ -95,7 +184,7 @@ export const MENSAJES = {
           ? `No tenés stock de ${l.nombre} en esta tienda.`
           : `De ${l.nombre} pedís ${l.cantidad} y tenés ${l.stock}.`,
       campo,
-      acciones: [{ tipo: "ver", campo, etiqueta: "Ver cantidad" }],
+      acciones: [{ tipo: "ver", campo, etiqueta: "Ver cantidad" }, ...comprar],
       clave: `SIN_STOCK:${l.productId}`,
     };
   },
@@ -150,10 +239,61 @@ export const MENSAJES = {
       clave: `COSTO_SUBIO:${l.productId}`,
     };
   },
+  /**
+   * "Vendé coca" sin decir cuántas: se puso 1. No es un error (1 es lo más
+   * común) sino una pregunta con los números a un toque.
+   */
+  cantidadNoDicha(l: { productId: string; nombre: string }, mesa: TipoMesa): MensajeGuia {
+    const opciones = mesa === "compra" ? [6, 12, 24] : [2, 3, 6];
+    return {
+      codigo: "CANTIDAD_NO_DICHA",
+      nivel: "sugerencia",
+      mesa,
+      texto: `No dijiste cuántas de ${l.nombre}: puse 1. ¿Son más?`,
+      campo: `cantidad:${l.productId}`,
+      acciones: [
+        ...opciones.map((n) => ({ tipo: "cantidad" as const, mesa, productId: l.productId, cantidad: n, etiqueta: String(n) })),
+        { tipo: "descartar" as const, etiqueta: "Es 1" },
+      ],
+      confianza: 0.9,
+      clave: `CANTIDAD_NO_DICHA:${mesa}:${l.productId}`,
+    };
+  },
+  tipDecirCantidad(): MensajeGuia {
+    return tip("TIP_DECIR_CANTIDAD", "Tip: también podés decir «que sean 3» o «sacá la coca», sin tocar nada.");
+  },
+  tipCobrarHablando(): MensajeGuia {
+    return tip("TIP_COBRAR_HABLANDO", "Tip: la próxima, decí «cobrale con QR» y se cobra solo.");
+  },
+  tipFotoFactura(): MensajeGuia {
+    return tip("TIP_FOTO_FACTURA", "Tip: si tenés la factura, sacale una foto con la cámara de abajo y se carga sola.");
+  },
   servidor(texto: string, mesa: TipoMesa): MensajeGuia {
     return { codigo: "SERVIDOR", nivel: "error", mesa, texto, acciones: [], clave: `SERVIDOR:${texto}` };
   },
 };
+
+function tip(codigo: CodigoGuia, texto: string): MensajeGuia {
+  return {
+    codigo,
+    nivel: "sugerencia",
+    mesa: "venta",
+    texto,
+    acciones: [{ tipo: "descartar", etiqueta: "Entendido" }],
+    confianza: 1,
+    clave: codigo,
+  };
+}
+
+/**
+ * ¿Sigue valiendo "no dijiste cuántas"? Mientras la línea exista y siga en 1:
+ * si ya la cambió (tocando o hablando), la pregunta está contestada.
+ */
+export function cantidadNoDichaVigente(m: MensajeGuia, venta: BorradorVenta, compra: BorradorCompra): boolean {
+  const productId = m.clave.split(":")[2];
+  const lineas: { productId: string; cantidad: number }[] = m.mesa === "venta" ? venta.lineas : compra.lineas;
+  return lineas.some((l) => l.productId === productId && l.cantidad === 1);
+}
 
 // ------------------------------------------------------------ revisar
 

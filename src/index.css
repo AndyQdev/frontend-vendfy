@@ -576,6 +576,14 @@
   .campo-brilla[data-brilla="advertencia"] {
     animation-name: campo-brilla-advertencia;
   }
+  .campo-brilla[data-brilla="sugerencia"] {
+    animation-name: campo-brilla-sugerencia;
+  }
+  @keyframes campo-brilla-sugerencia {
+    0% { box-shadow: 0 0 0 4px hsl(var(--card)), 0 0 0 6px hsl(var(--primary)), 0 0 0 6px hsl(var(--primary) / 0.45); }
+    70% { box-shadow: 0 0 0 4px hsl(var(--card)), 0 0 0 6px hsl(var(--primary)), 0 0 0 16px hsl(var(--primary) / 0); }
+    100% { box-shadow: 0 0 0 4px hsl(var(--card) / 0), 0 0 0 6px hsl(var(--primary) / 0), 0 0 0 16px hsl(var(--primary) / 0); }
+  }
   @keyframes campo-brilla {
     0% { box-shadow: 0 0 0 4px hsl(var(--card)), 0 0 0 6px hsl(var(--destructive)), 0 0 0 6px hsl(var(--destructive) / 0.45); }
     70% { box-shadow: 0 0 0 4px hsl(var(--card)), 0 0 0 6px hsl(var(--destructive)), 0 0 0 16px hsl(var(--destructive) / 0); }

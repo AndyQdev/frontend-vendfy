@@ -25,7 +25,18 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(
   url: string,
-  { method = "GET", body, headers = {} }: { method?: Method; body?: any; headers?: Record<string, string> } = {}
+  {
+    method = "GET",
+    body,
+    headers = {},
+    signal,
+  }: {
+    method?: Method;
+    body?: any;
+    headers?: Record<string, string>;
+    /** Para cancelar un pedido que quedó viejo (una búsqueda, una sugerencia). */
+    signal?: AbortSignal;
+  } = {}
 ): Promise<ApiResponse<T>> {
   const token = localStorage.getItem("authToken");
   
@@ -34,6 +45,7 @@ export async function apiFetch<T>(
   
   const config: RequestInit = {
     method,
+    signal,
     headers: {
       // Solo agregar Content-Type si NO es FormData
       ...(!isFormData && { "Content-Type": "application/json" }),

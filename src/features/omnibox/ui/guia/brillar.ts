@@ -32,7 +32,7 @@ function enfocable(el: HTMLElement): HTMLElement | null {
   );
 }
 
-export function brillar(campo: string, nivel: "error" | "advertencia" = "error"): Promise<boolean> {
+export function brillar(campo: string, nivel: "error" | "advertencia" | "sugerencia" = "error"): Promise<boolean> {
   const reducido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   return new Promise((resolver) => {
     let intento = 0;

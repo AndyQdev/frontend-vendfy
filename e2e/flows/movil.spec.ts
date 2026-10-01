@@ -61,3 +61,21 @@ test("teléfono: con el panel cerrado, lo que se agrega vuela hasta el chip de l
     .poll(async () => (await animaciones(page)).map((a) => `${a.clase}@${a.en}`))
     .toContain("aterriza@testid:omnibox-chip-mesa");
 });
+
+test("teléfono: la sugerencia aparece sobre el campo con el panel cerrado y se resuelve de un toque", async ({ page, request }) => {
+  const { agregarAVenta, productoReal, simularFrases, simularSugerencias } = await import("../helpers/mock");
+  const coca = await productoReal(request, "coca");
+  await simularFrases(page, { "vendé coca": agregarAVenta(coca, 1, { cantidadDicha: false }) });
+  await simularSugerencias(page);
+  await page.goto("/omnibox");
+  await decir(page, "vendé coca");
+
+  const franja = page.getByTestId("omnibox-guia");
+  await expect(franja).toHaveAttribute("data-codigo", "CANTIDAD_NO_DICHA");
+  await expect(page.getByTestId("omnibox-mesa")).toHaveCount(0); // no abrió la hoja
+  await franja.getByTestId("omnibox-guia-accion").filter({ hasText: /^3$/ }).click();
+  await expect(franja).toHaveCount(0);
+
+  await page.getByTestId("omnibox-chip-mesa").click();
+  await expect(page.getByTestId("omnibox-mesa").getByRole("spinbutton", { name: `Cantidad de ${coca.nombre}` }).first()).toHaveValue("3");
+});

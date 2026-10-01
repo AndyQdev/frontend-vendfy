@@ -84,6 +84,8 @@ export interface ItemPedido {
   agregados?: string[];
   /** Un renglón de la factura que se decidió no cargar (lo marca el panel). */
   omitido?: boolean;
+  /** false = la frase no dijo cuántos y se puso 1 (la Guía puede preguntar). */
+  cantidadDicha?: boolean;
 }
 
 /** Una línea de la venta abierta, como viaja al servidor con cada frase. */

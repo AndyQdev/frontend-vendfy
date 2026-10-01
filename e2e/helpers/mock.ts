@@ -89,6 +89,31 @@ export async function productoReal(request: APIRequestContext, busqueda: string)
 }
 
 /** "vendé N <producto>" ya interpretado: agregar a la venta. */
-export function agregarAVenta(producto: ProductoOpcion, cantidad = 1): Propuesta {
-  return propuesta({ intencion: "agregar_a_venta", producto, entidades: { cantidad, producto: producto.nombre, productId: producto.productId } });
+export function agregarAVenta(producto: ProductoOpcion, cantidad = 1, opciones: { cantidadDicha?: boolean } = {}): Propuesta {
+  return propuesta({
+    intencion: "agregar_a_venta",
+    producto,
+    entidades: { cantidad, producto: producto.nombre, productId: producto.productId, ...opciones },
+  });
+}
+
+/**
+ * Las sugerencias del servidor, simuladas por mesa. Devuelve los eventos que
+ * mandó la pantalla (mostrada / aceptada / descartada) para revisarlos.
+ */
+export async function simularSugerencias(
+  page: Page,
+  porMesa: { venta?: unknown[]; compra?: unknown[] } = {},
+): Promise<{ codigo: string; evento: string }[]> {
+  const eventos: { codigo: string; evento: string }[] = [];
+  await page.route("**/api/omnibox/sugerencias/evento", async (route) => {
+    const b = route.request().postDataJSON();
+    eventos.push({ codigo: b.codigo, evento: b.evento });
+    return route.fulfill({ json: { statusCode: 200, data: null } });
+  });
+  await page.route("**/api/omnibox/sugerencias", async (route) => {
+    const mesa = route.request().postDataJSON()?.mesa as "venta" | "compra";
+    return route.fulfill({ json: { statusCode: 200, data: porMesa[mesa] ?? [] } });
+  });
+  return eventos;
 }

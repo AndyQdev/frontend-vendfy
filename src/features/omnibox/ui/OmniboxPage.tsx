@@ -15,6 +15,7 @@ import {
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
+  type CostoProducto,
   type LineaContexto,
   type ProductoOpcion,
   type Propuesta,
@@ -54,6 +55,8 @@ import {
 import { brillar } from "./guia/brillar";
 import { FranjaGuia } from "./guia/FranjaGuia";
 import { Coreografo } from "./coreografia/Coreografo";
+import { useSugerencias } from "./guia/useSugerencias";
+import { apiFetch } from "@/shared/api/client";
 import { Burbuja, FilaAsistente } from "./Burbuja";
 import { Compositor } from "./Compositor";
 import { Respuesta } from "./Respuesta";
@@ -131,10 +134,25 @@ export function OmniboxPage() {
   // efectos ya se calculan y se emiten; la Fase G1 los dibuja.
   const coreografia = useRef(crearCoreografia()).current;
   const mesaPrevia = useRef(mesa);
+  // De dónde vino el último cambio de la mesa: los tips del modo aprendiz
+  // enseñan a decir lo que se hizo tocando ("también podés decir…").
+  const origenCambio = useRef<"panel" | "chat" | "guia">("panel");
   useEffect(() => {
     const antes = mesaPrevia.current;
     mesaPrevia.current = mesa;
-    coreografia.emitir(efectosDeCambio(antes, mesa));
+    const efectos = efectosDeCambio(antes, mesa);
+    coreografia.emitir(efectos);
+    const origen = origenCambio.current;
+    origenCambio.current = "panel";
+    if (origen === "panel") {
+      if (efectos.some((e) => e.tipo === "cantidad" && e.mesa === "venta")) {
+        ayuda.agregarLocal(MENSAJES.tipDecirCantidad());
+      }
+      const lineasCompra = mesa.compra.lineas.length;
+      if (efectos.some((e) => e.tipo === "lineaEntra" && e.mesa === "compra") && lineasCompra >= 3 && !mesa.compra.adjunto) {
+        ayuda.agregarLocal(MENSAJES.tipFotoFactura());
+      }
+    }
     // "Cobrá" quedó esperando el método de pago: apenas se elige —desde la
     // Guía o tocando el panel, que en el teléfono la tapa— se cobra. La
     // persona ya había pedido cobrar; elegir el método es contestar.
@@ -182,16 +200,74 @@ export function OmniboxPage() {
     if (opciones.senalar ?? mensaje.nivel === "error") senalar(mensaje);
   }
 
-  function alAccionGuia(a: AccionGuia) {
-    const actual = guiaRef.current;
-    if (!actual) return;
+  /** El último costo pagado por un producto (para "Cargar compra" desde la venta). */
+  async function ultimoCosto(productId: string): Promise<{ costo: number; anterior: number | null }> {
+    try {
+      const r = await apiFetch<{ costo: CostoProducto | null }>(`/api/omnibox/producto/${productId}?storeId=${storeId}`);
+      const c = r.data?.costo ?? null;
+      return { costo: costoSugerido(null, c), anterior: c?.ultimoCosto ?? null };
+    } catch {
+      return { costo: 0, anterior: null };
+    }
+  }
+
+  /**
+   * Lo que resuelve el mensaje que está a la vista: un error o advertencia
+   * (catálogo fijo) o una sugerencia. Las acciones despachan lo mismo que
+   * los botones del panel; ninguna cobra ni registra sola.
+   */
+  async function alAccionGuia(a: AccionGuia) {
+    const fija = guiaRef.current?.mensaje ?? null;
+    const sugerencia = fija ? null : ayuda.actual;
+    const m = fija ?? sugerencia;
+    if (!m) return;
     if (a.tipo === "ver") {
-      senalar(actual.mensaje, a.campo);
+      senalar(m, a.campo);
       return;
     }
-    // Elegir el pago desde la Guía es lo mismo que tocarlo en el panel: si se
-    // venía cobrando, el efecto de la mesa (arriba) completa el cobro.
-    despachar({ tipo: "pago", pago: a.pago });
+    if (a.tipo === "descartar") {
+      if (sugerencia) ayuda.resolver(sugerencia, "descartada");
+      else setGuia(null);
+      return;
+    }
+    origenCambio.current = "guia";
+    switch (a.tipo) {
+      case "pago":
+        // Elegir el pago desde la Guía es lo mismo que tocarlo en el panel:
+        // si se venía cobrando, el efecto de la mesa completa el cobro.
+        despachar({ tipo: "pago", pago: a.pago });
+        break;
+      case "cantidad":
+        despachar(
+          a.mesa === "venta"
+            ? { tipo: "cantidadVenta", productId: a.productId, cantidad: a.cantidad }
+            : { tipo: "cantidadCompra", productId: a.productId, cantidad: a.cantidad },
+        );
+        break;
+      case "precio":
+        despachar({ tipo: "precioVenta", productId: a.productId, precio: a.precio });
+        break;
+      case "agregar":
+        despachar({ tipo: "agregarVenta", producto: a.producto, cantidad: a.cantidad });
+        if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
+        break;
+      case "comprar": {
+        // D3: "No tenés stock, ¿querés agregar?" → la compra con el producto.
+        const costo = a.costo != null ? { costo: a.costo, anterior: a.costoAnterior } : await ultimoCosto(a.producto.productId);
+        origenCambio.current = "guia";
+        despachar({ tipo: "agregarCompra", producto: a.producto, cantidad: a.cantidad, costo: costo.costo, costoAnterior: costo.anterior });
+        despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
+        break;
+      }
+      case "proveedor":
+        despachar({ tipo: "proveedor", proveedor: a.proveedor });
+        break;
+      case "verProducto":
+        despachar({ tipo: "verProducto", producto: a.producto });
+        break;
+    }
+    if (sugerencia) ayuda.resolver(sugerencia, "aceptada");
+    else if (a.tipo !== "pago") setGuia(null);
   }
 
   /** Las advertencias que trae un cambio que vino del chat (no se estaba mirando el panel). */
@@ -388,6 +464,14 @@ export function OmniboxPage() {
     }));
   }
 
+  // ------------------------------------------------------------ sugerencias (G2a)
+  // No interrumpen: mientras se escribe o se dicta no se muestra ninguna.
+  const ayuda = useSugerencias({
+    storeId,
+    mesa,
+    pausado: texto.trim().length > 0 || voz.estado === "grabando" || voz.estado === "procesando",
+  });
+
   // ------------------------------------------------------------ actuar
 
   async function ejecutar(m: Mensaje, entidades: Record<string, unknown>, despues: number | null) {
@@ -480,8 +564,10 @@ export function OmniboxPage() {
     const efecto = efectoDeVenta(p);
     if (!efecto) return; // falta algo: la tarjeta del chat lo pide
     anunciarAdvertencias(mesaRef.current, efecto.acciones);
+    origenCambio.current = "chat";
     efecto.acciones.forEach(despachar);
     const destino = mesaDe(p);
+    preguntarCantidad(p, destino);
 
     // Un pedido de varias cosas: la tarjeta sigue viva (lo dudoso queda para
     // elegir), así que no se cierra con un resumen; se marca lo aplicado.
@@ -503,6 +589,28 @@ export function OmniboxPage() {
       ...x,
       desenlace: { tipo: "mesa", resumen: efecto.resumen, imagen: efecto.imagen },
     }));
+  }
+
+  /**
+   * "Vendé coca" sin decir cuántas: se puso 1 y la Guía pregunta, con los
+   * números a un toque. Solo si la frase agregó UN producto: en "coca, arroz y
+   * aceite" lo normal es uno de cada uno, y preguntar tres veces molesta.
+   */
+  function preguntarCantidad(p: Propuesta, destino: TipoMesa) {
+    const e = p.entidades as Record<string, any>;
+    const nuevos = (p.items ?? []).filter((it) => it.producto);
+    const unico =
+      p.items && nuevos.length === 1 && p.items.length === 1
+        ? { producto: nuevos[0].producto!, dicha: nuevos[0].cantidadDicha }
+        : !p.items && p.producto && p.intencion === "agregar_a_venta"
+          ? { producto: p.producto, dicha: e.cantidadDicha as boolean | undefined }
+          : null;
+    if (!unico || unico.dicha !== false) return;
+    const yaEstaba = (destino === "venta" ? mesaRef.current.venta.lineas : mesaRef.current.compra.lineas).some(
+      (l) => l.productId === unico.producto.productId,
+    );
+    if (yaEstaba) return; // "sumá coca" con una ya en el carrito: no es "¿cuántas?"
+    ayuda.agregarLocal(MENSAJES.cantidadNoDicha(unico.producto, destino));
   }
 
   /** La mesa sobre la que actúa una frase: la compra, la venta, o la que dijo el servidor. */
@@ -667,6 +775,8 @@ export function OmniboxPage() {
       }
       despachar({ tipo: "limpiarVenta" });
       coreografia.emitir([{ tipo: "cobrada" }]);
+      ayuda.contarVenta();
+      if (!opciones.mensajeId) ayuda.agregarLocal(MENSAJES.tipCobrarHablando());
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo cobrar. Revisá tu conexión.";
       // La Guía lo dice y, si nombra un producto del carrito, señala su cantidad.
@@ -846,8 +956,15 @@ export function OmniboxPage() {
             )}
           >
             <div className={cn("mx-auto w-full", anchoChat)}>
-              {guia && (
-                <FranjaGuia mensaje={guia.mensaje} onAccion={alAccionGuia} onCerrar={() => setGuia(null)} />
+              {(guia?.mensaje ?? ayuda.actual) && (
+                <FranjaGuia
+                  mensaje={(guia?.mensaje ?? ayuda.actual)!}
+                  onAccion={alAccionGuia}
+                  onCerrar={() => {
+                    if (guia) setGuia(null);
+                    else if (ayuda.actual) ayuda.resolver(ayuda.actual, "descartada");
+                  }}
+                />
               )}
               <ChipsEnCurso mesa={mesa} despachar={despachar} />
               {compositor}

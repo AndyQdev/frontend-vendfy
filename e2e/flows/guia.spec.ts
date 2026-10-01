@@ -12,6 +12,12 @@ import { agregarAVenta, productoReal, propuesta, simularCobro, simularFrases } f
  */
 
 const guia = (page: Page) => page.getByTestId("omnibox-guia");
+/**
+ * Los avisos fijos (errores y advertencias). Desde la G2a la franja también
+ * muestra sugerencias y tips del modo aprendiz: "la Guía calló" significa que
+ * no quedó ningún aviso, no que no haya ninguna ayuda.
+ */
+const avisos = (page: Page) => page.locator('[data-testid="omnibox-guia"]:is([data-nivel="error"], [data-nivel="advertencia"])');
 
 /** El campo marcado está brillando (la clase dura ~2 s). */
 async function brilla(page: Page, selector: string) {
@@ -42,7 +48,7 @@ test.describe("cobrar", () => {
     await expect(page.getByTestId("omnibox-venta").last()).toHaveAttribute("data-estado", "cobrada");
     expect(cobros).toHaveLength(1);
     expect(cobros[0].postDataJSON().pago).toBe("qr");
-    await expect(guia(page)).toHaveCount(0);
+    await expect(avisos(page)).toHaveCount(0);
     await expect(mesa.getByTestId("omnibox-linea-venta")).toHaveCount(0);
   });
 
@@ -86,7 +92,7 @@ test.describe("cobrar", () => {
     await mesa.getByTestId("omnibox-cobrar").click();
     await expect(page.getByTestId("omnibox-venta")).toHaveAttribute("data-estado", "cobrada");
     expect(cobros[0].postDataJSON().pago).toBe("tarjeta");
-    await expect(guia(page)).toHaveCount(0);
+    await expect(avisos(page)).toHaveCount(0);
   });
 
   test("el servidor dice que no hay stock: la Guía lo dice, señala la cantidad y calla al corregirla", async ({ page, request }) => {
@@ -113,7 +119,7 @@ test.describe("cobrar", () => {
     await expect(mesa.getByTestId("omnibox-linea-venta")).toHaveCount(1);
 
     await mesa.getByRole("button", { name: "Uno más" }).filter({ visible: true }).click();
-    await expect(guia(page)).toHaveCount(0);
+    await expect(avisos(page)).toHaveCount(0);
   });
 });
 
@@ -131,7 +137,7 @@ test.describe("avisos desde el chat", () => {
     // Una advertencia no señala sola: el foco sigue en el campo del chat.
     await expect(page.getByLabel("Qué necesitás")).toBeFocused();
 
-    await guia(page).getByTestId("omnibox-guia-accion").click(); // "Ver cantidad"
+    await guia(page).getByTestId("omnibox-guia-accion").filter({ hasText: "Ver cantidad" }).click();
     await brilla(page, `[data-campo="cantidad:${aceite.productId}"]`);
   });
 
@@ -141,7 +147,7 @@ test.describe("avisos desde el chat", () => {
     await page.goto("/omnibox");
     await decir(page, "vendé 999 aceites");
     await guia(page).getByRole("button", { name: "Cerrar el aviso" }).click();
-    await expect(guia(page)).toHaveCount(0);
+    await expect(avisos(page)).toHaveCount(0);
   });
 });
 
