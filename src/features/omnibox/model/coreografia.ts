@@ -13,17 +13,24 @@ import { totalCompra, totalVenta, type Mesa, type TipoMesa } from "./mesa";
  */
 
 export type Efecto =
-  | { tipo: "lineaEntra"; mesa: TipoMesa; productId: string }
+  /** `imagen`: la foto que vuela al carrito (null = no hay foto, no vuela). */
+  | { tipo: "lineaEntra"; mesa: TipoMesa; productId: string; imagen: string | null }
   | { tipo: "lineaSale"; mesa: TipoMesa; productId: string }
   | { tipo: "cantidad"; mesa: TipoMesa; productId: string; de: number; a: number }
   | { tipo: "total"; mesa: TipoMesa; de: number; a: number }
   /** Un dato que se completó o cambió: cliente, pago, proveedor, costo:<id>… */
   | { tipo: "campo"; mesa: TipoMesa; campo: string }
-  | { tipo: "vaciada"; mesa: TipoMesa };
+  | { tipo: "vaciada"; mesa: TipoMesa }
+  // Lo que no es un cambio de la mesa sino algo que pasa con ella: los emite
+  // la pantalla, no `efectosDeCambio`.
+  /** Empezó el cobro. Si vino del chat o la voz, el botón "se presiona solo". */
+  | { tipo: "cobrando"; origen: "chat" | "boton" }
+  | { tipo: "cobrada" };
 
 interface LineaComun {
   productId: string;
   cantidad: number;
+  imagen: string | null;
 }
 
 function diffLineas<L extends LineaComun>(
@@ -39,7 +46,7 @@ function diffLineas<L extends LineaComun>(
   for (const l of despues) {
     const p = previas.get(l.productId);
     if (!p) {
-      out.push({ tipo: "lineaEntra", mesa, productId: l.productId });
+      out.push({ tipo: "lineaEntra", mesa, productId: l.productId, imagen: l.imagen });
       continue;
     }
     if (p.cantidad !== l.cantidad) {

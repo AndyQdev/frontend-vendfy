@@ -109,6 +109,7 @@ export function PanelMesa({
           Producto
         </Pestana>
         <Pestana
+          destino="venta"
           activa={mesa.pestana === "borrador" && esVenta}
           onClick={() => despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" })}
           icono={<ShoppingCart className="size-4" />}
@@ -117,6 +118,7 @@ export function PanelMesa({
           <Cuenta n={mesa.venta.lineas.length} />
         </Pestana>
         <Pestana
+          destino="compra"
           activa={mesa.pestana === "borrador" && !esVenta}
           onClick={() => despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" })}
           icono={<Truck className="size-4" />}
@@ -204,7 +206,10 @@ function Pestana({
   onClick,
   icono,
   children,
+  destino,
 }: {
+  /** Marca para la coreografía: lo que entra a esta mesa vuela hasta acá si la línea no está a la vista. */
+  destino?: "venta" | "compra";
   activa: boolean;
   onClick: () => void;
   icono: ReactNode;
@@ -215,6 +220,7 @@ function Pestana({
       type="button"
       role="tab"
       aria-selected={activa}
+      data-pestana={destino}
       onClick={onClick}
       className={cn(
         "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",

@@ -594,3 +594,96 @@
     }
   }
 }
+
+/* Seguimiento visual del asistente (Fase G1). Las dispara el coreógrafo
+   (ui/coreografia/Coreografo.tsx) según los efectos de la mesa. Cortas y una
+   sola vez; con movimiento reducido solo cambia el color. */
+@layer components {
+  /* Una línea que entra al carrito o a la compra: aparece desde arriba y se
+     ilumina un instante con el color de la marca. */
+  .linea-entra {
+    animation: linea-entra 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes linea-entra {
+    0% { opacity: 0; transform: translateY(-6px); background-color: hsl(var(--primary) / 0.14); }
+    35% { opacity: 1; transform: translateY(0); background-color: hsl(var(--primary) / 0.14); }
+    100% { background-color: transparent; }
+  }
+
+  /* La foto que llegó volando, o el chip/pestaña que la recibe. */
+  .aterriza {
+    animation: aterriza 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  @keyframes aterriza {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.14); }
+    100% { transform: scale(1); }
+  }
+
+  /* La cantidad que cambió ("que sean 3"). */
+  .cantidad-cambia {
+    animation: cantidad-cambia 0.4s ease-out;
+  }
+  @keyframes cantidad-cambia {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); border-radius: 0.6rem; }
+    40% { transform: scale(1.08); box-shadow: 0 0 0 4px hsl(var(--primary) / 0.25); border-radius: 0.6rem; }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0); border-radius: 0.6rem; }
+  }
+
+  /* Un dato que se completó (cliente, pago, proveedor, costo): un anillo verde. */
+  .campo-completo {
+    animation: campo-completo 0.8s ease-out;
+    border-radius: 0.6rem;
+  }
+  @keyframes campo-completo {
+    0% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.5); }
+    100% { box-shadow: 0 0 0 10px hsl(var(--success) / 0); }
+  }
+
+  /* "Cobrale con QR": el botón se presiona solo. */
+  .boton-presiona {
+    animation: boton-presiona 0.45s ease-out;
+  }
+  @keyframes boton-presiona {
+    0% { transform: scale(1); }
+    30% { transform: scale(0.95); box-shadow: 0 0 0 4px hsl(var(--primary) / 0.3); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  }
+
+  /* La venta o compra registrada aparece en el hilo como un sello. */
+  .tarjeta-sella {
+    animation: tarjeta-sella 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  }
+  @keyframes tarjeta-sella {
+    0% { opacity: 0; transform: scale(0.94); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Los renglones de una factura se "leen" uno tras otro. */
+  .renglon-lee {
+    animation: renglon-lee 0.5s ease-out both;
+  }
+  @keyframes renglon-lee {
+    0% { opacity: 0.25; background-color: hsl(var(--primary) / 0.08); }
+    60% { opacity: 1; background-color: hsl(var(--primary) / 0.08); }
+    100% { opacity: 1; background-color: transparent; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aterriza,
+    .cantidad-cambia,
+    .boton-presiona,
+    .tarjeta-sella {
+      animation: none;
+    }
+    .linea-entra,
+    .renglon-lee {
+      animation-name: color-solo;
+      animation-duration: 0.9s;
+    }
+    @keyframes color-solo {
+      0% { background-color: hsl(var(--primary) / 0.14); }
+      100% { background-color: transparent; }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Boxes, FileText, Info, ListChecks, ShoppingCart, Truck } from "lucide-react";
 
 import { useFichaProducto } from "@/entities/omnibox/api";
@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/cn";
 
 import type { TipoMesa } from "../../model/mesa";
 import { BotonCta, FotoProducto, dinero, formato } from "../piezas";
+import { recordarOrigen } from "../coreografia/animaciones";
 import { Cantidad } from "./Cantidad";
 
 /**
@@ -34,6 +35,13 @@ export function FichaProducto({
   const { data: ficha } = useFichaProducto(base.productId, storeId);
   const [cantidad, setCantidad] = useState(1);
   const [foto, setFoto] = useState(0);
+  // Al agregar, la ficha se va (el panel pasa a la venta): su foto se anota
+  // antes, para que vuele desde acá hasta la línea.
+  const fotoRef = useRef<HTMLDivElement>(null);
+  const agregar = (...args: Parameters<typeof onAgregar>) => {
+    recordarOrigen(base.productId, fotoRef.current);
+    onAgregar(...args);
+  };
   // El costo se precarga con lo que se pagó la última vez: casi siempre es eso.
   const costoPrevio = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
   const [costo, setCosto] = useState<string>("");
@@ -60,7 +68,7 @@ export function FichaProducto({
     <div className="grid flex-1 gap-5 p-4 sm:p-5 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       {/* ---- fotos */}
       <div className="flex flex-col gap-2">
-        <div className="grid aspect-square place-items-center overflow-hidden rounded-xl border border-border bg-white">
+        <div ref={fotoRef} className="grid aspect-square place-items-center overflow-hidden rounded-xl border border-border bg-white">
           <FotoProducto src={imagenes[foto]} className="size-full rounded-none border-0 object-contain p-3" />
         </div>
         {imagenes.length > 1 && (
@@ -191,7 +199,7 @@ export function FichaProducto({
             <BotonCta
               data-testid="omnibox-agregar-compra"
               className="h-11 flex-1"
-              onClick={() => onAgregar(cantidad, Number(costo) || 0, ficha?.costo?.ultimoCosto ?? null)}
+              onClick={() => agregar(cantidad, Number(costo) || 0, ficha?.costo?.ultimoCosto ?? null)}
             >
               <Truck className="size-4" />
               Agregar a la compra
@@ -209,7 +217,7 @@ export function FichaProducto({
           <BotonCta
             data-testid="omnibox-agregar-venta"
             className="h-11 flex-1"
-            onClick={() => onAgregar(cantidad)}
+            onClick={() => agregar(cantidad)}
           >
             <ShoppingCart className="size-4" />
             Agregar a la venta

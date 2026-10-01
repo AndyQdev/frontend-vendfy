@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, Loader2, PackageCheck, Truck } from "lucide-react";
 
 import type { EventoCompra } from "../../model/mensaje";
 import { hora } from "../../model/mensaje";
 import { BotonCta, BotonSecundario, Cabecera, FotoProducto, Tarjeta, dinero } from "../piezas";
+import { NumeroAnimado } from "../coreografia/NumeroAnimado";
 
 /**
  * La compra registrada, en el hilo del chat.
@@ -17,7 +18,7 @@ export function TarjetaCompra({ evento, cuando }: { evento: EventoCompra; cuando
   return (
     <article
       data-testid="omnibox-compra"
-      className="w-full space-y-3 rounded-xl border border-border bg-card p-4 shadow-card"
+      className="tarjeta-sella w-full space-y-3 rounded-xl border border-border bg-card p-4 shadow-card"
     >
       <header className="flex items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-success text-success-foreground">
@@ -43,6 +44,7 @@ export function TarjetaCompra({ evento, cuando }: { evento: EventoCompra; cuando
             <span className="cifra font-semibold">{l.cantidad} ×</span>
             <span className="max-w-[12rem] truncate">{l.nombre}</span>
             <span className="cifra text-muted-foreground">a Bs {dinero(l.costo)}</span>
+            {l.stock != null && <StockSube antes={l.stock} suma={l.cantidad} />}
           </li>
         ))}
       </ul>
@@ -107,5 +109,19 @@ export function TarjetaConfirmarCompra({
         </BotonSecundario>
       </div>
     </Tarjeta>
+  );
+}
+
+/** "stock 12 → 18": el stock cuenta hasta su valor nuevo al registrar la compra. */
+function StockSube({ antes, suma }: { antes: number; suma: number }) {
+  const [valor, setValor] = useState(antes);
+  useEffect(() => {
+    const t = window.setTimeout(() => setValor(antes + suma), 120);
+    return () => window.clearTimeout(t);
+  }, [antes, suma]);
+  return (
+    <span data-testid="omnibox-stock-sube" className="cifra rounded-md bg-success/10 px-1.5 text-success">
+      stock {antes} → <NumeroAnimado valor={valor} formato={(n) => String(Math.round(n))} />
+    </span>
   );
 }

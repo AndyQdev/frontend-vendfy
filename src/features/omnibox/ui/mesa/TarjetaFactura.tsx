@@ -86,8 +86,9 @@ export function TarjetaFactura({
             key={i}
             data-testid="omnibox-renglon-factura"
             data-campo={`renglon:${mensajeId}:${i}`}
+            style={{ animationDelay: `${i * 90}ms` }}
             data-estado={it.producto ? "reconocido" : it.omitido ? "omitido" : it.agregados?.length ? "resuelto" : it.opciones.length ? "dudoso" : "nuevo"}
-            className="px-3 py-2.5"
+            className="renglon-lee px-3 py-2.5"
           >
             {it.producto ? (
               <Resuelto imagen={it.producto.imagen} leido={it.texto}>

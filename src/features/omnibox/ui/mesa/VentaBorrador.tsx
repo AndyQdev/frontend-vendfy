@@ -8,6 +8,7 @@ import { BotonCta, FotoProducto, dinero } from "../piezas";
 import { SelectorCliente } from "./SelectorCliente";
 import { Cantidad } from "./Cantidad";
 import { Vacio } from "./PanelMesa";
+import { NumeroAnimado } from "../coreografia/NumeroAnimado";
 
 const METODOS: { id: MetodoPago; nombre: string; icono: typeof Banknote }[] = [
   { id: "efectivo", nombre: "Efectivo", icono: Banknote },
@@ -80,9 +81,11 @@ export function VentaBorrador({
             </>
           );
           return (
-            <li key={l.productId} data-testid="omnibox-linea-venta" className="px-3 py-2.5">
+            <li key={l.productId} data-testid="omnibox-linea-venta" data-linea={`venta:${l.productId}`} className="px-3 py-2.5">
               <div className="flex items-center gap-3">
-                <FotoProducto src={l.imagen} className="size-11" />
+                <span data-linea-foto className="inline-flex shrink-0">
+                  <FotoProducto src={l.imagen} className="size-11" />
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{l.nombre}</p>
                   <p className="cifra text-xs text-muted-foreground">Bs {dinero(l.precio)} c/u</p>
@@ -170,7 +173,7 @@ export function VentaBorrador({
         <div>
           <p className="text-xs text-muted-foreground">Total</p>
           <p data-testid="omnibox-total-venta" className="cifra text-3xl font-bold">
-            Bs {dinero(totalVenta(venta))}
+            Bs <NumeroAnimado valor={totalVenta(venta)} formato={dinero} />
           </p>
         </div>
         <BotonCta
@@ -183,7 +186,7 @@ export function VentaBorrador({
           className="h-12 min-w-[12rem] flex-1 text-[15px] sm:flex-none"
         >
           {cobrando ? <Loader2 className="size-5 animate-spin" /> : <CreditCard className="size-5" />}
-          Cobrar Bs {dinero(totalVenta(venta))}
+          Cobrar Bs <NumeroAnimado valor={totalVenta(venta)} formato={dinero} />
         </BotonCta>
       </div>
     </div>

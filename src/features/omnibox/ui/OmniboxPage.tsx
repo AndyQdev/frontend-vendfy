@@ -53,6 +53,7 @@ import {
 } from "../model/guia";
 import { brillar } from "./guia/brillar";
 import { FranjaGuia } from "./guia/FranjaGuia";
+import { Coreografo } from "./coreografia/Coreografo";
 import { Burbuja, FilaAsistente } from "./Burbuja";
 import { Compositor } from "./Compositor";
 import { Respuesta } from "./Respuesta";
@@ -544,7 +545,7 @@ export function OmniboxPage() {
       const evento = {
         tipo: "compra" as const,
         compra,
-        lineas: lineas.map((l) => ({ nombre: l.nombre, imagen: l.imagen, cantidad: l.cantidad, costo: l.costo })),
+        lineas: lineas.map((l) => ({ nombre: l.nombre, imagen: l.imagen, cantidad: l.cantidad, costo: l.costo, stock: l.stock })),
       };
       if (mensajeId) {
         actualizar(mensajeId, (x) => ({ ...x, evento }));
@@ -646,6 +647,7 @@ export function OmniboxPage() {
     }
     setErrorCobro(null);
     const lineas = venta0.lineas;
+    coreografia.emitir([{ tipo: "cobrando", origen: opciones.mensajeId ? "chat" : "boton" }]);
     try {
       const venta = await cobrar.mutateAsync({
         storeId,
@@ -664,6 +666,7 @@ export function OmniboxPage() {
         setMensajes((prev) => [...prev, mensajeDeEvento(evento)]);
       }
       despachar({ tipo: "limpiarVenta" });
+      coreografia.emitir([{ tipo: "cobrada" }]);
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo cobrar. Revisá tu conexión.";
       // La Guía lo dice y, si nombra un producto del carrito, señala su cantidad.
@@ -771,6 +774,7 @@ export function OmniboxPage() {
         <section className={cn("flex min-w-0 flex-1 flex-col", dividido && "min-h-0", ampliada && "hidden")}>
           <div
             ref={hilo}
+            data-zona="chat"
             className={cn(
               "mx-auto flex w-full flex-1 flex-col gap-3 pb-4 sm:gap-3.5",
               anchoChat,
@@ -868,6 +872,8 @@ export function OmniboxPage() {
           </div>
         )}
       </div>
+
+      <Coreografo coreografia={coreografia} />
 
       {/* ---- la mesa, en el teléfono: sube desde abajo a pantalla casi completa */}
       {!ancho && (

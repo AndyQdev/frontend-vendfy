@@ -7,6 +7,7 @@ import { totalCompra, type AccionMesa, type BorradorCompra } from "../../model/m
 import { BotonCta, BotonSecundario, FotoProducto, dinero } from "../piezas";
 import { Cantidad } from "./Cantidad";
 import { Vacio } from "./PanelMesa";
+import { NumeroAnimado } from "../coreografia/NumeroAnimado";
 
 /**
  * La compra que se va armando: lo que llegó, a cuánto, de quién.
@@ -69,9 +70,11 @@ export function CompraBorrador({
           const subio = antes != null && l.costo > antes;
           const bajo = antes != null && l.costo < antes;
           return (
-            <li key={l.productId} data-testid="omnibox-linea-compra" className="space-y-2 px-3 py-2.5">
+            <li key={l.productId} data-testid="omnibox-linea-compra" data-linea={`compra:${l.productId}`} className="space-y-2 px-3 py-2.5">
               <div className="flex items-center gap-3">
-                <FotoProducto src={l.imagen} className="size-11" />
+                <span data-linea-foto className="inline-flex shrink-0">
+                  <FotoProducto src={l.imagen} className="size-11" />
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{l.nombre}</p>
                   {antes != null ? (
@@ -208,7 +211,7 @@ export function CompraBorrador({
         <div>
           <p className="text-xs text-muted-foreground">Total de la compra</p>
           <p data-testid="omnibox-total-compra" className="cifra text-3xl font-bold">
-            Bs {dinero(total)}
+            Bs <NumeroAnimado valor={total} formato={dinero} />
           </p>
         </div>
         {confirmando ? (

@@ -21,6 +21,7 @@ export function ChipsEnCurso({ mesa, despachar }: { mesa: Mesa; despachar: Dispa
           key={p.tipo}
           type="button"
           data-testid="omnibox-chip-mesa"
+          data-mesa={p.tipo}
           onClick={() => despachar({ tipo: "abrir", mesa: p.tipo })}
           className="flex items-center gap-2 rounded-full border border-primary/25 bg-primary-soft px-3.5 py-1.5 text-[13px] font-semibold text-primary shadow-card transition-colors hover:border-primary/50"
         >

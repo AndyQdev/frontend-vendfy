@@ -44,6 +44,8 @@ export interface LineaCompra {
   costo: number;
   /** Lo que se pagó la vez anterior: si el proveedor subió, se nota. */
   costoAnterior: number | null;
+  /** Stock de la tienda al cargarlo: para mostrar cuánto sube al registrar. */
+  stock: number;
 }
 
 export interface BorradorVenta {
@@ -263,6 +265,7 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
               cantidad,
               costo: a.costo,
               costoAnterior: a.costoAnterior,
+              stock: Number(a.producto.stock) || 0,
             },
           ];
       return { ...m, ultima: "compra", compra: { ...m.compra, lineas } };

@@ -45,3 +45,19 @@ test('teléfono: "cobrá" sin método sube la hoja con el método brillando, y e
   await expect(page.getByTestId("omnibox-venta")).toHaveAttribute("data-estado", "cobrada");
   expect(cobros[0].postDataJSON().pago).toBe("qr");
 });
+
+test("teléfono: con el panel cerrado, lo que se agrega vuela hasta el chip de la venta", async ({ page, request }) => {
+  const { agregarAVenta, productoReal, simularFrases } = await import("../helpers/mock");
+  const { animaciones, grabarAnimaciones, vuelos } = await import("../helpers/animaciones");
+  const aceite = await productoReal(request, "aceite");
+  await simularFrases(page, { "vendé un aceite": agregarAVenta(aceite) });
+  await page.goto("/omnibox");
+  await grabarAnimaciones(page);
+  await decir(page, "vendé un aceite");
+
+  await expect(page.getByTestId("omnibox-chip-mesa")).toHaveText(/Venta en curso · 1/);
+  await expect.poll(() => vuelos(page)).toBe(1);
+  await expect
+    .poll(async () => (await animaciones(page)).map((a) => `${a.clase}@${a.en}`))
+    .toContain("aterriza@testid:omnibox-chip-mesa");
+});

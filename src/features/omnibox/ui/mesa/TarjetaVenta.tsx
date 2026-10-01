@@ -37,6 +37,7 @@ export function TarjetaVenta({
       data-testid="omnibox-venta"
       data-estado={anulada ? "anulada" : "cobrada"}
       className={cn(
+        "tarjeta-sella",
         "w-full space-y-3 rounded-xl border border-border bg-card p-4 shadow-card",
         anulada && "opacity-70",
       )}

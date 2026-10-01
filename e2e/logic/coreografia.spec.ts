@@ -15,7 +15,7 @@ const producto = (id: string, precio: number): ProductoOpcion => ({
   productId: id,
   nombre: `Producto ${id}`,
   codigo: null,
-  imagen: null,
+  imagen: `${id}.jpg`,
   precio,
   stock: 50,
   similitud: 1,
@@ -29,7 +29,7 @@ const efectos = (base: Mesa, ...acciones: AccionMesa[]): Efecto[] => efectosDeCa
 
 test("agregar un producto nuevo: entra su línea y el total cambia", () => {
   expect(efectos(MESA_INICIAL, { tipo: "agregarVenta", producto: A, cantidad: 2 })).toEqual([
-    { tipo: "lineaEntra", mesa: "venta", productId: "a" },
+    { tipo: "lineaEntra", mesa: "venta", productId: "a", imagen: "a.jpg" },
     { tipo: "total", mesa: "venta", de: 0, a: 20 },
   ]);
 });

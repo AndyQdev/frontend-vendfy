@@ -32,7 +32,7 @@ export interface Mensaje {
 export interface EventoCompra {
   tipo: "compra";
   compra: CompraRegistrada;
-  lineas: { nombre: string; imagen: string | null; cantidad: number; costo: number }[];
+  lineas: { nombre: string; imagen: string | null; cantidad: number; costo: number; stock?: number }[];
 }
 
 export interface EventoVenta {
