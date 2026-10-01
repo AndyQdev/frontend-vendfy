@@ -13,6 +13,9 @@ import ProductsPage from "@/pages/products";
 import CreateProductPage from "@/pages/products/create";
 import ProductTaxonomiesPage from "@/pages/products/taxonomies";
 import InventoryPage from "@/pages/inventory";
+import LivePage from "@/pages/live";
+import PrepararLivePage from "@/pages/live/preparar";
+import ControlLivePage from "@/pages/live/control";
 import CustomersPage from "@/pages/customers";
 import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
@@ -72,6 +75,9 @@ export default function AppRouter() {
             <Route path="/products/taxonomies" element={<ProductTaxonomiesPage />} />
             <Route path="/products/:id" element={<CreateProductPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/live" element={<LivePage />} />
+            <Route path="/live/:id/preparar" element={<PrepararLivePage />} />
+            <Route path="/live/:id/control" element={<ControlLivePage />} />
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/purchases/new" element={<PurchaseCreatePage />} />
             <Route path="/purchases/:id" element={<PurchaseDetailPage />} />

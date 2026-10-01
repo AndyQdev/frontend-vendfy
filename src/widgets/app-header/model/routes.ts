@@ -4,6 +4,7 @@ import {
   ClipboardList,
   House,
   Layers,
+  Radio,
   MessageSquareText,
   Package,
   ReceiptText,
@@ -48,6 +49,8 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/orders", label: "Pedidos", icon: ClipboardList, badge: "pending-orders" },
   { href: "/sales", label: "Ventas", icon: ReceiptText },
   { href: "/products", label: "Productos", icon: Package },
+  // El Live va pegado a Productos: es otra forma de ponerlos a la venta.
+  { href: "/live", label: "Modo Live", icon: Radio, match: "/live" },
   { href: "/inventory", label: "Inventario", icon: Layers },
   { href: "/purchases", label: "Compras", icon: Truck },
   { href: "/customers", label: "Clientes", icon: Users },
