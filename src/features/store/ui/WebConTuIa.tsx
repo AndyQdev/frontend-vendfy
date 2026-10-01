@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Check, Copy, Globe, LogIn, MessageSquareText, Palette, PlugZap, Rocket, ShieldCheck } from "lucide-react";
+import { Check, Copy, Globe, Link as LinkIcon, LogIn, MessageSquareText, Palette, PlugZap, Rocket, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card } from "@/shared/ui/card";
+import { Input } from "@/shared/ui/input";
 import { cn } from "@/shared/lib/cn";
 
 /**
@@ -28,7 +29,16 @@ const HERRAMIENTAS: { id: Herramienta; nombre: string }[] = [
   { id: "antigravity", nombre: "Antigravity" },
 ];
 
-export function WebConTuIa({ nombreTienda }: { nombreTienda: string }) {
+export function WebConTuIa({
+  nombreTienda,
+  url,
+  onUrlChange,
+}: {
+  nombreTienda: string;
+  /** La web propia ya publicada, si la hay. */
+  url?: string;
+  onUrlChange: (url: string) => void;
+}) {
   const [herramienta, setHerramienta] = useState<Herramienta>("claude");
 
   // El pedido es corto a propósito: la IA ya trae instrucciones para preguntar
@@ -67,6 +77,8 @@ export function WebConTuIa({ nombreTienda }: { nombreTienda: string }) {
           </p>
         </div>
       </div>
+
+      <WebPublicada url={url} onUrlChange={onUrlChange} />
 
       <ol className="space-y-5">
         {/* 1 */}
@@ -323,6 +335,73 @@ function Copiable({
         {copiado ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
         {copiado ? "Copiado" : "Copiar"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Enganchar la web ya publicada.
+ *
+ * Sin esto, el boton del globo del encabezado seguia llevando a
+ * `compras.vendfy.shop/{slug}`: una tienda que existe pero que el comerciante
+ * ya no muestra. Pegando aca su direccion, ese boton pasa a abrir la suya.
+ *
+ * Lo carga a mano a proposito. El MCP es de solo lectura y ademas no
+ * despliega -la IA genera el codigo y el dueno lo sube donde quiere-, asi que
+ * el servidor no tiene forma de enterarse de esta direccion.
+ *
+ * La de Vendfy no se apaga: sigue accesible desde el menu del perfil, y es
+ * donde viven el Modo Live y el seguimiento de pedidos.
+ */
+function WebPublicada({
+  url,
+  onUrlChange,
+}: {
+  url?: string;
+  onUrlChange: (url: string) => void;
+}) {
+  const valor = url ?? "";
+  // Un error silencioso aca deja el boton del encabezado apuntando a la nada.
+  const invalida = valor.trim().length > 0 && !/^https?:\/\/\S+$/i.test(valor.trim());
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-4">
+      <div className="flex items-start gap-3">
+        <LinkIcon className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">¿Ya publicaste tu web?</p>
+          <p className="text-sm text-muted-foreground">
+            Pegá su dirección y el botón de “tienda online” del encabezado va a abrir la tuya en vez de la de Vendfy.
+            Dejalo vacío si todavía no la tenés.
+          </p>
+        </div>
+      </div>
+
+      <Input
+        value={valor}
+        onChange={(e) => onUrlChange(e.target.value)}
+        placeholder="https://mitienda.com"
+        inputMode="url"
+        aria-label="Dirección de tu web"
+        aria-invalid={invalida}
+      />
+
+      {invalida ? (
+        <p className="text-xs text-destructive">
+          Tiene que empezar con <code className="rounded bg-muted px-1">https://</code>.
+        </p>
+      ) : (
+        valor.trim().length > 0 && (
+          <a
+            href={valor.trim()}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block text-xs text-primary underline underline-offset-2"
+          >
+            Abrir para comprobar
+          </a>
+        )
+      )}
     </div>
   );
 }

@@ -41,4 +41,12 @@ export interface StoreConfig {
   category?: string;
   themeId?: string;
   currency?: string;
+  /**
+   * La web propia del comerciante, si se la armo con el MCP. Conviven: esta es
+   * la que ensena, y la de Vendfy sigue siendo donde viven el Modo Live y el
+   * seguimiento de pedidos.
+   */
+  storefront?: {
+    url?: string;
+  };
 }

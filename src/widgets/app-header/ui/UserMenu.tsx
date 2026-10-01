@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Globe, LogOut, Menu, MessageCircle, Moon, Sun } from "lucide-react";
+import { ChevronDown, Globe, LogOut, Menu, MessageCircle, Moon, Store, Sun } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth";
 import { useTheme } from "@/app/providers/theme";
@@ -31,7 +31,18 @@ export function initials(name: string): string {
  * reduce a un botón de menú, y adentro aparece también el enlace a la tienda
  * online, que en escritorio tiene su propio botón (el globo).
  */
-export function UserMenu({ storeUrl }: { storeUrl: string | null }) {
+export function UserMenu({
+  storeUrl,
+  urlVendfy = null,
+}: {
+  /** La que el comerciante enseña: la propia si la cargó, si no la de Vendfy. */
+  storeUrl: string | null;
+  /**
+   * La de Vendfy, solo cuando hay una propia distinta. Las dos conviven: ahí
+   * siguen viviendo el Modo Live y el seguimiento de pedidos.
+   */
+  urlVendfy?: string | null;
+}) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -81,6 +92,12 @@ export function UserMenu({ storeUrl }: { storeUrl: string | null }) {
           <DropdownMenuItem className="lg:hidden" onSelect={() => window.open(storeUrl, "_blank", "noopener,noreferrer")}>
             <Globe />
             Ver tienda online
+          </DropdownMenuItem>
+        ) : null}
+        {urlVendfy ? (
+          <DropdownMenuItem onSelect={() => window.open(urlVendfy, "_blank", "noopener,noreferrer")}>
+            <Store />
+            Tienda de Vendfy
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={() => navigate("/whatsapp?config=connection")}>

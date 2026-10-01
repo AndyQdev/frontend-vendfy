@@ -1,6 +1,7 @@
 import { Globe } from "lucide-react";
 
 import { useStore } from "@/app/providers/auth";
+import { useStore as useStoreQuery } from "@/entities/store/api";
 import { cn } from "@/shared/lib/cn";
 
 import { NotificationsBell } from "./NotificationsBell";
@@ -17,8 +18,27 @@ const PUBLIC_URL = (import.meta.env.VITE_URL_PUBLIC as string | undefined) || "h
  */
 export function HeaderActions({ className }: { className?: string }) {
   const { selectedStore } = useStore();
-  const slug = selectedStore && selectedStore !== "all" ? selectedStore.slug : null;
-  const storeUrl = slug ? `${PUBLIC_URL}/${slug}` : null;
+  const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
+  const slug = tienda?.slug ?? null;
+
+  // La tienda guardada en el navegador es una copia congelada del momento en
+  // que se la eligió: no trae `config` y, aunque lo trajera, quedaría vieja al
+  // editar la dirección. Se relee de la base para que la web elegida valga
+  // desde cualquier dispositivo y sesión.
+  const { data: datosTienda } = useStoreQuery(tienda?.id);
+
+  // La de Vendfy siempre existe: se arma con el slug.
+  const urlVendfy = slug ? `${PUBLIC_URL}/${slug}` : null;
+
+  // La propia, si el comerciante la publicó y pegó su dirección en
+  // Tienda → Diseño → Tu web con IA. Viene de la base, no del navegador, así
+  // que vale desde cualquier dispositivo y sesión.
+  const urlPropia = datosTienda?.config?.storefront?.url?.trim() || null;
+
+  // El globo abre la que el comerciante enseña; la de Vendfy queda accesible
+  // desde el menú, porque ahí viven el Modo Live y el seguimiento de pedidos.
+  const storeUrl = urlPropia ?? urlVendfy;
+  const urlAlterna = urlPropia && urlVendfy && urlPropia !== urlVendfy ? urlVendfy : null;
 
   return (
     <div
@@ -49,7 +69,7 @@ export function HeaderActions({ className }: { className?: string }) {
 
       <span aria-hidden className="mx-0.5 hidden h-6 w-px bg-border lg:block" />
 
-      <UserMenu storeUrl={storeUrl} />
+      <UserMenu storeUrl={storeUrl} urlVendfy={urlAlterna} />
     </div>
   );
 }

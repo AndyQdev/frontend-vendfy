@@ -562,7 +562,13 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
           )}
 
           {seccionDiseno === "ia" && mode === "edit" && store?.id ? (
-            <WebConTuIa nombreTienda={formData.name} />
+            <WebConTuIa
+              nombreTienda={formData.name}
+              url={formData.config?.storefront?.url}
+              onUrlChange={(url) =>
+                handleConfigFieldChange("storefront", { ...formData.config?.storefront, url })
+              }
+            />
           ) : (
             <>
           <Card className="p-6 space-y-4">
