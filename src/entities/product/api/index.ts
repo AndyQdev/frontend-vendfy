@@ -92,7 +92,14 @@ export function useUpdateProduct() {
       const response = await apiFetch<Product>(`/api/product/${id}`, { method: "PATCH", body: data });
       return response.data as Product;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] })
+    // La ficha vive en ["product", id] y la lista en ["products"]: son claves
+    // distintas, asi que invalidar solo la lista dejaba la ficha con los datos
+    // viejos. Al volver a abrir el producto recien editado se veia la imagen
+    // anterior hasta que la consulta terminara de refrescar.
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product", variables.id] });
+    },
   });
 }
 

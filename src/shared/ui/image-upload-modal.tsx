@@ -298,7 +298,7 @@ export function ImageUploadModal({
                     </div>
 
                     {/* Drag handle */}
-                    <div className="absolute top-2 right-2 bg-background/80 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 bg-background/80 p-1 rounded transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
                       <GripVertical className="h-4 w-4" />
                     </div>
 
@@ -306,7 +306,7 @@ export function ImageUploadModal({
                     <button
                       onClick={() => handleRemoveImage(index)}
                       disabled={deletingIndex === index}
-                      className="absolute bottom-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute bottom-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full transition-opacity disabled:opacity-50 disabled:cursor-not-allowed [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                     >
                       {deletingIndex === index ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
