@@ -120,3 +120,55 @@ test("teléfono: un análisis sube como hoja con la vista, y se vuelve a abrir d
   await expect(page.getByTestId("omnibox-mesa")).toHaveAttribute("data-mesa", "analisis");
   await expect(page.getByTestId("vista-conclusion")).toContainText("Vendiste poco este año.");
 });
+
+test('teléfono: "Reponer" desde el análisis pasa la hoja a la compra cargada', async ({ page, request }) => {
+  const { analizar, productoReal, simularConclusion, simularFrases, simularSugerencias } = await import("../helpers/mock");
+  const coca = await productoReal(request, "coca");
+  await page.route("**/api/omnibox/vista/fuente", async (route) => {
+    if (route.request().postDataJSON()?.fuente !== "top_productos") return route.continue();
+    return route.fulfill({
+      json: {
+        statusCode: 200,
+        data: {
+          columnas: [
+            { clave: "producto", titulo: "Producto", tipo: "producto" },
+            { clave: "unidades", titulo: "Unidades", tipo: "numero" },
+            { clave: "monto", titulo: "Vendido", tipo: "dinero" },
+          ],
+          filas: [
+            {
+              producto: coca.nombre,
+              _imagen: coca.imagen,
+              _productId: coca.productId,
+              _storeProductId: coca.storeProductId,
+              _precio: coca.precio,
+              _stock: coca.stock,
+              unidades: 12,
+              monto: coca.precio * 12,
+              _costo: 7,
+              _sugerido: 12,
+            },
+          ],
+        },
+      },
+    });
+  });
+  const vista = {
+    titulo: "Qué reponer",
+    piezas: [
+      { id: "p1", tipo: "accion" as const, accion: "reponer" as const, fuente: "top_productos", params: { periodo: "7dias", limite: 5, orden: "monto" }, titulo: "Reponer lo que más sale" },
+    ],
+  };
+  await simularFrases(page, { "qué tengo que reponer": analizar(vista) });
+  await simularConclusion(page, "");
+  await simularSugerencias(page);
+
+  await page.goto("/omnibox");
+  await decir(page, "qué tengo que reponer");
+  const mesa = page.getByTestId("omnibox-mesa");
+  await expect(mesa).toHaveAttribute("data-mesa", "analisis");
+  await mesa.getByRole("button", { name: "Reponer este" }).click();
+  await expect(mesa).toHaveAttribute("data-mesa", "compra");
+  await expect(mesa.locator(`[data-linea="compra:${coca.productId}"]`)).toBeVisible();
+  await expect(mesa.getByTestId("omnibox-total-compra")).toHaveText("Bs 84,00");
+});

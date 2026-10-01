@@ -10,6 +10,7 @@ import type {
   Propuesta,
   TablaVista,
   VentaCobrada,
+  VistaFijada,
   VistaSpec,
 } from "../model/types";
 
@@ -249,7 +250,15 @@ export function useCrearProductoRapido() {
  * llega el nuevo: un esqueleto en cada cambio hace saltar todo el panel.
  */
 export function useFuenteVista(storeId: string, fuente: string, params: Record<string, unknown>) {
-  return useQuery({
+  return useQuery({ ...consultaFuenteVista(storeId, fuente, params), placeholderData: keepPreviousData });
+}
+
+/**
+ * La misma consulta, para leerla fuera de un componente (exportar a Excel):
+ * misma clave, así que lo que ya dibujó el panel sale del caché.
+ */
+export function consultaFuenteVista(storeId: string, fuente: string, params: Record<string, unknown>) {
+  return {
     queryKey: ["omnibox", "vista", "fuente", storeId, fuente, params],
     queryFn: async () =>
       (
@@ -259,9 +268,12 @@ export function useFuenteVista(storeId: string, fuente: string, params: Record<s
         })
       ).data!,
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
-  });
+  };
 }
+
+/** La clave de la conclusión de una vista: para leerla del caché sin volver a pedírsela a la IA. */
+export const claveConclusionVista = (storeId: string, pregunta: string, vista: VistaSpec) =>
+  ["omnibox", "vista", "conclusion", storeId, pregunta, vista] as const;
 
 /**
  * La conclusión: la escribe el modelo sobre los números ya calculados, y el
@@ -270,7 +282,7 @@ export function useFuenteVista(storeId: string, fuente: string, params: Record<s
  */
 export function useConclusionVista(storeId: string, pregunta: string, vista: VistaSpec) {
   return useQuery({
-    queryKey: ["omnibox", "vista", "conclusion", storeId, pregunta, vista],
+    queryKey: claveConclusionVista(storeId, pregunta, vista),
     queryFn: async () =>
       (
         await apiFetch<{ conclusion: string }>("/api/omnibox/vista/conclusion", {
@@ -281,5 +293,40 @@ export function useConclusionVista(storeId: string, pregunta: string, vista: Vis
     staleTime: Infinity,
     gcTime: 30 * 60_000,
     retry: false,
+  });
+}
+
+// ------------------------------------------------------------ vistas fijadas (G4)
+
+/** El tablero de la tienda: las vistas fijadas. Sin permiso de reportes, vacío. */
+export function useVistasFijadas(storeId: string | null) {
+  return useQuery({
+    queryKey: ["omnibox", "vistas-fijadas", storeId],
+    queryFn: async () =>
+      (await apiFetch<VistaFijada[]>(`/api/omnibox/vistas-fijadas?storeId=${storeId}`)).data ?? [],
+    enabled: Boolean(storeId),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useFijarVista() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; nombre: string; pregunta: string; vista: VistaSpec }) =>
+      (await apiFetch<VistaFijada>("/api/omnibox/vistas-fijadas", { method: "POST", body: vars })).data!,
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["omnibox", "vistas-fijadas", vars.storeId] }),
+  });
+}
+
+export function useDesfijarVista() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; id: string }) =>
+      (
+        await apiFetch<{ id: string }>(`/api/omnibox/vistas-fijadas/${vars.id}?storeId=${vars.storeId}`, {
+          method: "DELETE",
+        })
+      ).data!,
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["omnibox", "vistas-fijadas", vars.storeId] }),
   });
 }

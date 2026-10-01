@@ -1,4 +1,4 @@
-import type { CompraRegistrada, ProductoOpcion, Propuesta, VentaCobrada } from "@/entities/omnibox/model/types";
+import type { CompraRegistrada, ProductoOpcion, Propuesta, VentaCobrada, VistaFijada } from "@/entities/omnibox/model/types";
 
 /**
  * Un intercambio del chat: lo que dijo la persona y lo que el sistema propuso.
@@ -65,6 +65,37 @@ export type Desenlace =
    * la venta cobrada.
    */
   | { tipo: "guia"; texto: string; nivel: "error" | "advertencia" };
+
+/**
+ * Abrir una vista fijada (G4) queda en el hilo como si se hubiera preguntado:
+ * el nombre como frase y la vista como respuesta. Sin IA (capa C0): la vista
+ * ya está armada; los datos se leen al día al abrirla.
+ */
+export function mensajeDeVistaFijada(f: VistaFijada): Mensaje {
+  return {
+    ...nuevoMensaje(f.nombre, false),
+    fase: "listo",
+    propuesta: {
+      intencion: "analizar",
+      titulo: f.vista.titulo,
+      confianza: 1,
+      capa: "C0",
+      entidades: { fijada: f.id },
+      faltan: [],
+      opciones: [],
+      noEncontrado: null,
+      requiereConfirmacion: false,
+      vistaPrevia: null,
+      ejecutable: true,
+      resultado: null,
+      aviso: null,
+      producto: null,
+      bloqueo: null,
+      vista: f.vista,
+      ms: 0,
+    },
+  };
+}
 
 export function nuevoMensaje(texto: string | null, porVoz: boolean): Mensaje {
   return {

@@ -6,7 +6,9 @@ import { cn } from "@/shared/lib/cn";
 import { unidades, type AccionMesa, type Mesa, type TipoMesa } from "../../model/mesa";
 import { resumenPiezas } from "../../model/vistas";
 import { PanelVista } from "../vista/PanelVista";
-import { FotoProducto } from "../piezas";
+import { BotonIcono, FotoProducto } from "../piezas";
+import { AccionesAnalisis } from "../vista/AccionesAnalisis";
+import type { AccionesVista } from "../vista/acciones";
 import { FichaProducto } from "./FichaProducto";
 import { VentaBorrador } from "./VentaBorrador";
 import { CompraBorrador } from "./CompraBorrador";
@@ -30,6 +32,8 @@ export function PanelMesa({
   onRegistrarCompra,
   registrando = false,
   errorCompra = null,
+  tienda = "",
+  acciones = null,
 }: {
   mesa: Mesa;
   despachar: Dispatch<AccionMesa>;
@@ -42,6 +46,10 @@ export function PanelMesa({
   errorCompra?: string | null;
   /** Dentro de la hoja del teléfono: sin borde ni botón de ampliar. */
   enHoja?: boolean;
+  /** El nombre de la tienda: va en lo que se exporta de un análisis. */
+  tienda?: string;
+  /** Lo que un análisis puede hacer afuera: abrir un producto, cargar a la compra (G4). */
+  acciones?: AccionesVista | null;
 }) {
   if (!mesa.abierta) return null;
   // El análisis (G3) se muestra en el mismo panel, con su propia pestaña.
@@ -104,6 +112,7 @@ export function PanelMesa({
           </>
         )}
 
+        {analisis ? <AccionesAnalisis analisis={analisis} storeId={storeId} tienda={tienda} /> : null}
         {!enHoja && (
           <BotonIcono
             etiqueta={mesa.ampliada ? "Achicar el panel" : "Ampliar el panel"}
@@ -172,6 +181,7 @@ export function PanelMesa({
             storeId={storeId}
             despachar={despachar}
             ampliada={mesa.ampliada && !enHoja}
+            acciones={acciones}
           />
         ) : mesa.pestana === "producto" ? (
           mesa.producto ? (
@@ -219,28 +229,6 @@ export function PanelMesa({
         )}
       </div>
     </aside>
-  );
-}
-
-function BotonIcono({
-  etiqueta,
-  onClick,
-  children,
-}: {
-  etiqueta: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={etiqueta}
-      title={etiqueta}
-      onClick={onClick}
-      className="grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground"
-    >
-      {children}
-    </button>
   );
 }
 

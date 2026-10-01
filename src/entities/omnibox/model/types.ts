@@ -83,12 +83,35 @@ export type PiezaVista =
   | { id: string; tipo: "grafico"; forma: FormaGrafico; fuente: string; params: Params; x: string; y: string[]; titulo: string }
   | { id: string; tipo: "tabla"; fuente: string; params: Params; columnas?: string[]; titulo: string }
   | { id: string; tipo: "ranking"; fuente: string; params: Params; etiqueta: string; valor: string; titulo: string }
+  // G4: un período contra otro (los params van sin período), un hallazgo con
+  // regla fija, y el puente a N1 (arma la compra, nunca la registra).
+  | {
+      id: string;
+      tipo: "comparativa";
+      fuente: string;
+      params: Params;
+      periodos: [Periodo, Periodo];
+      etiqueta: string;
+      valor: string;
+      titulo: string;
+    }
+  | { id: string; tipo: "alerta"; fuente: string; params: Params; titulo?: string }
+  | { id: string; tipo: "accion"; accion: "reponer"; fuente: string; params: Params; titulo: string }
   | { id: string; tipo: "conclusion" };
 
 /** Ya validada por el servidor: fuentes, columnas y parámetros existen. */
 export interface VistaSpec {
   titulo: string;
   piezas: PiezaVista[];
+}
+
+/** Una vista fijada: el tablero propio de la tienda (G4). Se guarda la vista, no los números. */
+export interface VistaFijada {
+  id: string;
+  nombre: string;
+  pregunta: string;
+  vista: VistaSpec;
+  creada: string;
 }
 
 export interface CostoProducto {

@@ -87,6 +87,30 @@ export const BotonSecundario = forwardRef<HTMLButtonElement, ComponentProps<"but
   },
 );
 
+/**
+ * Botón cuadrado con solo ícono (ampliar, cerrar, fijar, exportar). Reenvía
+ * la ref para poder ser el disparador de un menú.
+ */
+export const BotonIcono = forwardRef<HTMLButtonElement, ComponentProps<"button"> & { etiqueta: string }>(
+  function BotonIcono({ etiqueta, className, children, ...props }, ref) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        aria-label={etiqueta}
+        title={etiqueta}
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  },
+);
+
 // ------------------------------------------------------------ tarjeta
 
 /** La tarjeta de respuesta. `hora` va arriba a la derecha, chica y gris. */

@@ -16,25 +16,45 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertCircle, ArrowDownRight, ArrowUpRight, BarChart3, Inbox, Minus, RotateCcw, Sparkles, Table2 } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Check,
+  CheckCircle2,
+  Inbox,
+  Minus,
+  RotateCcw,
+  Sparkles,
+  Table2,
+  Truck,
+} from "lucide-react";
 
 import { useConclusionVista, useFuenteVista } from "@/entities/omnibox/api";
-import type { ColumnaVista, PiezaVista, TablaVista, TipoColumna, VistaSpec } from "@/entities/omnibox/model/types";
+import type { ColumnaVista, PiezaVista, ProductoOpcion, TablaVista, TipoColumna, VistaSpec } from "@/entities/omnibox/model/types";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/shared/lib/cn";
 
 import {
+  alertaDe,
   barrasAcostadas,
+  comparar,
   compacto,
   contraQue,
   etiquetaFecha,
+  etiquetaPeriodo,
   hayDatos,
+  paraReponer,
   porciones,
+  productoDeFila,
   puestos,
   valorConFormato,
   variacion,
 } from "../../model/vistas";
-import { FotoProducto } from "../piezas";
+import { BotonCta, BotonSecundario, FotoProducto, dinero } from "../piezas";
+import { useAccionesVista } from "./acciones";
 
 /**
  * Las piezas de una vista (G3): indicadores, gráfico, ranking, tabla y
@@ -51,7 +71,8 @@ import { FotoProducto } from "../piezas";
  *   leer un número.
  */
 
-type PiezaDatos = Exclude<PiezaVista, { tipo: "conclusion" }>;
+/** Las piezas que leen UNA fuente. La comparativa (dos lecturas) y la alerta tienen su componente. */
+type PiezaDatos = Extract<PiezaVista, { tipo: "indicadores" | "grafico" | "tabla" | "ranking" | "accion" }>;
 
 const reducido = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,6 +129,7 @@ function Marco({
             aria-label={tabla ? "Ver el gráfico" : "Ver la tabla"}
             title={tabla ? "Ver el gráfico" : "Ver la tabla"}
             data-testid="vista-alternar"
+            data-no-imprimir
             className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {tabla ? <BarChart3 className="size-4" /> : <Table2 className="size-4" />}
@@ -191,7 +213,7 @@ export function PiezaConDatos({ pieza, storeId }: { pieza: PiezaDatos; storeId: 
       onTabla={alternable && !vacia ? () => setVerTabla((v) => !v) : undefined}
     >
       {vacia ? (
-        <Vacio>{VACIO[pieza.fuente] ?? "No hubo ventas en este período."}</Vacio>
+        <Vacio>{pieza.tipo === "accion" ? "No hay nada para reponer." : (VACIO[pieza.fuente] ?? "No hubo ventas en este período.")}</Vacio>
       ) : verTabla || pieza.tipo === "tabla" ? (
         <TablaDatos
           tabla={tabla}
@@ -210,6 +232,8 @@ export function PiezaConDatos({ pieza, storeId }: { pieza: PiezaDatos; storeId: 
         <Indicadores tabla={tabla} periodo={pieza.params.periodo} />
       ) : pieza.tipo === "grafico" ? (
         <Grafico pieza={pieza} tabla={tabla} />
+      ) : pieza.tipo === "accion" ? (
+        <Reponer tabla={tabla} />
       ) : (
         <Ranking pieza={pieza as Extract<PiezaDatos, { tipo: "ranking" }>} tabla={tabla} />
       )}
@@ -544,6 +568,11 @@ function Ranking({ pieza, tabla }: { pieza: Extract<PiezaDatos, { tipo: "ranking
   const tipoEtiqueta = tabla.columnas.find((c) => c.clave === pieza.etiqueta)?.tipo;
   const tipoValor = tabla.columnas.find((c) => c.clave === pieza.valor)?.tipo ?? "numero";
   const lista = puestos(tabla.filas, pieza.etiqueta, pieza.valor);
+  // El producto de cada puesto, para abrir su ficha (mismo orden que `puestos`).
+  const producto = (etiqueta: string) => {
+    const fila = tabla.filas.find((f) => String(f[pieza.etiqueta]) === etiqueta);
+    return fila ? productoDeFila(fila, pieza.etiqueta) : null;
+  };
   return (
     <ol className="space-y-2.5" data-testid="vista-ranking">
       {lista.map((p, i) => (
@@ -552,7 +581,7 @@ function Ranking({ pieza, tabla }: { pieza: Extract<PiezaDatos, { tipo: "ranking
           {tipoEtiqueta === "producto" ? <FotoProducto src={p.imagen} className="size-9" /> : null}
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-[13px] font-medium text-foreground">{p.etiqueta}</span>
+              <NombreProducto nombre={p.etiqueta} producto={tipoEtiqueta === "producto" ? producto(p.etiqueta) : null} />
               <span className="cifra shrink-0 text-[13px] font-semibold text-foreground">
                 {valorConFormato(p.valor, tipoValor)}
               </span>
@@ -619,7 +648,7 @@ export function TablaDatos({
                     {c.tipo === "producto" ? (
                       <span className="flex min-w-0 items-center gap-2">
                         <FotoProducto src={f._imagen as string | null} className="size-7" />
-                        <span className="truncate">{String(f[c.clave] ?? "—")}</span>
+                        <NombreProducto nombre={String(f[c.clave] ?? "—")} producto={productoDeFila(f, c.clave)} />
                       </span>
                     ) : (
                       valorConFormato(f[c.clave], c.tipo, agrupar)
@@ -635,12 +664,262 @@ export function TablaDatos({
         <button
           type="button"
           onClick={() => setTodas((v) => !v)}
+          data-no-imprimir
           className="mt-2 text-xs font-medium text-primary hover:underline"
         >
           {todas ? "Ver menos" : `Ver las ${tabla.filas.length} filas`}
         </button>
       ) : null}
     </div>
+  );
+}
+
+// ------------------------------------------------------------ productos tocables (G4)
+
+/**
+ * El nombre de un producto en una vista: tocarlo abre su ficha en el panel,
+ * igual que en el chat. Sin acciones (fuera del asistente) es solo texto.
+ */
+function NombreProducto({ nombre, producto }: { nombre: string; producto: ProductoOpcion | null }) {
+  const acciones = useAccionesVista();
+  if (!producto || !acciones) {
+    return <span className="truncate text-[13px] font-medium text-foreground">{nombre}</span>;
+  }
+  return (
+    <button
+      type="button"
+      data-testid="vista-producto"
+      onClick={() => acciones.verProducto(producto)}
+      title={`Ver ${nombre}`}
+      className="truncate text-left text-[13px] font-medium text-foreground underline-offset-2 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {nombre}
+    </button>
+  );
+}
+
+// ------------------------------------------------------------ reponer (G4, el puente a N1)
+
+/**
+ * "Reponer estos 3": carga los productos a la compra con la cantidad sugerida
+ * y el último costo, y la abre para revisarla. NO registra: la compra sigue
+ * siendo un toque de la persona, como cuando la arma hablando.
+ */
+function Reponer({ tabla }: { tabla: TablaVista }) {
+  const acciones = useAccionesVista();
+  const items = paraReponer(tabla.filas);
+  if (items.length === 0) return <Vacio>No hay nada para reponer.</Vacio>;
+  const yaEsta = acciones?.enCompra(items.map((i) => i.producto.productId)) ?? false;
+  return (
+    <div data-testid="vista-reponer">
+      <ul className="space-y-2">
+        {items.map((it) => (
+          <li key={it.producto.productId} className="flex items-center gap-3" data-testid="vista-reponer-item">
+            <FotoProducto src={it.producto.imagen} className="size-9" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium text-foreground">{it.producto.nombre}</p>
+              <p className="text-xs text-muted-foreground">
+                Stock {it.producto.stock.toLocaleString("es-BO")} ·{" "}
+                {it.costo != null ? `último costo Bs ${dinero(it.costo)}` : "sin costo cargado"}
+              </p>
+            </div>
+            <span className="cifra shrink-0 text-[13px] font-semibold text-foreground">+{it.cantidad}</span>
+          </li>
+        ))}
+      </ul>
+      {acciones ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3" data-no-imprimir>
+          {yaEsta ? (
+            <>
+              <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-success-soft-foreground" data-testid="vista-reponer-hecho">
+                <Check className="size-4" />
+                Ya está en la compra
+              </p>
+              <BotonSecundario onClick={acciones.verCompra}>Ver la compra</BotonSecundario>
+            </>
+          ) : (
+            <>
+              <BotonCta data-testid="vista-reponer-boton" onClick={() => acciones.reponer(items)}>
+                <Truck />
+                {items.length === 1 ? "Reponer este" : `Reponer estos ${items.length}`}
+              </BotonCta>
+              <p className="text-xs text-muted-foreground">Se carga a la compra para que la revises: todavía no se registra nada.</p>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ alerta (G4)
+
+/**
+ * Un hallazgo destacado. La regla es fija (`alertaDe`) y los números salen de
+ * los datos: la IA decidió mostrarla, no qué dice. Color de estado siempre con
+ * su ícono, nunca solo.
+ */
+export function PiezaAlerta({ pieza, storeId }: { pieza: Extract<PiezaVista, { tipo: "alerta" }>; storeId: string }) {
+  const consulta = useFuenteVista(storeId, pieza.fuente, pieza.params);
+  if (consulta.isLoading) return <Skeleton className="h-16 rounded-xl" data-testid="vista-cargando" />;
+  const alerta = consulta.data ? alertaDe(pieza.fuente, consulta.data) : null;
+  if (!alerta) return null;
+  const advierte = alerta.nivel === "advertencia";
+  return (
+    <section
+      data-testid="vista-pieza"
+      data-tipo="alerta"
+      data-fuente={pieza.fuente}
+      data-nivel={alerta.nivel}
+      role={advierte ? "alert" : undefined}
+      className={cn(
+        "flex items-start gap-3 rounded-xl border px-4 py-3",
+        advierte ? "border-warning/30 bg-warning-soft" : "border-success/25 bg-success-soft",
+      )}
+    >
+      {advierte ? (
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-soft-foreground" aria-hidden />
+      ) : (
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-soft-foreground" aria-hidden />
+      )}
+      <div className="min-w-0">
+        <p className={cn("text-sm font-semibold", advierte ? "text-warning-soft-foreground" : "text-success-soft-foreground")}>
+          {alerta.texto}
+        </p>
+        {alerta.detalle ? <p className="mt-0.5 text-[13px] text-foreground/80">{alerta.detalle}</p> : null}
+      </div>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------ comparativa (G4)
+
+/**
+ * Un período contra otro, fila por fila: lee la misma fuente dos veces. La
+ * diferencia va con flecha y signo (no solo color), y en porcentaje cuando
+ * el segundo período tiene con qué comparar.
+ */
+export function PiezaComparativa({
+  pieza,
+  storeId,
+}: {
+  pieza: Extract<PiezaVista, { tipo: "comparativa" }>;
+  storeId: string;
+}) {
+  const [pa, pb] = pieza.periodos;
+  const a = useFuenteVista(storeId, pieza.fuente, { ...pieza.params, periodo: pa });
+  const b = useFuenteVista(storeId, pieza.fuente, { ...pieza.params, periodo: pb });
+  const [todas, setTodas] = useState(false);
+  const subtitulo = `${etiquetaPeriodo(pa)} vs. ${etiquetaPeriodo(pb)}`;
+
+  if (a.isLoading || b.isLoading) {
+    return (
+      <Marco pieza={pieza} titulo={pieza.titulo} periodo={subtitulo}>
+        <Skeleton className="h-[160px] rounded-lg" data-testid="vista-cargando" />
+      </Marco>
+    );
+  }
+  if (!a.data || !b.data) {
+    return (
+      <Marco pieza={pieza} titulo={pieza.titulo} periodo={subtitulo}>
+        <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+          <AlertCircle className="size-4 shrink-0 text-destructive" />
+          <span className="flex-1">No pude leer estos datos.</span>
+          <button
+            type="button"
+            onClick={() => {
+              a.refetch();
+              b.refetch();
+            }}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            <RotateCcw className="size-3.5" />
+            Reintentar
+          </button>
+        </div>
+      </Marco>
+    );
+  }
+
+  const tipoValor = a.data.columnas.find((c) => c.clave === pieza.valor)?.tipo ?? "numero";
+  const tituloEtiqueta = a.data.columnas.find((c) => c.clave === pieza.etiqueta)?.titulo ?? "";
+  const filas = comparar(a.data.filas, b.data.filas, pieza.etiqueta, pieza.valor);
+  const visibles = todas ? filas : filas.slice(0, 8);
+
+  return (
+    <Marco pieza={pieza} titulo={pieza.titulo} periodo={subtitulo} refrescando={a.isFetching || b.isFetching}>
+      {filas.length === 0 ? (
+        <Vacio>No hubo ventas en ninguno de los dos períodos.</Vacio>
+      ) : (
+        <div data-testid="vista-comparativa">
+          {/* Teléfono: una fila por renglón, con la diferencia arriba (en tabla quedaba cortada). */}
+          <ul className="divide-y divide-border/60 sm:hidden">
+            {visibles.map((f) => (
+              <li key={f.etiqueta} className="py-2" data-testid="vista-comparada-movil">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-[13px] font-medium text-foreground">{f.etiqueta}</span>
+                  <Diferencia fila={f} tipo={tipoValor} />
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  <span className="cifra font-semibold text-foreground">{valorConFormato(f.a, tipoValor)}</span> {etiquetaPeriodo(pa).toLowerCase()} ·{" "}
+                  <span className="cifra">{valorConFormato(f.b, tipoValor)}</span> {etiquetaPeriodo(pb).toLowerCase()}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <div className="-mx-1 hidden overflow-x-auto px-1 sm:block">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-xs text-muted-foreground">
+                  <th scope="col" className="py-1.5 pr-3 text-left font-medium">{tituloEtiqueta}</th>
+                  <th scope="col" className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">{etiquetaPeriodo(pa)}</th>
+                  <th scope="col" className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">{etiquetaPeriodo(pb)}</th>
+                  <th scope="col" className="whitespace-nowrap py-1.5 text-right font-medium">Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibles.map((f) => (
+                  <tr key={f.etiqueta} className="border-b border-border/60 last:border-0" data-testid="vista-comparada">
+                    <td className="max-w-[12rem] truncate py-2 pr-3 text-foreground">{f.etiqueta}</td>
+                    <td className="cifra whitespace-nowrap py-2 pr-3 text-right font-semibold text-foreground">{valorConFormato(f.a, tipoValor)}</td>
+                    <td className="cifra whitespace-nowrap py-2 pr-3 text-right text-muted-foreground">{valorConFormato(f.b, tipoValor)}</td>
+                    <td className="whitespace-nowrap py-2 text-right">
+                      <Diferencia fila={f} tipo={tipoValor} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filas.length > 8 ? (
+            <button type="button" onClick={() => setTodas((v) => !v)} data-no-imprimir className="mt-2 text-xs font-medium text-primary hover:underline">
+              {todas ? "Ver menos" : `Ver las ${filas.length} filas`}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </Marco>
+  );
+}
+
+function Diferencia({ fila, tipo }: { fila: ReturnType<typeof comparar>[number]; tipo: TipoColumna }) {
+  const d = fila.diferencia;
+  const tono = d > 0 ? "text-success-soft-foreground" : d < 0 ? "text-destructive-soft-foreground" : "text-muted-foreground";
+  const Icono = d > 0 ? ArrowUpRight : d < 0 ? ArrowDownRight : Minus;
+  return (
+    <span className={cn("inline-flex items-center gap-0.5 text-[12px] font-semibold", tono)} data-testid="vista-diferencia">
+      <Icono className="size-3.5" aria-label={d > 0 ? "subió" : d < 0 ? "bajó" : "igual"} />
+      <span className="cifra">
+        {d > 0 ? "+" : d < 0 ? "−" : ""}
+        {valorConFormato(Math.abs(d), tipo)}
+      </span>
+      {fila.pct != null ? (
+        <span className="cifra font-normal text-muted-foreground">
+          ({fila.pct > 0 ? "+" : ""}
+          {fila.pct.toLocaleString("es-BO", { maximumFractionDigits: 1 })} %)
+        </span>
+      ) : null}
+    </span>
   );
 }
 

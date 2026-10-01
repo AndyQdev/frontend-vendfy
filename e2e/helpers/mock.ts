@@ -35,14 +35,21 @@ export function propuesta(p: Partial<Propuesta> & { intencion: string }): Propue
   };
 }
 
-/** Cada frase escrita en el chat responde con su propuesta. */
+/**
+ * Cada frase escrita en el chat responde con su propuesta. Devuelve lo que
+ * mandó la pantalla (la frase y su contexto), para revisarlo.
+ */
 export async function simularFrases(page: Page, frases: Record<string, Propuesta>) {
+  const pedidos: { texto: string; contexto?: Record<string, any> }[] = [];
   await page.route("**/api/omnibox/interpretar", async (route) => {
-    const texto = (route.request().postDataJSON()?.texto ?? "") as string;
+    const cuerpo = route.request().postDataJSON() ?? {};
+    pedidos.push(cuerpo);
+    const texto = (cuerpo.texto ?? "") as string;
     const p = frases[texto];
     if (!p) return route.fulfill({ status: 500, json: { message: `Frase sin simular: ${texto}` } });
     return route.fulfill({ json: { statusCode: 200, data: p } });
   });
+  return pedidos;
 }
 
 /**
@@ -151,4 +158,18 @@ export async function simularConclusion(page: Page, texto: string): Promise<{ pr
     return route.fulfill({ json: { statusCode: 200, data: { conclusion: texto } } });
   });
   return pedidos;
+}
+
+/** Saca del tablero de la tienda de prueba las vistas que fijó una prueba (por el prefijo del nombre). */
+export async function limpiarFijadas(request: APIRequestContext, prefijo: string) {
+  const login = await request.post(`${API_URL}/api/auth/login`, {
+    data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD },
+  });
+  const headers = { Authorization: `Bearer ${(await login.json()).data.accessToken}` };
+  const r = await request.get(`${API_URL}/api/omnibox/vistas-fijadas?storeId=${TIENDA.id}`, { headers });
+  for (const f of ((await r.json()).data ?? []) as { id: string; nombre: string }[]) {
+    if (f.nombre.startsWith(prefijo)) {
+      await request.delete(`${API_URL}/api/omnibox/vistas-fijadas/${f.id}?storeId=${TIENDA.id}`, { headers });
+    }
+  }
 }

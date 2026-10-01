@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useReducer, useRef, useState } from "react";
-import { Store } from "lucide-react";
+import { BarChart3, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -12,6 +12,7 @@ import {
   useIntenciones,
   useInterpretar,
   useLeerFactura,
+  useVistasFijadas,
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
@@ -19,13 +20,16 @@ import {
   type LineaContexto,
   type ProductoOpcion,
   type Propuesta,
+  type VistaFijada,
 } from "@/entities/omnibox/model/types";
 import { useStore } from "@/app/providers/auth";
 import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { Drawer, DrawerContent, DrawerTitle } from "@/shared/ui/drawer";
 import { cn } from "@/shared/lib/cn";
 
-import { completar, mensajeDeEvento, nuevoMensaje, type Mensaje } from "../model/mensaje";
+import { completar, mensajeDeEvento, mensajeDeVistaFijada, nuevoMensaje, type Mensaje } from "../model/mensaje";
+import { accionesReponer, diferenciasVista, resumenPiezas, type Reposicion } from "../model/vistas";
+import type { AccionesVista } from "./vista/acciones";
 import {
   MESA_INICIAL,
   costoSugerido,
@@ -102,12 +106,15 @@ export function OmniboxPage() {
     const m = mesaRef.current;
     const lineas = (ls: { productId: string; nombre: string; cantidad: number }[]) =>
       ls.map((l) => ({ productId: l.productId, nombre: l.nombre, cantidad: l.cantidad }));
+    const analizando = m.abierta === "analisis" && m.analisis;
     return {
       // La que está a la vista; en el teléfono (panel cerrado), la última
       // con la que se trabajó: "que sean 3" es sobre esa.
       abierta: m.abierta && m.abierta !== "analisis" ? m.abierta : m.ultima,
       venta: { lineas: lineas(m.venta.lineas) },
       compra: { lineas: lineas(m.compra.lineas) },
+      // Con un análisis a la vista, "ahora por categoría" es sobre él (G4).
+      ...(analizando ? { enPantalla: "analisis", vista: m.analisis!.vista } : {}),
     };
   };
   // Con el panel al costado, chat y panel son dos columnas de alto fijo con
@@ -290,7 +297,7 @@ export function OmniboxPage() {
   // Los ejemplos salen del catálogo del backend, no de una lista escrita acá:
   // una intención nueva aparece sola en las sugerencias.
   const sugerencias = (intenciones ?? [])
-    .filter((i) => i.disponible)
+    .filter((i) => i.disponible && i.id !== "cambiar_vista")
     .map((i) => i.ejemplos[0])
     .filter(Boolean)
     .slice(0, 5);
@@ -410,12 +417,50 @@ export function OmniboxPage() {
    */
   function mostrarAnalisis(id: string, pregunta: string, p: Propuesta) {
     if (!p.vista) return;
-    if (mesaRef.current.analisis?.mensajeId === id) {
+    const actual = mesaRef.current.analisis;
+    if (actual?.mensajeId === id) {
       despachar({ tipo: "abrir", mesa: "analisis" });
       return;
     }
-    despachar({ tipo: "analizar", analisis: { mensajeId: id, pregunta, vista: p.vista } });
+    // "Ahora por categoría" (G4): la tarjeta dice qué cambió, calculado y no
+    // contado por el modelo; la conclusión sabe de qué se venía hablando.
+    const e = p.entidades as { cambios?: string[]; pregunta?: string };
+    const cambio = p.intencion === "cambiar_vista" && actual && e.cambios === undefined;
+    const contexto = cambio ? `${actual.pregunta} → ${pregunta}` : (e.pregunta ?? pregunta);
+    if (cambio) {
+      const cambios = diferenciasVista(actual.vista, p.vista);
+      actualizar(id, (m) =>
+        m.propuesta ? { ...m, propuesta: { ...m.propuesta, entidades: { ...m.propuesta.entidades, cambios, pregunta: contexto } } } : m,
+      );
+    }
+    despachar({ tipo: "analizar", analisis: { mensajeId: id, pregunta: contexto, vista: p.vista } });
   }
+
+  /** Una vista del tablero: queda en el hilo y se abre con los datos al día, sin IA. */
+  function abrirFijada(f: VistaFijada) {
+    const m = mensajeDeVistaFijada(f);
+    setMensajes((prev) => [...prev, m]);
+    despachar({ tipo: "analizar", analisis: { mensajeId: m.id, pregunta: f.pregunta || f.nombre, vista: f.vista } });
+  }
+
+  /**
+   * Lo que un análisis hace afuera (G4). "Reponer" carga la compra con las
+   * mismas acciones que los botones; viene de la vista, no de cargar a mano,
+   * así que la Guía no sugiere "sacale una foto a la factura".
+   */
+  const accionesVista: AccionesVista = {
+    verProducto: (producto) => despachar({ tipo: "verProducto", producto }),
+    reponer: (items: Reposicion[]) => {
+      const acciones = accionesReponer(items);
+      anunciarAdvertencias(mesaRef.current, acciones);
+      origenCambio.current = "guia";
+      acciones.forEach(despachar);
+    },
+    enCompra: (ids) => ids.length > 0 && ids.every((id) => mesa.compra.lineas.some((l) => l.productId === id)),
+    verCompra: () => despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" }),
+    abrirFijada,
+  };
+  const { data: fijadas } = useVistasFijadas(storeId);
 
   // ------------------------------------------------------------ factura (Fase 5)
 
@@ -872,7 +917,7 @@ export function OmniboxPage() {
   if (!conversando) {
     return (
       <div className="flex flex-1 flex-col">
-        <Bienvenida sugerencias={sugerencias} onSugerencia={usarSugerencia}>
+        <Bienvenida sugerencias={sugerencias} onSugerencia={usarSugerencia} fijadas={fijadas ?? []} onFijada={abrirFijada}>
           {compositor}
         </Bienvenida>
       </div>
@@ -1005,6 +1050,8 @@ export function OmniboxPage() {
               onRegistrarCompra={() => registrarCompra()}
               registrando={registrar.isPending}
               errorCompra={errorCompra}
+              tienda={tienda!.name}
+              acciones={accionesVista}
             />
           </div>
         )}
@@ -1030,6 +1077,8 @@ export function OmniboxPage() {
               onRegistrarCompra={() => registrarCompra()}
               registrando={registrar.isPending}
               errorCompra={errorCompra}
+              tienda={tienda!.name}
+              acciones={accionesVista}
             />
           </DrawerContent>
         </Drawer>
@@ -1064,10 +1113,15 @@ function useEsAncho(): boolean {
 function Bienvenida({
   sugerencias,
   onSugerencia,
+  fijadas,
+  onFijada,
   children,
 }: {
   sugerencias: string[];
   onSugerencia: (s: string) => void;
+  /** El tablero propio (G4): las vistas fijadas, a un toque y con los datos al día. */
+  fijadas: VistaFijada[];
+  onFijada: (f: VistaFijada) => void;
   children: React.ReactNode;
 }) {
   return (
@@ -1086,6 +1140,30 @@ function Bienvenida({
         </p>
       </div>
       <div className="w-full text-left">{children}</div>
+      {fijadas.length > 0 ? (
+        <section aria-label="Tu tablero" className="w-full text-left" data-testid="omnibox-tablero">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Tu tablero</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {fijadas.slice(0, 6).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                data-testid="vista-fijada"
+                onClick={() => onFijada(f)}
+                className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-card transition-colors hover:border-border-strong hover:bg-muted"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+                  <BarChart3 className="size-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-semibold text-foreground">{f.nombre}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{resumenPiezas(f.vista).join(" · ")}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <div className="flex max-w-xl flex-wrap justify-center gap-2">
         {sugerencias.map((s) => (
           <button
