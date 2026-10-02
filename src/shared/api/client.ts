@@ -30,12 +30,15 @@ export async function apiFetch<T>(
     body,
     headers = {},
     signal,
+    keepalive,
   }: {
     method?: Method;
     body?: any;
     headers?: Record<string, string>;
     /** Para cancelar un pedido que quedó viejo (una búsqueda, una sugerencia). */
     signal?: AbortSignal;
+    /** Que el pedido llegue aunque la página se esté cerrando (hasta 64 KB). */
+    keepalive?: boolean;
   } = {}
 ): Promise<ApiResponse<T>> {
   const token = localStorage.getItem("authToken");
@@ -46,6 +49,7 @@ export async function apiFetch<T>(
   const config: RequestInit = {
     method,
     signal,
+    keepalive,
     headers: {
       // Solo agregar Content-Type si NO es FormData
       ...(!isFormData && { "Content-Type": "application/json" }),

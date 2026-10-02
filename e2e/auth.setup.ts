@@ -1,6 +1,8 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+
 import { expect, test as setup } from "@playwright/test";
 
-import { COMERCIO_EMAIL, COMERCIO_PASSWORD, TIENDA } from "./helpers/env";
+import { ARCHIVO_INICIO, COMERCIO_EMAIL, COMERCIO_PASSWORD, TIENDA } from "./helpers/env";
 
 const ARCHIVO_SESION = "e2e/.auth/session.json";
 
@@ -12,6 +14,9 @@ const ARCHIVO_SESION = "e2e/.auth/session.json";
  * suite en vez de un solo test.
  */
 setup("entrar como el comerciante de prueba", async ({ page }) => {
+  // Unos segundos antes: el reloj del servidor puede ir apenas distinto.
+  mkdirSync("e2e/.auth", { recursive: true });
+  writeFileSync(ARCHIVO_INICIO, new Date(Date.now() - 5_000).toISOString());
   await page.goto("/login");
 
   // Puede haber más de un formulario según el ancho: se usa el visible.

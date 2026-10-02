@@ -209,3 +209,21 @@ export async function simularDictados(page: Page, respuestas: { texto: string; p
     });
   });
 }
+
+/**
+ * Borra las conversaciones de la tienda de prueba que tocó una prueba (las
+ * actualizadas desde `desde`): las conversaciones del usuario de prueba de
+ * antes no se tocan.
+ */
+export async function limpiarConversaciones(request: APIRequestContext, desde: Date) {
+  const login = await request.post(`${API_URL}/api/auth/login`, {
+    data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD },
+  });
+  const headers = { Authorization: `Bearer ${(await login.json()).data.accessToken}` };
+  const r = await request.get(`${API_URL}/api/omnibox/conversaciones?storeId=${TIENDA.id}`, { headers });
+  for (const c of ((await r.json()).data ?? []) as { id: string; actualizada: string }[]) {
+    if (new Date(c.actualizada) >= desde) {
+      await request.delete(`${API_URL}/api/omnibox/conversaciones/${c.id}?storeId=${TIENDA.id}`, { headers });
+    }
+  }
+}

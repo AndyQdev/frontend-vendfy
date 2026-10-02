@@ -105,6 +105,22 @@ export interface VistaSpec {
   piezas: PiezaVista[];
 }
 
+/** Una conversación guardada, en la lista (G5). */
+export interface ConversacionResumen {
+  id: string;
+  titulo: string;
+  actualizada: string;
+  mensajes: number;
+  /** Lo que quedó a medio armar: "Venta en curso · 2". */
+  enCurso: { venta: number; compra: number };
+}
+
+/** Una conversación entera, para abrirla: el chat y la mesa como se guardaron. */
+export interface ConversacionGuardada extends ConversacionResumen {
+  contenido: unknown[];
+  mesa: unknown;
+}
+
 /** Una vista fijada: el tablero propio de la tienda (G4). Se guarda la vista, no los números. */
 export interface VistaFijada {
   id: string;

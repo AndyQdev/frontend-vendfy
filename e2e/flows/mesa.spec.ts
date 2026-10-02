@@ -35,7 +35,8 @@ test("tocar un producto abre su ficha a la derecha, sin navegar", async ({ page 
 
   await filas.first().click();
 
-  await expect(page).toHaveURL(/\/omnibox$/);
+  // Sigue en el asistente (con su conversación, G5): no navegó a la ficha de Productos.
+  await expect(page).toHaveURL(/\/omnibox(\?c=[0-9a-f-]{36})?$/);
   const mesa = page.getByTestId("omnibox-mesa");
   await expect(mesa).toBeVisible();
   const ficha = mesa.getByTestId("omnibox-ficha");

@@ -2,6 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { apiFetch } from "@/shared/api/client";
 import type {
+  ConversacionGuardada,
+  ConversacionResumen,
   ClienteOpcion,
   CompraRegistrada,
   FichaProducto,
@@ -328,5 +330,70 @@ export function useDesfijarVista() {
         })
       ).data!,
     onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["omnibox", "vistas-fijadas", vars.storeId] }),
+  });
+}
+
+// ------------------------------------------------------------ conversaciones (G5)
+
+/** Mis conversaciones en esta tienda: las últimas, o las que coinciden con `q`. */
+export function useConversaciones(storeId: string | null, q: string, activo = true) {
+  return useQuery({
+    queryKey: ["omnibox", "conversaciones", storeId, q],
+    queryFn: async () =>
+      (
+        await apiFetch<ConversacionResumen[]>(
+          `/api/omnibox/conversaciones?storeId=${storeId}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ""}`,
+        )
+      ).data ?? [],
+    enabled: Boolean(storeId) && activo,
+    staleTime: 10_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Una conversación entera, para abrirla. */
+export async function traerConversacion(storeId: string, id: string): Promise<ConversacionGuardada> {
+  return (await apiFetch<ConversacionGuardada>(`/api/omnibox/conversaciones/${id}?storeId=${storeId}`)).data!;
+}
+
+/**
+ * Guardar la conversación entera. `keepalive`: al cerrar la página, para que
+ * el último cambio llegue igual.
+ */
+export async function guardarConversacion(
+  storeId: string,
+  id: string,
+  cuerpo: { mensajes: unknown[]; mesa: unknown },
+  keepalive = false,
+): Promise<ConversacionResumen> {
+  return (
+    await apiFetch<ConversacionResumen>(`/api/omnibox/conversaciones/${id}`, {
+      method: "PUT",
+      body: { storeId, ...cuerpo },
+      keepalive,
+    })
+  ).data!;
+}
+
+export function useRenombrarConversacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; id: string; titulo: string }) =>
+      (
+        await apiFetch<ConversacionResumen>(`/api/omnibox/conversaciones/${vars.id}`, {
+          method: "PATCH",
+          body: { storeId: vars.storeId, titulo: vars.titulo },
+        })
+      ).data!,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["omnibox", "conversaciones"] }),
+  });
+}
+
+export function useBorrarConversacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; id: string }) =>
+      (await apiFetch<{ id: string }>(`/api/omnibox/conversaciones/${vars.id}?storeId=${vars.storeId}`, { method: "DELETE" })).data!,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["omnibox", "conversaciones"] }),
   });
 }

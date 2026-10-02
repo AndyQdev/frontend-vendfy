@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useReducer, useRef, useState } from "react";
-import { BarChart3, Store, Volume2, VolumeX } from "lucide-react";
+import { BarChart3, History, SquarePen, Store, Volume2, VolumeX } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +15,8 @@ import {
   useInterpretar,
   useLeerFactura,
   useVistasFijadas,
+  guardarConversacion,
+  traerConversacion,
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
@@ -33,6 +37,14 @@ import { fraseDeGuia, paraHablar } from "../model/voz";
 import { useVozGuia } from "./guia/useVozGuia";
 import { accionesReponer, diferenciasVista, resumenPiezas, type Reposicion } from "../model/vistas";
 import type { AccionesVista } from "./vista/acciones";
+import {
+  ESPERA_GUARDADO,
+  restaurarMensajes,
+  restaurarMesa,
+  serializarMensajes,
+  serializarMesa,
+} from "../model/conversacion";
+import { PanelConversaciones } from "./conversaciones/PanelConversaciones";
 import {
   MESA_INICIAL,
   costoSugerido,
@@ -91,6 +103,8 @@ export function OmniboxPage() {
 
   const [texto, setTexto] = useState("");
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const mensajesRef = useRef(mensajes);
+  mensajesRef.current = mensajes;
   const [ejecutandoId, setEjecutandoId] = useState<string | null>(null);
   const campo = useRef<HTMLInputElement>(null);
 
@@ -151,14 +165,17 @@ export function OmniboxPage() {
   const mesaPrevia = useRef(mesa);
   // De dónde vino el último cambio de la mesa: los tips del modo aprendiz
   // enseñan a decir lo que se hizo tocando ("también podés decir…").
-  const origenCambio = useRef<"panel" | "chat" | "guia">("panel");
+  // "restaurar": se abrió una conversación guardada (G5); la mesa vuelve como
+  // estaba, sin animaciones ni consejos (no es algo que se acabe de hacer).
+  const origenCambio = useRef<"panel" | "chat" | "guia" | "restaurar">("panel");
   useEffect(() => {
     const antes = mesaPrevia.current;
     mesaPrevia.current = mesa;
-    const efectos = efectosDeCambio(antes, mesa);
-    coreografia.emitir(efectos);
     const origen = origenCambio.current;
     origenCambio.current = "panel";
+    if (origen === "restaurar") return;
+    const efectos = efectosDeCambio(antes, mesa);
+    coreografia.emitir(efectos);
     if (origen === "panel") {
       if (efectos.some((e) => e.tipo === "cantidad" && e.mesa === "venta")) {
         ayuda.agregarLocal(MENSAJES.tipDecirCantidad());
@@ -492,6 +509,188 @@ export function OmniboxPage() {
     abrirFijada,
   };
   const { data: fijadas } = useVistasFijadas(storeId);
+
+  // ------------------------------------------------------------ conversaciones guardadas (G5)
+  // La conversación abierta vive en la URL (?c=<id>): recargar vuelve a la
+  // misma. Se guarda sola, entera (mensajes + mesa), un rato después de cada
+  // cambio; lo que quede pendiente se manda al cerrar la página.
+  const [params, setParams] = useSearchParams();
+  const conversacionId = params.get("c");
+  const [tituloConversacion, setTituloConversacion] = useState<string | null>(null);
+  const [guardado, setGuardado] = useState<"guardando" | "guardado" | "error" | null>(null);
+  const [verConversaciones, setVerConversaciones] = useState(false);
+  const [abriendo, setAbriendo] = useState(false);
+  const qc = useQueryClient();
+  /** La conversación cuyo estado está en pantalla (la de la URL, una vez abierta). */
+  const cargada = useRef<string | null>(null);
+  /** Lo último que se guardó, para no guardar dos veces lo mismo. */
+  const ultimoGuardado = useRef("");
+  const pendiente = useRef<{ id: string; cuerpo: { mensajes: unknown[]; mesa: unknown }; json: string } | null>(null);
+  const temporizador = useRef<number | null>(null);
+
+  async function guardarPendiente(keepalive = false) {
+    if (temporizador.current) {
+      window.clearTimeout(temporizador.current);
+      temporizador.current = null;
+    }
+    const p = pendiente.current;
+    if (!p || !storeId) return;
+    pendiente.current = null;
+    if (cargada.current === p.id) setGuardado("guardando");
+    try {
+      const r = await guardarConversacion(storeId, p.id, p.cuerpo, keepalive);
+      ultimoGuardado.current = p.json;
+      if (cargada.current === p.id) {
+        setTituloConversacion(r.titulo);
+        setGuardado("guardado");
+      }
+      void qc.invalidateQueries({ queryKey: ["omnibox", "conversaciones"] });
+    } catch {
+      // Se reintenta: con el próximo cambio, o solo en unos segundos.
+      if (cargada.current === p.id) setGuardado("error");
+      if (!pendiente.current) {
+        pendiente.current = p;
+        temporizador.current = window.setTimeout(() => void guardarPendiente(), 5_000);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!storeId || mensajes.length === 0) return;
+    let id = conversacionId;
+    if (!id) {
+      // La primera frase de una conversación nueva le da su id (y su URL).
+      const nuevo = crypto.randomUUID();
+      id = nuevo;
+      cargada.current = nuevo;
+      setParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          n.set("c", nuevo);
+          return n;
+        },
+        { replace: true },
+      );
+    }
+    if (cargada.current !== id) return; // todavía se está abriendo otra
+    const cuerpo = { mensajes: serializarMensajes(mensajes), mesa: serializarMesa(mesa) };
+    const json = JSON.stringify(cuerpo);
+    if (json === ultimoGuardado.current) return;
+    pendiente.current = { id, cuerpo, json };
+    if (temporizador.current) window.clearTimeout(temporizador.current);
+    temporizador.current = window.setTimeout(() => void guardarPendiente(), ESPERA_GUARDADO);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mensajes, mesa, conversacionId, storeId]);
+
+  // Al cerrar o esconder la página, lo pendiente se manda igual.
+  useEffect(() => {
+    const alSalir = () => {
+      if (pendiente.current) void guardarPendiente(true);
+    };
+    const alOcultar = () => document.visibilityState === "hidden" && alSalir();
+    window.addEventListener("pagehide", alSalir);
+    document.addEventListener("visibilitychange", alOcultar);
+    return () => {
+      window.removeEventListener("pagehide", alSalir);
+      document.removeEventListener("visibilitychange", alOcultar);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
+
+  // Abrir la de la URL (al recargar, o al elegirla en la lista).
+  useEffect(() => {
+    if (!storeId || !conversacionId || cargada.current === conversacionId) return;
+    let vigente = true;
+    setAbriendo(true);
+    void (async () => {
+      await guardarPendiente(); // lo de la anterior, antes de cambiar
+      try {
+        const c = await traerConversacion(storeId, conversacionId);
+        if (!vigente) return;
+        const mensajesGuardados = restaurarMensajes(c.contenido);
+        const mesaGuardada = restaurarMesa(c.mesa);
+        cargada.current = c.id;
+        ultimoGuardado.current = JSON.stringify({
+          mensajes: serializarMensajes(mensajesGuardados),
+          mesa: serializarMesa(mesaGuardada),
+        });
+        origenCambio.current = "restaurar";
+        setGuia(null);
+        vozGuia.callar();
+        setMensajes(mensajesGuardados);
+        despachar({ tipo: "restaurar", mesa: mesaGuardada });
+        setTituloConversacion(c.titulo);
+        setGuardado("guardado");
+      } catch {
+        if (!vigente) return;
+        toast.error("Esa conversación no existe o ya se borró.");
+        empezarNueva();
+      } finally {
+        if (vigente) setAbriendo(false);
+      }
+    })();
+    return () => {
+      vigente = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversacionId, storeId]);
+
+  /** Una conversación en blanco. La anterior queda guardada con su mesa. */
+  function empezarNueva() {
+    void guardarPendiente();
+    cargada.current = null;
+    ultimoGuardado.current = "";
+    origenCambio.current = "restaurar";
+    setGuia(null);
+    vozGuia.callar();
+    setMensajes([]);
+    despachar({ tipo: "restaurar", mesa: MESA_INICIAL });
+    setTituloConversacion(null);
+    setGuardado(null);
+    setVerConversaciones(false);
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        n.delete("c");
+        return n;
+      },
+      { replace: false },
+    );
+  }
+
+  function abrirConversacion(id: string) {
+    setVerConversaciones(false);
+    if (id === conversacionId) return;
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        n.set("c", id);
+        return n;
+      },
+      { replace: false },
+    );
+  }
+
+  function alBorrarConversacion(id: string) {
+    if (pendiente.current?.id === id) pendiente.current = null;
+    if (id === conversacionId) {
+      if (temporizador.current) window.clearTimeout(temporizador.current);
+      empezarNueva();
+    }
+  }
+
+  const panelDeConversaciones = storeId ? (
+    <PanelConversaciones
+      abierto={verConversaciones}
+      onCerrar={() => setVerConversaciones(false)}
+      storeId={storeId}
+      actualId={conversacionId}
+      onAbrir={abrirConversacion}
+      onNueva={empezarNueva}
+      onBorrada={alBorrarConversacion}
+      onRenombrada={(id, titulo) => id === cargada.current && setTituloConversacion(titulo)}
+    />
+  ) : null;
 
   // ------------------------------------------------------------ factura (Fase 5)
 
@@ -995,12 +1194,29 @@ export function OmniboxPage() {
 
   // Sin conversación: el campo al centro, como ChatGPT. Es lo único que hay
   // para hacer en esa pantalla, y abajo de todo parecía un detalle.
+  // Al recargar con una conversación en la URL: no mostrar la bienvenida
+  // vacía el segundo que tarda en llegar.
+  if (!conversando && abriendo) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <BarraConversacion onConversaciones={() => setVerConversaciones(true)} />
+        <p data-testid="omnibox-abriendo" className="mx-auto mt-24 flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="size-2 animate-pulse rounded-full bg-acento" />
+          Abriendo la conversación…
+        </p>
+        {panelDeConversaciones}
+      </div>
+    );
+  }
+
   if (!conversando) {
     return (
       <div className="flex flex-1 flex-col">
+        <BarraConversacion onConversaciones={() => setVerConversaciones(true)} />
         <Bienvenida sugerencias={sugerencias} onSugerencia={usarSugerencia} fijadas={fijadas ?? []} onFijada={abrirFijada}>
           {compositor}
         </Bienvenida>
+        {panelDeConversaciones}
       </div>
     );
   }
@@ -1026,6 +1242,14 @@ export function OmniboxPage() {
       >
         {/* ---- el chat: los mensajes en el scroll de la página, el campo pegado abajo */}
         <section className={cn("flex min-w-0 flex-1 flex-col", dividido && "min-h-0", ampliada && "hidden")}>
+          <div className={cn("mx-auto w-full", anchoChat)}>
+            <BarraConversacion
+              titulo={tituloConversacion ?? "Nueva conversación"}
+              guardado={guardado}
+              onConversaciones={() => setVerConversaciones(true)}
+              onNueva={empezarNueva}
+            />
+          </div>
           <div
             ref={hilo}
             data-zona="chat"
@@ -1149,6 +1373,7 @@ export function OmniboxPage() {
       </div>
 
       <Coreografo coreografia={coreografia} />
+      {panelDeConversaciones}
 
       {/* ---- la mesa, en el teléfono: sube desde abajo a pantalla casi completa */}
       {!ancho && (
@@ -1174,6 +1399,56 @@ export function OmniboxPage() {
           </DrawerContent>
         </Drawer>
       )}
+    </div>
+  );
+}
+
+/**
+ * Arriba del chat (G5): las conversaciones guardadas, el título de la actual,
+ * si ya se guardó, y empezar una nueva. En la bienvenida, solo el botón de
+ * las conversaciones.
+ */
+function BarraConversacion({
+  titulo,
+  guardado = null,
+  onConversaciones,
+  onNueva,
+}: {
+  titulo?: string;
+  guardado?: "guardando" | "guardado" | "error" | null;
+  onConversaciones: () => void;
+  onNueva?: () => void;
+}) {
+  const boton =
+    "grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground";
+  return (
+    <div data-testid="barra-conversacion" className="mb-2 flex items-center gap-2">
+      <button type="button" data-testid="omnibox-conversaciones" aria-label="Conversaciones" title="Conversaciones" onClick={onConversaciones} className={boton}>
+        <History className="size-4" />
+      </button>
+      {titulo ? (
+        <div className="min-w-0 flex-1">
+          <p data-testid="conversacion-titulo" className="truncate text-sm font-semibold text-foreground">
+            {titulo}
+          </p>
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
+      {guardado ? (
+        <span
+          data-testid="conversacion-guardado"
+          data-estado={guardado}
+          className={cn("shrink-0 text-[11px]", guardado === "error" ? "text-destructive" : "text-muted-foreground")}
+        >
+          {guardado === "guardando" ? "Guardando…" : guardado === "guardado" ? "Guardado" : "Sin guardar: reintentando"}
+        </span>
+      ) : null}
+      {onNueva ? (
+        <button type="button" data-testid="omnibox-nueva" aria-label="Nueva conversación" title="Nueva conversación" onClick={onNueva} className={boton}>
+          <SquarePen className="size-4" />
+        </button>
+      ) : null}
     </div>
   );
 }

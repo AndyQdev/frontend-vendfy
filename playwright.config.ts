@@ -37,7 +37,10 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    // Al terminar todo, "limpieza" borra las conversaciones que crearon las
+    // pruebas (G5: cada frase del chat guarda la conversación en la base).
+    { name: "setup", testMatch: /auth\.setup\.ts/, teardown: "limpieza" },
+    { name: "limpieza", testMatch: /limpieza\.teardown\.ts/ },
     {
       name: "escritorio",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: "e2e/.auth/session.json" },

@@ -34,3 +34,6 @@ export const TIENDA = {
   name: "Abarrotes Don Juan",
   slug: "abarrotes-don-juan",
 };
+
+/** Cuándo empezó la corrida (lo escribe auth.setup): la limpieza del final borra lo creado desde ahí. */
+export const ARCHIVO_INICIO = "e2e/.auth/inicio.txt";

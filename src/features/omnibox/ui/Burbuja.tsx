@@ -30,8 +30,9 @@ export function Burbuja({ mensaje: m }: { mensaje: Mensaje }) {
 
         {/* La factura que se mandó: la foto misma, que es lo que se reconoce. */}
         {m.adjunto &&
-          (m.adjunto.esPdf ? (
-            <FileText className="size-8 shrink-0 text-primary" aria-label="PDF" />
+          (m.adjunto.esPdf || !m.adjunto.url ? (
+            // Un PDF, o una foto de una conversación guardada que ya no tiene dirección.
+            <FileText className="size-8 shrink-0 text-primary" aria-label={m.adjunto.esPdf ? "PDF" : "Archivo"} />
           ) : (
             <a href={m.adjunto.url} target="_blank" rel="noreferrer" className="shrink-0">
               <img

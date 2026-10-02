@@ -148,6 +148,8 @@ export type AccionMesa =
   | { tipo: "analizar"; analisis: Analisis }
   /** El filtro de arriba del análisis: todas las piezas pasan al mismo período. */
   | { tipo: "periodoAnalisis"; periodo: Periodo }
+  /** Abrir una conversación guardada (G5): la mesa vuelve entera, ya saneada. */
+  | { tipo: "restaurar"; mesa: Mesa }
   | { tipo: "cerrar" }
   | { tipo: "pestana"; pestana: Pestana }
   | { tipo: "ampliar"; valor?: boolean }
@@ -207,6 +209,9 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
 
     case "analizar":
       return { ...m, abierta: "analisis", analisis: a.analisis };
+
+    case "restaurar":
+      return a.mesa;
 
     case "periodoAnalisis":
       if (!m.analisis) return m;
