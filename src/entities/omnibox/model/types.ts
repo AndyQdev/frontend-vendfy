@@ -130,6 +130,28 @@ export interface VistaFijada {
   creada: string;
 }
 
+/**
+ * Una herramienta a medida (G6, nivel N3): un simulador o una calculadora que
+ * escribió la IA. El servidor ya revisó el código y lo compiló; corre en un
+ * iframe aislado con una FOTO de los datos (no los vuelve a leer).
+ */
+export interface HerramientaGenerada {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  plan: { titulo: string; descripcion: string; fuentes: { alias: string; fuente: string; params: Record<string, unknown> }[] };
+  /** El fuente: si falla al dibujarse, se manda a corregir con el error. */
+  tsx: string;
+  /** Lo que corre en el iframe (CommonJS, ya sin JSX). */
+  codigo: string;
+  datos: Record<string, TablaVista>;
+  modelo: string;
+  intentos: number;
+  ms: number;
+  /** Cuándo se leyeron los datos (ISO): la herramienta no los vuelve a leer. */
+  creada: string;
+}
+
 export interface CostoProducto {
   productId: string;
   ultimoCosto: number | null;
@@ -227,6 +249,7 @@ export type EstadoTarjeta =
   | "elegir-linea"
   | "aviso"
   | "vista"
+  | "herramienta"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
@@ -235,6 +258,8 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (!p.intencion) return "sin-entender";
   // Un análisis: la respuesta es la vista del panel, no una tarjeta con botones.
   if (p.vista) return "vista";
+  // Una herramienta a medida (G6): se arma aparte y su tarjeta muestra el progreso.
+  if (p.intencion === "simular") return "herramienta";
   if (p.items) return "pedido";
   // Una compra recibida no se puede anular: se confirma con su propia tarjeta.
   if (p.intencion === "registrar_compra" && p.ejecutable) return "confirmar-compra";

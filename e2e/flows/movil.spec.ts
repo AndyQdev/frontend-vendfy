@@ -172,3 +172,27 @@ test('teléfono: "Reponer" desde el análisis pasa la hoja a la compra cargada',
   await expect(mesa.locator(`[data-linea="compra:${coca.productId}"]`)).toBeVisible();
   await expect(mesa.getByTestId("omnibox-total-compra")).toHaveText("Bs 84,00");
 });
+
+test("teléfono: la herramienta a medida sube como hoja y lo que propone queda a la vista en el chat", async ({ page }) => {
+  const { simularFrases } = await import("../helpers/mock");
+  const { BEBIDAS, PREGUNTA_BEBIDAS, simular, simularHerramienta } = await import("../helpers/herramientas");
+  await simularFrases(page, { [PREGUNTA_BEBIDAS]: simular() });
+  await simularHerramienta(page, [BEBIDAS]);
+
+  await page.goto("/omnibox");
+  await decir(page, PREGUNTA_BEBIDAS);
+
+  // La herramienta ES la respuesta: sube sola, a todo el ancho.
+  const mesa = page.getByTestId("omnibox-mesa");
+  await expect(mesa).toHaveAttribute("data-mesa", "herramienta");
+  const caja = await mesa.boundingBox();
+  expect(caja!.width).toBeGreaterThan(page.viewportSize()!.width * 0.9);
+  const marco = page.frameLocator('[data-testid="herramienta-marco"]');
+  await expect(marco.getByText("Coca Cola 2L").first()).toBeVisible();
+
+  // Proponer cierra la hoja: la tarjeta para confirmar está en el chat, que la hoja tapaba.
+  await marco.getByRole("button", { name: "Proponer Nuevos Precios" }).click();
+  await expect(mesa).toHaveCount(0);
+  await expect(page.getByTestId("tarjeta-precios")).toBeInViewport();
+  await expect(page.getByTestId("tarjeta-herramienta")).toContainText("Abrir herramienta");
+});

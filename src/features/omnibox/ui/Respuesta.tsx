@@ -25,6 +25,7 @@ import {
   type LineaContexto,
   type ProductoOpcion,
   type Propuesta,
+  type VistaSpec,
 } from "@/entities/omnibox/model/types";
 import { Input } from "@/shared/ui/input";
 import { cn } from "@/shared/lib/cn";
@@ -35,6 +36,7 @@ import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaGuia, TarjetaM
 import { TarjetaConfirmarCompra } from "./mesa/TarjetaCompra";
 import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import { TarjetaVista } from "./vista/TarjetaVista";
+import { TarjetaHerramienta } from "./herramienta/TarjetaHerramienta";
 import {
   BloqueProducto,
   BotonCta,
@@ -91,6 +93,11 @@ export interface AccionesRespuesta {
   onAbrirVista: () => void;
   /** La vista de ESTE mensaje es la que está abierta en el panel. */
   vistaAbierta: boolean;
+  /** Una herramienta a medida (G6): abrirla en el panel, armarla de nuevo, ver sus datos si se rompió. */
+  onAbrirHerramienta: () => void;
+  herramientaAbierta: boolean;
+  onReintentarHerramienta: () => void;
+  onVerDatosHerramienta: (vista: VistaSpec) => void;
 }
 
 export function Respuesta({
@@ -197,6 +204,17 @@ export function Respuesta({
     case "vista":
       return (
         <TarjetaVista propuesta={p} hora={cuando} abierta={acciones.vistaAbierta} onAbrir={acciones.onAbrirVista} />
+      );
+    case "herramienta":
+      return (
+        <TarjetaHerramienta
+          estado={m.herramienta}
+          hora={cuando}
+          abierta={acciones.herramientaAbierta}
+          onAbrir={acciones.onAbrirHerramienta}
+          onReintentar={acciones.onReintentarHerramienta}
+          onVerDatos={acciones.onVerDatosHerramienta}
+        />
       );
     case "resuelta":
       return (

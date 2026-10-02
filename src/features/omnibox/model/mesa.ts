@@ -21,10 +21,11 @@ import { conPeriodo } from "./vistas";
 export type TipoMesa = "venta" | "compra";
 
 /**
- * Lo que puede estar a la vista en el panel: una de las dos mesas o el
- * análisis (G3). El análisis no es una mesa: no se arma ni se cobra, se mira.
+ * Lo que puede estar a la vista en el panel: una de las dos mesas, el
+ * análisis (G3) o una herramienta a medida (G6). Esos dos no son mesas: no
+ * se arman ni se cobran, se miran (y a lo sumo proponen algo).
  */
-export type TipoPanel = TipoMesa | "analisis";
+export type TipoPanel = TipoMesa | "analisis" | "herramienta";
 
 export type Pestana = "producto" | "borrador";
 
@@ -94,6 +95,15 @@ export interface Analisis {
   vista: VistaSpec;
 }
 
+/**
+ * La herramienta a la vista (G6). Solo la referencia: la herramienta en sí
+ * (código y datos) vive en su mensaje, que es lo que se guarda, una sola vez.
+ */
+export interface HerramientaAbierta {
+  mensajeId: string;
+  titulo: string;
+}
+
 export interface Mesa {
   abierta: TipoPanel | null;
   pestana: Pestana;
@@ -113,6 +123,7 @@ export interface Mesa {
    * no lo borra: queda en su pestaña para volver.
    */
   analisis: Analisis | null;
+  herramienta: HerramientaAbierta | null;
 }
 
 export const VENTA_VACIA: BorradorVenta = {
@@ -140,12 +151,15 @@ export const MESA_INICIAL: Mesa = {
   compra: COMPRA_VACIA,
   ultima: "venta",
   analisis: null,
+  herramienta: null,
 };
 
 export type AccionMesa =
   | { tipo: "abrir"; mesa: TipoPanel; pestana?: Pestana }
   /** Mostrar un análisis en el panel (el que se acaba de pedir, o uno anterior del chat). */
   | { tipo: "analizar"; analisis: Analisis }
+  /** Mostrar una herramienta a medida en el panel (G6). */
+  | { tipo: "usarHerramienta"; herramienta: HerramientaAbierta }
   /** El filtro de arriba del análisis: todas las piezas pasan al mismo período. */
   | { tipo: "periodoAnalisis"; periodo: Periodo }
   /** Abrir una conversación guardada (G5): la mesa vuelve entera, ya saneada. */
@@ -189,6 +203,7 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
   switch (a.tipo) {
     case "abrir":
       if (a.mesa === "analisis") return m.analisis ? { ...m, abierta: "analisis" } : m;
+      if (a.mesa === "herramienta") return m.herramienta ? { ...m, abierta: "herramienta" } : m;
       return {
         ...m,
         abierta: a.mesa,
@@ -210,6 +225,9 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
     case "analizar":
       return { ...m, abierta: "analisis", analisis: a.analisis };
 
+    case "usarHerramienta":
+      return { ...m, abierta: "herramienta", herramienta: a.herramienta };
+
     case "restaurar":
       return a.mesa;
 
@@ -218,10 +236,10 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
       return { ...m, analisis: { ...m.analisis, vista: conPeriodo(m.analisis.vista, a.periodo) } };
 
     case "verProducto":
-      // Mirando un análisis, el producto va a la mesa con la que se venía trabajando.
+      // Mirando un análisis o una herramienta, el producto va a la mesa con la que se venía trabajando.
       return {
         ...m,
-        abierta: m.abierta === "analisis" ? m.ultima : (m.abierta ?? "venta"),
+        abierta: m.abierta === "analisis" || m.abierta === "herramienta" ? m.ultima : (m.abierta ?? "venta"),
         pestana: "producto",
         producto: a.producto,
       };

@@ -7,6 +7,7 @@ import type {
   ClienteOpcion,
   CompraRegistrada,
   FichaProducto,
+  HerramientaGenerada,
   IntencionDisponible,
   LineaContexto,
   Propuesta,
@@ -395,5 +396,53 @@ export function useBorrarConversacion() {
     mutationFn: async (vars: { storeId: string; id: string }) =>
       (await apiFetch<{ id: string }>(`/api/omnibox/conversaciones/${vars.id}?storeId=${vars.storeId}`, { method: "DELETE" })).data!,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["omnibox", "conversaciones"] }),
+  });
+}
+
+// ------------------------------------------------------------ herramientas a medida (G6)
+
+/**
+ * Armar una herramienta: el servidor elige los datos, el modelo escribe el
+ * componente y se revisa y compila allá. Tarda (30 a 90 s). Sin reintentos
+ * automáticos: cada intento es una llamada al modelo más caro.
+ */
+export function useGenerarHerramienta() {
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; pregunta: string }) =>
+      (await apiFetch<HerramientaGenerada>("/api/omnibox/herramienta", { method: "POST", body: vars })).data!,
+    retry: false,
+  });
+}
+
+/** Se rompió al dibujarse: el error vuelve al modelo una vez, con los mismos datos. */
+export function useCorregirHerramienta() {
+  return useMutation({
+    mutationFn: async (vars: {
+      storeId: string;
+      pregunta: string;
+      plan: HerramientaGenerada["plan"];
+      tsx: string;
+      error: string;
+      datos: HerramientaGenerada["datos"];
+    }) =>
+      (await apiFetch<{ tsx: string; codigo: string }>("/api/omnibox/herramienta/corregir", { method: "POST", body: vars }))
+        .data!,
+    retry: false,
+  });
+}
+
+/** Lo que propuso una herramienta, ya confirmado: todos los precios o ninguno. */
+export function useCambiarPrecios() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; cambios: { productId: string; precio: number }[] }) =>
+      (await apiFetch<{ resumen: string; datos: { cambiados: number } }>("/api/omnibox/precios", { method: "POST", body: vars }))
+        .data!,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "productos"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
   });
 }

@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 import {
   useAnularVenta,
+  useCambiarPrecios,
   useCobrar,
+  useGenerarHerramienta,
   useRegistrarCompra,
   useConfirmar,
   useDictar,
@@ -21,17 +23,29 @@ import {
 import {
   esDeVenta,
   type CostoProducto,
+  type HerramientaGenerada,
   type LineaContexto,
   type ProductoOpcion,
   type Propuesta,
   type VistaFijada,
+  type VistaSpec,
 } from "@/entities/omnibox/model/types";
 import { useStore } from "@/app/providers/auth";
 import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { Drawer, DrawerContent, DrawerTitle } from "@/shared/ui/drawer";
 import { cn } from "@/shared/lib/cn";
 
-import { completar, mensajeDeEvento, mensajeDeVistaFijada, mensajeRespuestaGuia, nuevoMensaje, type Mensaje } from "../model/mensaje";
+import {
+  completar,
+  mensajeDeEvento,
+  mensajeDePrecios,
+  mensajeDeVistaFijada,
+  mensajeRespuestaGuia,
+  nuevoMensaje,
+  hora as horaDe,
+  type Mensaje,
+} from "../model/mensaje";
+import { validarPropuesta } from "../model/herramienta";
 import { respuestaAGuia, resumenRespuesta } from "../model/respuesta-guia";
 import { fraseDeGuia, paraHablar } from "../model/voz";
 import { useVozGuia } from "./guia/useVozGuia";
@@ -83,6 +97,8 @@ import { ChipsEnCurso } from "./mesa/ChipsEnCurso";
 import { PanelMesa } from "./mesa/PanelMesa";
 import { TarjetaVenta } from "./mesa/TarjetaVenta";
 import { TarjetaCompra } from "./mesa/TarjetaCompra";
+import { PanelHerramienta } from "./herramienta/PanelHerramienta";
+import { TarjetaPrecios } from "./herramienta/TarjetaPrecios";
 
 /**
  * El asistente: un chat donde las respuestas son tarjetas, no párrafos.
@@ -127,7 +143,7 @@ export function OmniboxPage() {
     return {
       // La que está a la vista; en el teléfono (panel cerrado), la última
       // con la que se trabajó: "que sean 3" es sobre esa.
-      abierta: m.abierta && m.abierta !== "analisis" ? m.abierta : m.ultima,
+      abierta: m.abierta === "venta" || m.abierta === "compra" ? m.abierta : m.ultima,
       venta: { lineas: lineas(m.venta.lineas) },
       compra: { lineas: lineas(m.compra.lineas) },
       // Con un análisis a la vista, "ahora por categoría" es sobre él (G4).
@@ -142,6 +158,8 @@ export function OmniboxPage() {
 
   const cobrar = useCobrar();
   const anular = useAnularVenta();
+  const generarHerramienta = useGenerarHerramienta();
+  const cambiarPrecios = useCambiarPrecios();
   const registrar = useRegistrarCompra();
   const [errorCompra, setErrorCompra] = useState<string | null>(null);
   const [errorCobro, setErrorCobro] = useState<string | null>(null);
@@ -367,6 +385,7 @@ export function OmniboxPage() {
       actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
       if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
       if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
+      if (propuesta?.intencion === "simular") armarHerramienta(id, consulta);
     } catch (error: any) {
       actualizar(id, (m) => ({
         ...m,
@@ -442,6 +461,7 @@ export function OmniboxPage() {
       const p = r!.propuesta;
       if (p && esDeVenta(p)) aplicarVenta(m.id, p);
       if (p?.vista) mostrarAnalisis(m.id, dicho, p);
+      if (p?.intencion === "simular") armarHerramienta(m.id, dicho);
       vozGuia.hablar(fraseDeRespuesta(p));
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo procesar el dictado.";
@@ -489,6 +509,79 @@ export function OmniboxPage() {
     const m = mensajeDeVistaFijada(f);
     setMensajes((prev) => [...prev, m]);
     despachar({ tipo: "analizar", analisis: { mensajeId: m.id, pregunta: f.pregunta || f.nombre, vista: f.vista } });
+  }
+
+  // ------------------------------------------------------------ herramientas a medida (G6)
+
+  /**
+   * "¿Qué pasa si…?": la herramienta se arma aparte (tarda) y su tarjeta
+   * muestra el progreso. Lista, se abre en el panel; salvo que se esté
+   * armando una venta o una compra: ahí no se le cambia la mesa a nadie y
+   * queda el botón en la tarjeta.
+   */
+  async function armarHerramienta(id: string, pregunta: string) {
+    if (!storeId) return;
+    actualizar(id, (m) => ({ ...m, herramienta: { fase: "armando", desde: Date.now() } }));
+    try {
+      const g = await generarHerramienta.mutateAsync({ storeId, pregunta });
+      actualizar(id, (m) => ({ ...m, herramienta: { fase: "lista", generada: g } }));
+      const abierta = mesaRef.current.abierta;
+      if (abierta === null || abierta === "analisis" || abierta === "herramienta") {
+        despachar({ tipo: "usarHerramienta", herramienta: { mensajeId: id, titulo: g.titulo } });
+      } else {
+        toast.success(`Lista: ${g.titulo}`, { description: "La abrís desde su tarjeta en el chat." });
+      }
+      if (porVoz.current) vozGuia.hablar(paraHablar(`Listo: ${g.titulo}.`));
+    } catch (error: any) {
+      actualizar(id, (m) => ({ ...m, herramienta: { fase: "error", error: error?.message ?? "No se pudo armar." } }));
+    }
+  }
+
+  /** La pregunta con que se pidió (la del servidor, si la entendió distinto de cómo se escribió). */
+  const preguntaDe = (m: Mensaje) => String((m.propuesta?.entidades as { pregunta?: unknown } | undefined)?.pregunta ?? m.texto ?? "");
+
+  function abrirHerramienta(m: Mensaje) {
+    if (m.herramienta?.fase !== "lista") return;
+    despachar({ tipo: "usarHerramienta", herramienta: { mensajeId: m.id, titulo: m.herramienta.generada.titulo } });
+  }
+
+  /** Se rompió aun corregida: sus mismos datos, como tablas de un análisis (sin IA). */
+  function verDatosDeHerramienta(m: Mensaje, vista: VistaSpec) {
+    despachar({ tipo: "analizar", analisis: { mensajeId: m.id, pregunta: preguntaDe(m), vista } });
+  }
+
+  /**
+   * Lo que propuso una herramienta: se contrasta con sus datos y queda como
+   * tarjeta N1 en el chat. Una sola pendiente por herramienta: apretar
+   * "Aplicar" de nuevo (con otro %) reemplaza la anterior.
+   */
+  function proponerDesdeHerramienta(mensajeId: string, accion: unknown, g: HerramientaGenerada) {
+    const r = validarPropuesta(accion, g.datos);
+    if (r.error !== undefined) {
+      toast.error(r.error);
+      return;
+    }
+    setMensajes((prev) => [
+      ...prev.filter((x) => !(x.precios?.estado === "pendiente" && x.precios.origen.mensajeId === mensajeId)),
+      mensajeDePrecios(r.propuesta, { mensajeId, titulo: g.titulo }),
+    ]);
+    // En el teléfono el panel tapa el chat: se cierra para ver la tarjeta.
+    if (!ancho) despachar({ tipo: "cerrar" });
+  }
+
+  async function confirmarPrecios(m: Mensaje) {
+    if (!storeId || !m.precios) return;
+    const cambios = m.precios.propuesta.cambios.map((c) => ({ productId: c.productId, precio: c.precio }));
+    actualizar(m.id, (x) => ({ ...x, precios: { ...x.precios!, estado: "aplicando", error: undefined } }));
+    try {
+      const r = await cambiarPrecios.mutateAsync({ storeId, cambios });
+      actualizar(m.id, (x) => ({ ...x, precios: { ...x.precios!, estado: "aplicado", resumen: r.resumen } }));
+    } catch (error: any) {
+      actualizar(m.id, (x) => ({
+        ...x,
+        precios: { ...x.precios!, estado: "error", error: error?.message ?? "No se pudieron cambiar los precios." },
+      }));
+    }
   }
 
   /**
@@ -805,6 +898,7 @@ export function OmniboxPage() {
     if (efecto?.cobrar) return null; // lo dice el cobro, cuando termine
     if (efecto) return paraHablar(efecto.resumen);
     if (p.vista) return p.intencion === "cambiar_vista" ? "Listo, cambié la vista." : `Te armé: ${p.vista.titulo}.`;
+    if (p.intencion === "simular") return "Te armo una herramienta a medida. Tarda menos de un minuto.";
     if (p.resultado) return paraHablar(p.resultado.resumen);
     if (p.aviso) return paraHablar(p.aviso);
     if (p.faltan.length > 0) return paraHablar(p.faltan[0].pregunta);
@@ -1222,6 +1316,19 @@ export function OmniboxPage() {
   }
 
   const panelAbierto = mesa.abierta !== null;
+  // La herramienta abierta (G6) vive en su mensaje: el panel la recibe ya armada.
+  const conHerramienta = mesa.herramienta ? mensajes.find((x) => x.id === mesa.herramienta!.mensajeId) : undefined;
+  const panelHerramienta = conHerramienta?.herramienta ? (
+    <PanelHerramienta
+      key={conHerramienta.id}
+      estado={conHerramienta.herramienta}
+      pregunta={preguntaDe(conHerramienta)}
+      storeId={storeId!}
+      onCambio={(e) => actualizar(conHerramienta.id, (x) => ({ ...x, herramienta: e }))}
+      onProponer={(accion, g) => proponerDesdeHerramienta(conHerramienta.id, accion, g)}
+      onVerDatos={(vista) => verDatosDeHerramienta(conHerramienta, vista)}
+    />
+  ) : null;
   // Ampliado: el panel ocupa todo y el chat se esconde (solo en pantalla ancha;
   // en el teléfono el panel ya es de pantalla completa).
   const ampliada = dividido && mesa.ampliada;
@@ -1260,7 +1367,16 @@ export function OmniboxPage() {
             )}
           >
             {mensajes.map((m) =>
-              m.evento ? (
+              m.precios ? (
+                <FilaAsistente key={m.id}>
+                  <TarjetaPrecios
+                    precios={m.precios}
+                    hora={horaDe(m.hora)}
+                    onConfirmar={() => confirmarPrecios(m)}
+                    onCancelar={() => actualizar(m.id, (x) => ({ ...x, precios: { ...x.precios!, estado: "cancelado" } }))}
+                  />
+                </FilaAsistente>
+              ) : m.evento ? (
                 <Fragment key={m.id}>
                   {/* "Cobrale con QR" deja su burbuja; el botón Cobrar, no. */}
                   {m.texto && <Burbuja mensaje={m} />}
@@ -1308,6 +1424,10 @@ export function OmniboxPage() {
                     }}
                     onAbrirVista={() => m.propuesta && mostrarAnalisis(m.id, m.texto ?? "", m.propuesta)}
                     vistaAbierta={mesa.abierta === "analisis" && mesa.analisis?.mensajeId === m.id}
+                    onAbrirHerramienta={() => abrirHerramienta(m)}
+                    herramientaAbierta={mesa.abierta === "herramienta" && mesa.herramienta?.mensajeId === m.id}
+                    onReintentarHerramienta={() => armarHerramienta(m.id, preguntaDe(m))}
+                    onVerDatosHerramienta={(vista) => verDatosDeHerramienta(m, vista)}
                   />
                 </FilaAsistente>
               </Fragment>
@@ -1367,6 +1487,7 @@ export function OmniboxPage() {
               errorCompra={errorCompra}
               tienda={tienda!.name}
               acciones={accionesVista}
+              herramienta={panelHerramienta}
             />
           </div>
         )}
@@ -1380,7 +1501,13 @@ export function OmniboxPage() {
         <Drawer open={panelAbierto} onOpenChange={(abierto) => !abierto && despachar({ tipo: "cerrar" })}>
           <DrawerContent className="h-[92dvh]">
             <DrawerTitle className="sr-only">
-              {mesa.abierta === "analisis" ? "Análisis" : mesa.abierta === "compra" ? "Compra" : "Venta"}
+              {mesa.abierta === "analisis"
+                ? "Análisis"
+                : mesa.abierta === "herramienta"
+                  ? "Herramienta"
+                  : mesa.abierta === "compra"
+                    ? "Compra"
+                    : "Venta"}
             </DrawerTitle>
             <PanelMesa
               mesa={mesa}
@@ -1395,6 +1522,7 @@ export function OmniboxPage() {
               errorCompra={errorCompra}
               tienda={tienda!.name}
               acciones={accionesVista}
+              herramienta={panelHerramienta}
             />
           </DrawerContent>
         </Drawer>

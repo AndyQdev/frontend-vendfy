@@ -18,6 +18,19 @@ import { COMPRA_VACIA, MESA_INICIAL, VENTA_VACIA, type Mesa } from "./mesa";
 export const ESPERA_GUARDADO = 700;
 
 export const SIN_RESPUESTA = "No llegó la respuesta: la página se cerró o se recargó antes. Probá de nuevo.";
+export const HERRAMIENTA_CORTADA = "Se cortó mientras se armaba: la página se cerró o se recargó. Pedila de nuevo.";
+
+/**
+ * Lo que estaba en camino no va a llegar a la conversación guardada: una
+ * herramienta a medio armar queda como error, y unos precios a medio aplicar
+ * vuelven a esperar confirmación (aplicarlos de nuevo deja el mismo precio).
+ */
+function sinLoQueEstabaEnCamino(m: Record<string, any>): Record<string, unknown> {
+  const fuera: Record<string, unknown> = {};
+  if (m.herramienta?.fase === "armando") fuera.herramienta = { fase: "error", error: HERRAMIENTA_CORTADA };
+  if (m.precios?.estado === "aplicando") fuera.precios = { ...m.precios, estado: "pendiente" };
+  return fuera;
+}
 
 /** Un mensaje como se guarda: fechas en texto, sin direcciones locales. */
 export function serializarMensajes(mensajes: Mensaje[]): Record<string, unknown>[] {
@@ -32,7 +45,7 @@ export function serializarMensajes(mensajes: Mensaje[]): Record<string, unknown>
       base.error = SIN_RESPUESTA;
     }
     if (m.adjunto) base.adjunto = adjuntoGuardable(m);
-    return base;
+    return { ...base, ...sinLoQueEstabaEnCamino(m) };
   });
 }
 
@@ -70,6 +83,7 @@ export function restaurarMensajes(crudos: unknown): Mensaje[] {
         hora: Number.isNaN(hora.getTime()) ? new Date() : hora,
         fase,
         ...(m.fase === "pensando" ? { error: SIN_RESPUESTA } : {}),
+        ...sinLoQueEstabaEnCamino(m),
         ...(m.adjunto && typeof m.adjunto === "object" ? { adjunto: { url: String(m.adjunto.url ?? ""), nombre: String(m.adjunto.nombre ?? "Archivo"), esPdf: Boolean(m.adjunto.esPdf) } } : {}),
       },
     ];
@@ -89,8 +103,18 @@ export function restaurarMesa(cruda: unknown): Mesa {
     m.analisis && typeof m.analisis === "object" && Array.isArray(m.analisis.vista?.piezas) && typeof m.analisis.mensajeId === "string"
       ? m.analisis
       : null;
+  const herramienta =
+    m.herramienta && typeof m.herramienta === "object" && typeof m.herramienta.mensajeId === "string" && typeof m.herramienta.titulo === "string"
+      ? { mensajeId: m.herramienta.mensajeId, titulo: m.herramienta.titulo }
+      : null;
   const abierta =
-    m.abierta === "venta" || m.abierta === "compra" ? m.abierta : m.abierta === "analisis" && analisis ? "analisis" : null;
+    m.abierta === "venta" || m.abierta === "compra"
+      ? m.abierta
+      : m.abierta === "analisis" && analisis
+        ? "analisis"
+        : m.abierta === "herramienta" && herramienta
+          ? "herramienta"
+          : null;
   return {
     ...MESA_INICIAL,
     abierta,
@@ -106,6 +130,7 @@ export function restaurarMesa(cruda: unknown): Mesa {
     },
     ultima: m.ultima === "compra" ? "compra" : "venta",
     analisis,
+    herramienta,
   };
 }
 

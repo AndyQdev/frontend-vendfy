@@ -1,4 +1,13 @@
-import type { CompraRegistrada, ProductoOpcion, Propuesta, VentaCobrada, VistaFijada } from "@/entities/omnibox/model/types";
+import type {
+  CompraRegistrada,
+  HerramientaGenerada,
+  ProductoOpcion,
+  Propuesta,
+  VentaCobrada,
+  VistaFijada,
+} from "@/entities/omnibox/model/types";
+
+import type { PropuestaPrecios } from "./herramienta";
 
 /**
  * Un intercambio del chat: lo que dijo la persona y lo que el sistema propuso.
@@ -27,6 +36,49 @@ export interface Mensaje {
    * hizo, se haya hecho hablando o tocando. No lleva burbuja del usuario.
    */
   evento?: EventoVenta | EventoCompra;
+  /** "¿Qué pasa si subo 10 %…?" (G6): la herramienta a medida que responde. */
+  herramienta?: EstadoHerramienta;
+  /**
+   * Lo que propuso una herramienta (G6): una tarjeta N1 más, que se confirma.
+   * Como un evento, no nace de una frase: no lleva burbuja del usuario.
+   */
+  precios?: PreciosPropuestos;
+}
+
+/**
+ * Una herramienta tarda (la escribe el modelo más capaz, y se revisa y se
+ * compila): se pide aparte de la frase y la tarjeta muestra el progreso.
+ */
+export type EstadoHerramienta =
+  | { fase: "armando"; desde: number }
+  | {
+      fase: "lista";
+      generada: HerramientaGenerada;
+      /** Ya falló una vez al dibujarse y se corrigió: la próxima falla no se corrige. */
+      corregida?: boolean;
+    }
+  /** No se pudo armar, o se rompió al dibujarse aun corregida (quedan sus datos en tabla). */
+  | { fase: "error"; error: string; generada?: HerramientaGenerada };
+
+export interface PreciosPropuestos {
+  propuesta: PropuestaPrecios;
+  /** La herramienta que lo propuso: su mensaje y su título. */
+  origen: { mensajeId: string; titulo: string };
+  estado: "pendiente" | "aplicando" | "aplicado" | "cancelado" | "error";
+  error?: string;
+  resumen?: string;
+}
+
+/** Lo que propuso una herramienta, como mensaje del hilo (sin burbuja). */
+export function mensajeDePrecios(propuesta: PropuestaPrecios, origen: PreciosPropuestos["origen"]): Mensaje {
+  return {
+    id: crypto.randomUUID(),
+    texto: null,
+    porVoz: false,
+    hora: new Date(),
+    fase: "listo",
+    precios: { propuesta, origen, estado: "pendiente" },
+  };
 }
 
 export interface EventoCompra {

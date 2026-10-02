@@ -1,5 +1,5 @@
 import type { Dispatch, ReactNode } from "react";
-import { BarChart3, Maximize2, Minimize2, Package, ShoppingCart, Truck, X } from "lucide-react";
+import { BarChart3, Maximize2, Minimize2, Package, ShoppingCart, SlidersHorizontal, Truck, X } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 
@@ -34,6 +34,7 @@ export function PanelMesa({
   errorCompra = null,
   tienda = "",
   acciones = null,
+  herramienta: cuerpoHerramienta = null,
 }: {
   mesa: Mesa;
   despachar: Dispatch<AccionMesa>;
@@ -50,21 +51,26 @@ export function PanelMesa({
   tienda?: string;
   /** Lo que un análisis puede hacer afuera: abrir un producto, cargar a la compra (G4). */
   acciones?: AccionesVista | null;
+  /** La herramienta a medida abierta (G6), ya armada: vive en su mensaje, no en la mesa. */
+  herramienta?: ReactNode;
 }) {
   if (!mesa.abierta) return null;
-  // El análisis (G3) se muestra en el mismo panel, con su propia pestaña.
+  // El análisis (G3) y la herramienta (G6) se muestran en el mismo panel, con su propia pestaña.
   const analisis = mesa.abierta === "analisis" ? mesa.analisis : null;
   if (mesa.abierta === "analisis" && !analisis) return null;
+  const herramienta = mesa.abierta === "herramienta" ? mesa.herramienta : null;
+  if (mesa.abierta === "herramienta" && (!herramienta || !cuerpoHerramienta)) return null;
+  const mirando = Boolean(analisis || herramienta);
 
   const esVenta = mesa.abierta === "venta";
   const lineas = esVenta ? mesa.venta.lineas : mesa.compra.lineas;
-  const verProducto = !analisis && mesa.pestana === "producto" && mesa.producto;
+  const verProducto = !mirando && mesa.pestana === "producto" && mesa.producto;
 
   return (
     <aside
       data-testid="omnibox-mesa"
       data-mesa={mesa.abierta}
-      aria-label={analisis ? "Análisis" : esVenta ? "Venta" : "Compra"}
+      aria-label={analisis ? "Análisis" : herramienta ? "Herramienta" : esVenta ? "Venta" : "Compra"}
       className={cn(
         "flex h-full min-h-0 flex-col overflow-hidden bg-card",
         !enHoja && "rounded-xl border border-border shadow-card",
@@ -84,6 +90,18 @@ export function PanelMesa({
               <p className="truncate text-xs text-muted-foreground">
                 Análisis · {resumenPiezas(analisis.vista).length} piezas
               </p>
+            </div>
+          </>
+        ) : herramienta ? (
+          <>
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+              <SlidersHorizontal className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p data-testid="herramienta-titulo" className="truncate font-semibold leading-tight">
+                {herramienta.titulo}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">Herramienta a medida</p>
             </div>
           </>
         ) : verProducto ? (
@@ -130,11 +148,11 @@ export function PanelMesa({
           Compra cambia de mesa sin perder la otra (queda en el chip). */}
       <div role="tablist" className="flex overflow-x-auto border-b border-border px-2 [scrollbar-width:none]">
         <Pestana
-          activa={!analisis && mesa.pestana === "producto"}
+          activa={!mirando && mesa.pestana === "producto"}
           onClick={() =>
-            // Desde el análisis, el producto es de la mesa con la que se venía trabajando.
+            // Desde el análisis o la herramienta, el producto es de la mesa con la que se venía trabajando.
             despachar(
-              analisis
+              mirando
                 ? { tipo: "abrir", mesa: mesa.ultima, pestana: "producto" }
                 : { tipo: "pestana", pestana: "producto" },
             )
@@ -145,7 +163,7 @@ export function PanelMesa({
         </Pestana>
         <Pestana
           destino="venta"
-          activa={!analisis && mesa.pestana === "borrador" && esVenta}
+          activa={!mirando && mesa.pestana === "borrador" && esVenta}
           onClick={() => despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" })}
           icono={<ShoppingCart className="size-4" />}
         >
@@ -154,7 +172,7 @@ export function PanelMesa({
         </Pestana>
         <Pestana
           destino="compra"
-          activa={!analisis && mesa.pestana === "borrador" && mesa.abierta === "compra"}
+          activa={!mirando && mesa.pestana === "borrador" && mesa.abierta === "compra"}
           onClick={() => despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" })}
           icono={<Truck className="size-4" />}
         >
@@ -170,11 +188,22 @@ export function PanelMesa({
             Análisis
           </Pestana>
         ) : null}
+        {mesa.herramienta ? (
+          <Pestana
+            activa={Boolean(herramienta)}
+            onClick={() => despachar({ tipo: "abrir", mesa: "herramienta" })}
+            icono={<SlidersHorizontal className="size-4" />}
+          >
+            Herramienta
+          </Pestana>
+        ) : null}
       </div>
 
       {/* ---- cuerpo */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {analisis ? (
+        {herramienta ? (
+          cuerpoHerramienta
+        ) : analisis ? (
           <PanelVista
             key={analisis.mensajeId}
             analisis={analisis}

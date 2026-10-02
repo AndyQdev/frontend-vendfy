@@ -133,3 +133,9 @@ temp/
 e2e/.auth/
 playwright-report/
 test-results/
+
+# Herramientas a medida (G6): se arma de node_modules antes de dev/build
+public/sandbox/librerias.js
+
+# Experimentos con el modelo de verdad (capturas e informes)
+e2e/experimentos/salida/
