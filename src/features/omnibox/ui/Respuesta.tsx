@@ -485,7 +485,11 @@ function Resuelta({
   if (p.intencion === "consultar_ventas" && datos) {
     return (
       <Tarjeta estado="resuelta" hora={cuando}>
-        <Cabecera icono={Receipt}>Ventas · {periodo(Number(p.entidades.periodo))}</Cabecera>
+        {/* El servidor manda el período con su nombre ("Agosto", "Últimos 30 días"); las
+            conversaciones guardadas antes traen solo los días. */}
+        <Cabecera icono={Receipt}>
+          Ventas · {typeof datos.periodo === "string" ? datos.periodo : periodo(Number(p.entidades.periodo))}
+        </Cabecera>
         <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
           <div>
             <p className="text-xs text-muted-foreground">Total vendido</p>
