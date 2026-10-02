@@ -75,25 +75,43 @@ export function mensajeDeVistaFijada(f: VistaFijada): Mensaje {
   return {
     ...nuevoMensaje(f.nombre, false),
     fase: "listo",
-    propuesta: {
-      intencion: "analizar",
-      titulo: f.vista.titulo,
-      confianza: 1,
-      capa: "C0",
-      entidades: { fijada: f.id },
-      faltan: [],
-      opciones: [],
-      noEncontrado: null,
-      requiereConfirmacion: false,
-      vistaPrevia: null,
-      ejecutable: true,
-      resultado: null,
-      aviso: null,
-      producto: null,
-      bloqueo: null,
-      vista: f.vista,
-      ms: 0,
-    },
+    propuesta: propuestaLocal("analizar", { titulo: f.vista.titulo, entidades: { fijada: f.id }, vista: f.vista }),
+  };
+}
+
+/**
+ * Una frase que contestó a la Guía (G2b: "6", "con QR", "sí"): se resolvió
+ * en la pantalla, sin servidor, y en el hilo queda qué pasó.
+ */
+export function mensajeRespuestaGuia(texto: string, porVoz: boolean, resumen: string): Mensaje {
+  return {
+    ...nuevoMensaje(texto, porVoz),
+    fase: "listo",
+    propuesta: propuestaLocal("responder_guia", { titulo: "Respuesta a la Guía" }),
+    desenlace: { tipo: "mesa", resumen },
+  };
+}
+
+/** Una propuesta armada en la pantalla, sin IA (capa C0). */
+export function propuestaLocal(intencion: string, extra: Partial<Propuesta> = {}): Propuesta {
+  return {
+    intencion,
+    titulo: null,
+    confianza: 1,
+    capa: "C0",
+    entidades: {},
+    faltan: [],
+    opciones: [],
+    noEncontrado: null,
+    requiereConfirmacion: false,
+    vistaPrevia: null,
+    ejecutable: true,
+    resultado: null,
+    aviso: null,
+    producto: null,
+    bloqueo: null,
+    ms: 0,
+    ...extra,
   };
 }
 

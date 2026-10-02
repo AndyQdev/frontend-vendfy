@@ -173,3 +173,39 @@ export async function limpiarFijadas(request: APIRequestContext, prefijo: string
     }
   }
 }
+
+// ------------------------------------------------------------ voz (G2b)
+
+/**
+ * Lo que dice la Guía en voz alta, sin parlantes: la síntesis del navegador
+ * se reemplaza por una lista. Va antes de `page.goto`.
+ */
+export async function escucharVoz(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as any;
+    w.__dichas = [];
+    w.__calladas = 0;
+    if (!w.speechSynthesis) return;
+    w.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => w.__dichas.push(u.text);
+    w.speechSynthesis.cancel = () => (w.__calladas += 1);
+  });
+}
+
+export const dichas = (page: Page) => page.evaluate(() => (window as any).__dichas as string[]);
+
+/**
+ * Cada dictado devuelve la siguiente transcripción, con su propuesta (o null
+ * si el servidor no entendió). El audio es el del micrófono falso de Chromium.
+ */
+export async function simularDictados(page: Page, respuestas: { texto: string; propuesta: Propuesta | null }[]) {
+  let i = 0;
+  await page.route("**/api/omnibox/voz/estado", (route) =>
+    route.fulfill({ json: { statusCode: 200, data: { disponible: true, motor: "simulado" } } }),
+  );
+  await page.route("**/api/omnibox/voz", async (route) => {
+    const r = respuestas[Math.min(i++, respuestas.length - 1)];
+    return route.fulfill({
+      json: { statusCode: 200, data: { transcripcion: { texto: r.texto, motor: "simulado", ms: 5 }, propuesta: r.propuesta } },
+    });
+  });
+}

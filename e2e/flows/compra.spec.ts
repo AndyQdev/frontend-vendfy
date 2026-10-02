@@ -45,6 +45,9 @@ async function dejarEn(
 }
 
 test("cargar una compra hablando, pasar a una venta y volver, y registrarla", async ({ page, request }) => {
+  // Usa la IA de verdad y registra una compra: con poco tiempo, el corte podía
+  // llegar en medio de la limpieza y dejar el stock cambiado.
+  test.slow();
   const h = await sesion(request);
   const coca0 = await stock(request, h, "coca");
   const arroz0 = await stock(request, h, "arroz");

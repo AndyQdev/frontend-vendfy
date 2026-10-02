@@ -42,7 +42,9 @@ export type CodigoGuia =
   | "MARGEN_BAJO"
   | "TIP_DECIR_CANTIDAD"
   | "TIP_COBRAR_HABLANDO"
-  | "TIP_FOTO_FACTURA";
+  | "TIP_FOTO_FACTURA"
+  // ---- G2b: la revisión silenciosa del borrador (modelo liviano, validada en el servidor)
+  | "REVISION";
 
 /** Lo que resuelve el mensaje con un toque. */
 export type AccionGuia =

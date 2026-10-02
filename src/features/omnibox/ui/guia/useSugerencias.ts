@@ -12,6 +12,7 @@ import {
   esTip,
   leerMemoria,
   permitida,
+  pideRevision,
   tipVisto,
   type MemoriaGuia,
 } from "../../model/memoria-guia";
@@ -44,6 +45,9 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
     }
     setMemoria(leerMemoria(crudo));
   }, [claveMemoria]);
+  // Para leerla al pedir sin volver a pedir cada vez que cambia.
+  const memoriaRef = useRef(memoria);
+  memoriaRef.current = memoria;
   const guardar = useCallback(
     (f: (m: MemoriaGuia) => MemoriaGuia) =>
       setMemoria((m) => {
@@ -89,6 +93,7 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
           mesa: "venta",
           lineas: v.lineas.map((l) => ({ productId: l.productId, cantidad: l.cantidad, precio: l.precio })),
           ...(v.clienteId ? { clienteId: v.clienteId, clienteNombre: v.clienteNombre } : {}),
+          revisar: pideRevision(memoriaRef.current, Date.now()),
         },
       })
         .then((r) => setServidor((s) => ({ ...s, venta: (r.data ?? []).map(deSugerencia) })))
@@ -116,6 +121,7 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
           mesa: "compra",
           lineas: c.lineas.map((l) => ({ productId: l.productId, cantidad: l.cantidad, costo: l.costo })),
           proveedor: c.proveedor,
+          revisar: pideRevision(memoriaRef.current, Date.now()),
         },
       })
         .then((r) => setServidor((s) => ({ ...s, compra: (r.data ?? []).map(deSugerencia) })))
@@ -139,8 +145,9 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
   const [version, refrescar] = useState(0);
 
   // ---- la que se muestra
-  const actual = useMemo(() => {
-    if (pausado) return null;
+  // La que corresponde mostrar, aunque esté en pausa: mientras se escribe
+  // "6" la franja se esconde, pero la respuesta igual sabe a qué contesta (G2b).
+  const candidata = useMemo(() => {
     const ahora = Date.now();
     const vigentes = locales.filter((m) =>
       m.codigo === "CANTIDAD_NO_DICHA" ? cantidadNoDichaVigente(m, mesa.venta, mesa.compra) : true,
@@ -150,7 +157,8 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
     const candidatas = [...vigentes, ...servidor[mesa.ultima], ...servidor[otra]];
     return candidatas.find((m) => !resueltas.current.has(m.clave) && permitida(m, memoria, ahora)) ?? null;
     // `version` fuerza recalcular cuando cambia `resueltas` (un ref).
-  }, [pausado, locales, servidor, memoria, mesa.venta, mesa.compra, mesa.ultima, version]);
+  }, [locales, servidor, memoria, mesa.venta, mesa.compra, mesa.ultima, version]);
+  const actual = pausado ? null : candidata;
 
   // "mostrada": una vez por clave y por sesión.
   const mostradas = useRef(new Set<string>());
@@ -185,5 +193,5 @@ export function useSugerencias({ storeId, mesa, pausado }: { storeId: string | n
 
   const contarVenta = useCallback(() => guardar(contarVentaEn), [guardar]);
 
-  return { actual, agregarLocal, resolver, contarVenta, memoria };
+  return { actual, candidata, agregarLocal, resolver, contarVenta, memoria };
 }

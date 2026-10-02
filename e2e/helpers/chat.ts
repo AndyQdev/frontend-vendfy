@@ -18,3 +18,12 @@ export async function decir(page: Page, texto: string) {
 export function ultimaRespuesta(page: Page) {
   return page.getByTestId("omnibox-actividad").last();
 }
+
+/** Dictar con el micrófono falso: grabar un momento, soltar y esperar la respuesta. */
+export async function dictarAlgo(page: Page) {
+  await page.getByRole("button", { name: "Dictar" }).click();
+  await expect(page.getByRole("button", { name: "Detener el dictado" })).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name: "Detener el dictado" }).click();
+  await expect(page.getByTestId("omnibox-pensando")).toHaveCount(0, { timeout: 30_000 });
+}

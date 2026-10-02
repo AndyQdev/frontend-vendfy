@@ -41,6 +41,16 @@ export function esAprendiz(mem: MemoriaGuia): boolean {
   return mem.ventas < VENTAS_APRENDIZ;
 }
 
+/**
+ * ¿Se le pide al servidor la revisión silenciosa del borrador (G2b, D-G5)?
+ * En el modo aprendiz, que es cuando más se equivoca uno cargando; y no si
+ * la persona la descartó tres veces seguidas (queda silenciada 30 días).
+ */
+export function pideRevision(mem: MemoriaGuia, ahora: number): boolean {
+  const hasta = mem.codigos.REVISION?.hasta;
+  return esAprendiz(mem) && !(hasta != null && ahora < hasta);
+}
+
 /** ¿Se puede mostrar esta sugerencia o tip? Errores y advertencias siempre pueden. */
 export function permitida(m: MensajeGuia, mem: MemoriaGuia, ahora: number): boolean {
   if (m.nivel !== "sugerencia") return true;

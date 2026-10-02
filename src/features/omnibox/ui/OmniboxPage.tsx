@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useReducer, useRef, useState } from "react";
-import { BarChart3, Store } from "lucide-react";
+import { BarChart3, Store, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -27,7 +27,10 @@ import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { Drawer, DrawerContent, DrawerTitle } from "@/shared/ui/drawer";
 import { cn } from "@/shared/lib/cn";
 
-import { completar, mensajeDeEvento, mensajeDeVistaFijada, nuevoMensaje, type Mensaje } from "../model/mensaje";
+import { completar, mensajeDeEvento, mensajeDeVistaFijada, mensajeRespuestaGuia, nuevoMensaje, type Mensaje } from "../model/mensaje";
+import { respuestaAGuia, resumenRespuesta } from "../model/respuesta-guia";
+import { fraseDeGuia, paraHablar } from "../model/voz";
+import { useVozGuia } from "./guia/useVozGuia";
 import { accionesReponer, diferenciasVista, resumenPiezas, type Reposicion } from "../model/vistas";
 import type { AccionesVista } from "./vista/acciones";
 import {
@@ -137,6 +140,11 @@ export function OmniboxPage() {
   const guiaRef = useRef(guia);
   guiaRef.current = guia;
 
+  // G2b: la última frase fue dictada (la Guía contesta hablando) y la voz.
+  const porVoz = useRef(false);
+  const [conversaPorVoz, setConversaPorVoz] = useState(false);
+  const vozGuia = useVozGuia();
+
   // La coreografía: qué se tiene que VER cuando cambia la mesa. En G0 los
   // efectos ya se calculan y se emiten; la Fase G1 los dibuja.
   const coreografia = useRef(crearCoreografia()).current;
@@ -223,11 +231,13 @@ export function OmniboxPage() {
    * (catálogo fijo) o una sugerencia. Las acciones despachan lo mismo que
    * los botones del panel; ninguna cobra ni registra sola.
    */
-  async function alAccionGuia(a: AccionGuia) {
+  async function alAccionGuia(a: AccionGuia, objetivo?: MensajeGuia | null) {
     const fija = guiaRef.current?.mensaje ?? null;
-    const sugerencia = fija ? null : ayuda.actual;
-    const m = fija ?? sugerencia;
+    // `objetivo`: el mensaje al que se contestó hablando o escribiendo (G2b);
+    // en ese momento la franja puede estar escondida (se estaba escribiendo).
+    const m = objetivo ?? fija ?? ayuda.actual;
     if (!m) return;
+    const sugerencia = m === fija ? null : m;
     if (a.tipo === "ver") {
       senalar(m, a.campo);
       return;
@@ -353,6 +363,10 @@ export function OmniboxPage() {
     const consulta = texto.trim();
     if (!consulta || !storeId) return;
     setTexto("");
+    porVoz.current = false;
+    setConversaPorVoz(false);
+    vozGuia.callar();
+    if (responderGuia(consulta, false)) return;
     const m = nuevoMensaje(consulta, false);
     setMensajes((prev) => [...prev, m]);
     interpretarEn(m.id, consulta);
@@ -380,6 +394,8 @@ export function OmniboxPage() {
    */
   const voz = useDictado(async (audio) => {
     if (!storeId) return;
+    porVoz.current = true;
+    setConversaPorVoz(true);
     const m = nuevoMensaje(null, true);
     setMensajes((prev) => [...prev, m]);
     try {
@@ -390,19 +406,34 @@ export function OmniboxPage() {
         toast.info("No se entendió nada. Probá de nuevo, más cerca del micrófono.");
         return;
       }
+      // "Seis", "con QR", "sí": contestarle a la Guía gana sobre lo que
+      // entendió el servidor (que no sabe qué preguntó la Guía).
+      const pendiente = guiaRef.current?.mensaje ?? candidataRef.current;
+      const respuesta = respuestaAGuia(dicho, pendiente);
+      if (respuesta && pendiente) {
+        const resumen = resumenRespuesta(respuesta);
+        actualizar(m.id, (x) => ({ ...mensajeRespuestaGuia(dicho, true, resumen), id: x.id, hora: x.hora }));
+        void alAccionGuia(respuesta, pendiente);
+        vozGuia.hablar(paraHablar(resumen));
+        return;
+      }
       actualizar(m.id, (x) =>
         r!.propuesta
           ? { ...x, texto: dicho, fase: "listo", propuesta: r!.propuesta }
           : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué querés hacer." },
       );
-      if (r!.propuesta && esDeVenta(r!.propuesta)) aplicarVenta(m.id, r!.propuesta);
-      if (r!.propuesta?.vista) mostrarAnalisis(m.id, dicho, r!.propuesta);
+      const p = r!.propuesta;
+      if (p && esDeVenta(p)) aplicarVenta(m.id, p);
+      if (p?.vista) mostrarAnalisis(m.id, dicho, p);
+      vozGuia.hablar(fraseDeRespuesta(p));
     } catch (error: any) {
+      const motivo = error?.message ?? "No se pudo procesar el dictado.";
       actualizar(m.id, (x) => ({
         ...x,
         fase: "error",
-        error: error?.message ?? "No se pudo procesar el dictado.",
+        error: motivo,
       }));
+      vozGuia.hablar(paraHablar(motivo));
     } finally {
       voz.cancelar();
     }
@@ -534,6 +565,53 @@ export function OmniboxPage() {
     mesa,
     pausado: texto.trim().length > 0 || voz.estado === "grabando" || voz.estado === "procesando",
   });
+  // La sugerencia pendiente aunque esté escondida: el dictado la lee al volver.
+  const candidataRef = useRef(ayuda.candidata);
+  candidataRef.current = ayuda.candidata;
+
+  // ------------------------------------------------------------ la Guía habla (G2b)
+  // Mientras se le habla al asistente, la Guía contesta hablando: lo que se
+  // hizo y lo que pregunta. Escribir o tocar la vuelve a dejar callada.
+  const visible = guia?.mensaje ?? ayuda.actual;
+  const dichas = useRef(new Set<string>());
+  useEffect(() => {
+    if (!visible || !porVoz.current || dichas.current.has(visible.clave)) return;
+    dichas.current.add(visible.clave);
+    vozGuia.hablar(fraseDeGuia(visible));
+  }, [visible, vozGuia]);
+  // Al volver a dictar, la voz se calla: no le tapa el micrófono a nadie.
+  useEffect(() => {
+    if (voz.estado === "grabando") vozGuia.callar();
+  }, [voz.estado, vozGuia]);
+
+  /**
+   * "6", "con QR", "sí", "no, dejalo": si la Guía preguntó algo y la frase es
+   * la respuesta, se resuelve con el mismo botón que se habría tocado, sin ir
+   * al servidor. Devuelve si la frase era una respuesta.
+   */
+  function responderGuia(frase: string, dictada: boolean): boolean {
+    const pendiente = guiaRef.current?.mensaje ?? ayuda.candidata;
+    const respuesta = respuestaAGuia(frase, pendiente);
+    if (!respuesta || !pendiente) return false;
+    const resumen = resumenRespuesta(respuesta);
+    setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, resumen)]);
+    void alAccionGuia(respuesta, pendiente);
+    return true;
+  }
+
+  /** Lo que se dice en voz alta de una respuesta del servidor: corto, nunca la tarjeta entera. */
+  function fraseDeRespuesta(p: Propuesta | null | undefined): string | null {
+    if (!p) return "Te escuché, pero no entendí qué querés hacer.";
+    const efecto = esDeVenta(p) ? efectoDeVenta(p) : null;
+    if (efecto?.cobrar) return null; // lo dice el cobro, cuando termine
+    if (efecto) return paraHablar(efecto.resumen);
+    if (p.vista) return p.intencion === "cambiar_vista" ? "Listo, cambié la vista." : `Te armé: ${p.vista.titulo}.`;
+    if (p.resultado) return paraHablar(p.resultado.resumen);
+    if (p.aviso) return paraHablar(p.aviso);
+    if (p.faltan.length > 0) return paraHablar(p.faltan[0].pregunta);
+    if (p.opciones.length > 0) return "Encontré varios parecidos: elegí uno en la pantalla.";
+    return null;
+  }
 
   // ------------------------------------------------------------ actuar
 
@@ -840,6 +918,9 @@ export function OmniboxPage() {
       coreografia.emitir([{ tipo: "cobrada" }]);
       ayuda.contarVenta();
       if (!opciones.mensajeId) ayuda.agregarLocal(MENSAJES.tipCobrarHablando());
+      if (porVoz.current) {
+        vozGuia.hablar(`Cobrado: ${venta.total.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bolivianos.`);
+      }
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo cobrar. Revisá tu conexión.";
       // La Guía lo dice y, si nombra un producto del carrito, señala su cantidad.
@@ -1031,6 +1112,16 @@ export function OmniboxPage() {
                   }}
                 />
               )}
+              {conversaPorVoz && vozGuia.disponible ? (
+                <div data-testid="omnibox-voz-respuestas" className="mb-1.5 flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+                  {vozGuia.activa ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+                  <span>{vozGuia.activa ? "Te contesto hablando" : "Respuestas habladas apagadas"}</span>
+                  <span aria-hidden>·</span>
+                  <button type="button" onClick={vozGuia.alternar} className="font-medium text-foreground underline-offset-2 hover:underline">
+                    {vozGuia.activa ? "Silenciar" : "Activar"}
+                  </button>
+                </div>
+              ) : null}
               <ChipsEnCurso mesa={mesa} despachar={despachar} />
               {compositor}
             </div>
