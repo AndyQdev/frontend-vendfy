@@ -35,6 +35,7 @@ import {
 import { useConclusionVista, useFuenteVista } from "@/entities/omnibox/api";
 import type { ColumnaVista, PiezaVista, ProductoOpcion, TablaVista, TipoColumna, VistaSpec } from "@/entities/omnibox/model/types";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { useAlcance } from "./Alcance";
 import { cn } from "@/shared/lib/cn";
 
 import {
@@ -109,6 +110,8 @@ function Marco({
   onTabla?: () => void;
   children: ReactNode;
 }) {
+  // De quién son los números (G6b): cada pieza lo dice, no solo el panel.
+  const alcance = useAlcance();
   return (
     <section
       data-testid="vista-pieza"
@@ -120,7 +123,11 @@ function Marco({
       <header className="mb-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold leading-tight text-foreground">{titulo}</h3>
-          {periodo ? <p className="mt-0.5 text-xs text-muted-foreground">{periodo}</p> : null}
+          {periodo || alcance ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {[periodo, alcance].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
         </div>
         {onTabla ? (
           <button

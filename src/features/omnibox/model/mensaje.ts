@@ -7,6 +7,7 @@ import type {
   VistaFijada,
 } from "@/entities/omnibox/model/types";
 
+import type { Formulario } from "./formularios";
 import type { PropuestaPrecios } from "./herramienta";
 
 /**
@@ -36,6 +37,11 @@ export interface Mensaje {
    * hizo, se haya hecho hablando o tocando. No lleva burbuja del usuario.
    */
   evento?: EventoVenta | EventoCompra;
+  /**
+   * Un formulario que se llena conversando (G6b): "Nuevo cliente" con el
+   * nombre dicho, que la frase siguiente completa ("su teléfono 7189…").
+   */
+  formulario?: Formulario;
   /** "¿Qué pasa si subo 10 %…?" (G6): la herramienta a medida que responde. */
   herramienta?: EstadoHerramienta;
   /**
@@ -127,7 +133,7 @@ export function mensajeDeVistaFijada(f: VistaFijada): Mensaje {
   return {
     ...nuevoMensaje(f.nombre, false),
     fase: "listo",
-    propuesta: propuestaLocal("analizar", { titulo: f.vista.titulo, entidades: { fijada: f.id }, vista: f.vista }),
+    propuesta: propuestaLocal("analizar", { titulo: f.vista.titulo, entidades: { fijada: f.id, pregunta: f.pregunta || f.nombre }, vista: f.vista }),
   };
 }
 

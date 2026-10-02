@@ -9,6 +9,7 @@ import {
   useCambiarPrecios,
   useCobrar,
   useGenerarHerramienta,
+  useFiltrarVista,
   useRegistrarCompra,
   useConfirmar,
   useDictar,
@@ -22,6 +23,7 @@ import {
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
+  estadoDe,
   type CostoProducto,
   type HerramientaGenerada,
   type LineaContexto,
@@ -46,6 +48,18 @@ import {
   type Mensaje,
 } from "../model/mensaje";
 import { validarPropuesta } from "../model/herramienta";
+import { memoriaDe } from "../model/memoria-chat";
+import {
+  camposDeFrase,
+  completo,
+  esConfirmacion,
+  formularioActivo,
+  nuevoFormulario,
+  resumenCompletado,
+  titular,
+  type Formulario,
+} from "../model/formularios";
+import { useCreateCustomer } from "@/entities/customer";
 import { respuestaAGuia, resumenRespuesta } from "../model/respuesta-guia";
 import { fraseDeGuia, paraHablar } from "../model/voz";
 import { useVozGuia } from "./guia/useVozGuia";
@@ -148,6 +162,8 @@ export function OmniboxPage() {
       compra: { lineas: lineas(m.compra.lineas) },
       // Con un análisis a la vista, "ahora por categoría" es sobre él (G4).
       ...(analizando ? { enPantalla: "analisis", vista: m.analisis!.vista } : {}),
+      // La memoria corta (G6b): los últimos turnos y de quién se venía hablando.
+      ...memoriaDe(mensajesRef.current),
     };
   };
   // Con el panel al costado, chat y panel son dos columnas de alto fijo con
@@ -159,6 +175,7 @@ export function OmniboxPage() {
   const cobrar = useCobrar();
   const anular = useAnularVenta();
   const generarHerramienta = useGenerarHerramienta();
+  const filtrarVista = useFiltrarVista();
   const cambiarPrecios = useCambiarPrecios();
   const registrar = useRegistrarCompra();
   const [errorCompra, setErrorCompra] = useState<string | null>(null);
@@ -386,6 +403,7 @@ export function OmniboxPage() {
       if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
       if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
       if (propuesta?.intencion === "simular") armarHerramienta(id, consulta);
+      if (propuesta) abrirFormularioSiFalta(id, propuesta);
     } catch (error: any) {
       actualizar(id, (m) => ({
         ...m,
@@ -402,6 +420,7 @@ export function OmniboxPage() {
     porVoz.current = false;
     setConversaPorVoz(false);
     vozGuia.callar();
+    if (responderFormulario(consulta, false)) return;
     if (responderGuia(consulta, false)) return;
     const m = nuevoMensaje(consulta, false);
     setMensajes((prev) => [...prev, m]);
@@ -442,6 +461,12 @@ export function OmniboxPage() {
         toast.info("No se entendió nada. Probá de nuevo, más cerca del micrófono.");
         return;
       }
+      // "Su teléfono 7189…" completa el formulario que está esperando (G6b).
+      if (formularioActivo(mensajesRef.current) && camposOConfirmacion(dicho)) {
+        setMensajes((prev) => prev.filter((x) => x.id !== m.id));
+        responderFormulario(dicho, true);
+        return;
+      }
       // "Seis", "con QR", "sí": contestarle a la Guía gana sobre lo que
       // entendió el servidor (que no sabe qué preguntó la Guía).
       const pendiente = guiaRef.current?.mensaje ?? candidataRef.current;
@@ -462,6 +487,7 @@ export function OmniboxPage() {
       if (p && esDeVenta(p)) aplicarVenta(m.id, p);
       if (p?.vista) mostrarAnalisis(m.id, dicho, p);
       if (p?.intencion === "simular") armarHerramienta(m.id, dicho);
+      if (p) abrirFormularioSiFalta(m.id, p);
       vozGuia.hablar(fraseDeRespuesta(p));
     } catch (error: any) {
       const motivo = error?.message ?? "No se pudo procesar el dictado.";
@@ -509,6 +535,82 @@ export function OmniboxPage() {
     const m = mensajeDeVistaFijada(f);
     setMensajes((prev) => [...prev, m]);
     despachar({ tipo: "analizar", analisis: { mensajeId: m.id, pregunta: f.pregunta || f.nombre, vista: f.vista } });
+  }
+
+  // ------------------------------------------------------------ formularios conversacionales (G6b)
+
+  const crearCliente = useCreateCustomer();
+
+  /** Uno solo activo: abrir uno descarta los que quedaron abiertos. */
+  function abrirFormulario(id: string, f: Formulario) {
+    setMensajes((prev) =>
+      prev.map((x) =>
+        x.id === id
+          ? { ...x, formulario: f }
+          : x.formulario?.estado === "abierto"
+            ? { ...x, formulario: { ...x.formulario, estado: "descartado" } }
+            : x,
+      ),
+    );
+  }
+
+  /** "Es para Edwin" y no hay ningún Edwin: el "Nuevo cliente" queda esperando su teléfono. */
+  function abrirFormularioSiFalta(id: string, p: Propuesta) {
+    if (estadoDe(p) === "elegir-cliente" && (p.clientes?.length ?? 0) === 0) {
+      abrirFormulario(id, nuevoFormulario("cliente", { nombre: titular(String(p.entidades.nombre ?? "")) }));
+    }
+  }
+
+  function campoFormulario(id: string, campos: Record<string, string>) {
+    actualizar(id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, campos: { ...x.formulario.campos, ...campos }, error: undefined } } : x));
+  }
+
+  /** Crea el cliente y sigue con lo que se estaba haciendo (la venta queda para él). */
+  async function crearDesdeFormulario(id: string) {
+    const m = mensajesRef.current.find((x) => x.id === id);
+    const f = m?.formulario;
+    if (!m || !f || !completo(f) || f.estado === "creando") return;
+    actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creando", error: undefined } }));
+    try {
+      const c = await crearCliente.mutateAsync({
+        name: f.campos.nombre.trim(),
+        phone: f.campos.telefono.replace(/\D/g, ""),
+        ...(f.campos.email ? { email: f.campos.email } : {}),
+      } as any);
+      actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creado", creado: { id: c!.id, nombre: c!.name } } }));
+      elegirCliente(mensajesRef.current.find((x) => x.id === id) ?? m, { id: c!.id, nombre: c!.name });
+    } catch (error: any) {
+      actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "abierto", error: error?.message ?? "No se pudo crear el cliente" } }));
+    }
+  }
+
+  /** ¿La frase es para el formulario activo? (algún dato, o "crealo" con todo completo). */
+  function camposOConfirmacion(frase: string): boolean {
+    const f = formularioActivo(mensajesRef.current)?.formulario;
+    if (!f || f.estado !== "abierto") return false;
+    return Object.keys(camposDeFrase(f.tipo, frase)).length > 0 || (completo(f) && esConfirmacion(frase));
+  }
+
+  /**
+   * La frase completa el formulario activo, sin ir al servidor: "su teléfono
+   * 71890031" llena el teléfono de Edwin y nada más. true si la usó.
+   */
+  function responderFormulario(frase: string, dictada: boolean): boolean {
+    const activo = formularioActivo(mensajesRef.current);
+    const f = activo?.formulario;
+    if (!activo || !f || f.estado !== "abierto") return false;
+    if (completo(f) && esConfirmacion(frase)) {
+      setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, `Creando el cliente ${f.campos.nombre}…`)]);
+      void crearDesdeFormulario(activo.id);
+      return true;
+    }
+    const nuevos = camposDeFrase(f.tipo, frase);
+    if (!Object.keys(nuevos).length) return false;
+    campoFormulario(activo.id, nuevos);
+    const resumen = resumenCompletado(f, nuevos);
+    setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, resumen)]);
+    if (dictada) vozGuia.hablar(paraHablar(resumen));
+    return true;
   }
 
   // ------------------------------------------------------------ herramientas a medida (G6)
@@ -969,7 +1071,40 @@ export function OmniboxPage() {
   }
 
   function elegirProducto(m: Mensaje, op: ProductoOpcion) {
+    if (vistaPendiente(m)) return void filtrarPendiente(m, "producto", op.productId);
     seguir(m, completar(m.propuesta!, { producto: op.nombre, productId: op.productId }, op));
+  }
+
+  /** Un análisis que espera a que se elija cuál José (G6b). */
+  const vistaPendiente = (m: Mensaje) =>
+    (m.propuesta?.entidades as { vistaPendiente?: VistaSpec } | undefined)?.vistaPendiente ?? null;
+
+  /**
+   * Se eligió cuál: el servidor le pone ese filtro a TODAS las piezas de la
+   * vista que quedó esperando, y recién ahí se muestra. Nunca antes: serían
+   * los datos de toda la tienda.
+   */
+  async function filtrarPendiente(m: Mensaje, tipo: "cliente" | "producto" | "categoria", id: string) {
+    const pendiente = vistaPendiente(m);
+    if (!pendiente || !storeId) return;
+    actualizar(m.id, (x) => ({ ...x, fase: "pensando" }));
+    try {
+      const vista = await filtrarVista.mutateAsync({ storeId, vista: pendiente, tipo, id });
+      const p: Propuesta = {
+        ...m.propuesta!,
+        vista,
+        titulo: vista.titulo,
+        clientes: undefined,
+        opciones: [],
+        aviso: null,
+        ejecutable: true,
+        entidades: { pregunta: (m.propuesta!.entidades as { pregunta?: string }).pregunta ?? m.texto ?? "" },
+      };
+      actualizar(m.id, (x) => ({ ...x, fase: "listo", propuesta: p }));
+      mostrarAnalisis(m.id, m.texto ?? "", p);
+    } catch (error: any) {
+      actualizar(m.id, (x) => ({ ...x, fase: "error", error: error?.message ?? "No pude armar el análisis." }));
+    }
   }
 
   function completarDato(m: Mensaje, slot: string, valor: string) {
@@ -1106,6 +1241,7 @@ export function OmniboxPage() {
   useEffect(() => setErrorCompra(null), [mesa.compra]);
 
   function elegirCliente(m: Mensaje, c: { id: string; nombre: string }) {
+    if (vistaPendiente(m)) return void filtrarPendiente(m, "cliente", c.id);
     const p = m.propuesta!;
     seguir(m, {
       ...p,
@@ -1425,6 +1561,12 @@ export function OmniboxPage() {
                     onAbrirVista={() => m.propuesta && mostrarAnalisis(m.id, m.texto ?? "", m.propuesta)}
                     vistaAbierta={mesa.abierta === "analisis" && mesa.analisis?.mensajeId === m.id}
                     onAbrirHerramienta={() => abrirHerramienta(m)}
+                    onAbrirFormulario={() => abrirFormulario(m.id, nuevoFormulario("cliente", { nombre: titular(String(m.propuesta?.entidades.nombre ?? "")) }))}
+                    onCampoFormulario={(clave, valor) => campoFormulario(m.id, { [clave]: valor })}
+                    onCrearFormulario={() => void crearDesdeFormulario(m.id)}
+                    onDescartarFormulario={() =>
+                      actualizar(m.id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, estado: "descartado" } } : x))
+                    }
                     herramientaAbierta={mesa.abierta === "herramienta" && mesa.herramienta?.mensajeId === m.id}
                     onReintentarHerramienta={() => armarHerramienta(m.id, preguntaDe(m))}
                     onVerDatosHerramienta={(vista) => verDatosDeHerramienta(m, vista)}

@@ -1,4 +1,4 @@
-import type { Periodo, PiezaVista, ProductoOpcion, TablaVista, TipoColumna, VistaSpec } from "@/entities/omnibox/model/types";
+import type { Condicion, Filtros, Periodo, PiezaVista, ProductoOpcion, TablaVista, TipoColumna, TipoFiltro, VistaSpec } from "@/entities/omnibox/model/types";
 
 import type { AccionMesa } from "./mesa";
 
@@ -67,6 +67,50 @@ export function conPeriodo(vista: VistaSpec, periodo: Periodo): VistaSpec {
     ...vista,
     piezas: vista.piezas.map((p) => (tienePeriodo(p) ? { ...p, params: { ...p.params, periodo } } : p)),
   };
+}
+
+// ------------------------------------------------------------ alcance (G6b)
+
+export const ETIQUETA_FILTRO: Record<TipoFiltro, string> = { cliente: "Cliente", producto: "Producto", categoria: "Categoría" };
+const TIPOS_FILTRO: TipoFiltro[] = ["cliente", "producto", "categoria"];
+
+/** Los filtros de una vista, en orden, para mostrarlos como chips. */
+export function filtrosDe(f: Filtros | undefined): { tipo: TipoFiltro; etiqueta: string; nombre: string }[] {
+  return TIPOS_FILTRO.filter((t) => f?.[t]).map((t) => ({ tipo: t, etiqueta: ETIQUETA_FILTRO[t], nombre: f![t]!.nombre }));
+}
+
+const DIA: Record<string, string> = {
+  lunes: "Los lunes", martes: "Los martes", miercoles: "Los miércoles", jueves: "Los jueves",
+  viernes: "Los viernes", sabado: "Los sábados", domingo: "Los domingos",
+};
+
+/** "Ventas de más de Bs 500", "Pagadas con tarjeta", "Los sábados", "Desde las 18:00" (igual que el servidor). */
+export function textoCondicion(c: Condicion): string {
+  const bs = (n: number) => `Bs ${n.toLocaleString("es-BO", { maximumFractionDigits: 2 })}`;
+  const n = Number(c.valor);
+  switch (c.campo) {
+    case "monto":
+      return ({ ">": `Ventas de más de ${bs(n)}`, ">=": `Ventas desde ${bs(n)}`, "<": `Ventas de menos de ${bs(n)}`, "<=": `Ventas hasta ${bs(n)}` } as Record<string, string>)[c.op] ?? "";
+    case "pago":
+      return `${c.op === "!=" ? "No pagadas" : "Pagadas"} con ${c.valor === "qr" ? "QR" : c.valor}`;
+    case "dia_semana":
+      return c.op === "!=" ? `Menos ${(DIA[String(c.valor)] ?? "").toLowerCase()}` : (DIA[String(c.valor)] ?? String(c.valor));
+    case "hora":
+      return ({ ">": `Después de las ${n}:00`, ">=": `Desde las ${n}:00`, "<": `Antes de las ${n}:00`, "<=": `Hasta las ${n}:00` } as Record<string, string>)[c.op] ?? "";
+    default:
+      return "";
+  }
+}
+
+/**
+ * De quién son los números, en una línea: "Cliente: José Luis Mamani · Pagadas
+ * con tarjeta". Sin filtros, "Toda la tienda": que nunca haya que adivinar si
+ * es de José o de todos.
+ */
+export function textoAlcance(f: Filtros | undefined, condiciones: Condicion[] = []): string {
+  const lista = filtrosDe(f).map((x) => `${x.etiqueta}: ${x.nombre}`);
+  const conds = condiciones.map(textoCondicion);
+  return [...(lista.length ? lista : ["Toda la tienda"]), ...conds].join(" · ");
 }
 
 // ------------------------------------------------------------ formato
@@ -526,5 +570,8 @@ export function diferenciasVista(antes: VistaSpec, despues: VistaSpec): string[]
     }
   }
   if (periodo) cambios.push(`Período: ${etiquetaPeriodo(periodo)}`);
+  if (textoAlcance(antes.filtros, antes.condiciones) !== textoAlcance(despues.filtros, despues.condiciones)) {
+    cambios.push(`Ahora: ${textoAlcance(despues.filtros, despues.condiciones)}`);
+  }
   return cambios;
 }

@@ -7,6 +7,8 @@ import { cn } from "@/shared/lib/cn";
 import { ElegirProducto } from "../ElegirProducto";
 import { Cabecera, Estado, FotoProducto, Tarjeta, dinero } from "../piezas";
 import { NuevoCliente } from "./SelectorCliente";
+import type { Formulario } from "../../model/formularios";
+import { FormularioCliente } from "../formularios/FormularioCliente";
 
 /**
  * Las tarjetas del chat para las frases sobre la venta.
@@ -78,14 +80,25 @@ export function ElegirClienteChat({
   propuesta: p,
   hora,
   onElegir,
+  formulario,
+  onAbrirFormulario,
+  onCampoFormulario,
+  onCrearFormulario,
+  onDescartarFormulario,
 }: {
   propuesta: Propuesta;
   hora: string;
   onElegir: (c: { id: string; nombre: string }) => void;
+  /** El "Nuevo cliente" de este mensaje (G6b): se completa acá o hablándole al chat. */
+  formulario?: Formulario;
+  onAbrirFormulario?: () => void;
+  onCampoFormulario?: (clave: string, valor: string) => void;
+  onCrearFormulario?: () => void;
+  onDescartarFormulario?: () => void;
 }) {
   const opciones = p.clientes ?? [];
   const dicho = String((p.entidades as any).nombre ?? "");
-  const [creando, setCreando] = useState(opciones.length === 0);
+  const abierto = formulario && formulario.estado !== "descartado";
 
   return (
     <Tarjeta estado="elegir-cliente" hora={hora}>
@@ -118,23 +131,24 @@ export function ElegirClienteChat({
         </div>
       )}
 
-      {creando ? (
+      {abierto ? (
         <div className="rounded-lg border border-border">
-          <NuevoCliente
-            nombreInicial={titular(dicho)}
-            onCreado={(id, nombre) => onElegir({ id, nombre })}
-            onVolver={() => setCreando(false)}
-            sinVolver={opciones.length === 0}
+          <FormularioCliente
+            formulario={formulario!}
+            onCampo={(clave, valor) => onCampoFormulario?.(clave, valor)}
+            onCrear={() => onCrearFormulario?.()}
+            onVolver={opciones.length > 0 ? onDescartarFormulario : undefined}
           />
         </div>
       ) : (
         <button
           type="button"
-          onClick={() => setCreando(true)}
+          data-testid="omnibox-crear-cliente"
+          onClick={onAbrirFormulario}
           className="flex items-center gap-2 px-1 text-[13px] font-medium text-primary hover:underline"
         >
           <UserPlus className="size-4" />
-          Es otro: crear “{titular(dicho)}”
+          {opciones.length ? `Es otro: crear “${titular(dicho)}”` : `Crear “${titular(dicho)}”`}
         </button>
       )}
     </Tarjeta>

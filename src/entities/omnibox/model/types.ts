@@ -101,10 +101,24 @@ export type PiezaVista =
   | { id: string; tipo: "accion"; accion: "reponer"; fuente: string; params: Params; titulo: string }
   | { id: string; tipo: "conclusion" };
 
+/** De quién / de qué son los números de una vista (G6b). */
+export type TipoFiltro = "cliente" | "producto" | "categoria";
+export type Filtros = Partial<Record<TipoFiltro, { id: string; nombre: string }>>;
+/** Una condición a medida sobre los pedidos ("de más de Bs 500", "con tarjeta"): ya validada por el servidor. */
+export interface Condicion {
+  campo: "monto" | "pago" | "dia_semana" | "hora";
+  op: "=" | "!=" | ">" | ">=" | "<" | "<=";
+  valor: number | string;
+}
+
 /** Ya validada por el servidor: fuentes, columnas y parámetros existen. */
 export interface VistaSpec {
   titulo: string;
   piezas: PiezaVista[];
+  /** Todas las piezas son SOLO de esto (un cliente, un producto, una categoría). */
+  filtros?: Filtros;
+  /** Y solo de los pedidos que cumplen esto. */
+  condiciones?: Condicion[];
 }
 
 /** Una conversación guardada, en la lista (G5). */
@@ -260,6 +274,11 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (!p.intencion) return "sin-entender";
   // Un análisis: la respuesta es la vista del panel, no una tarjeta con botones.
   if (p.vista) return "vista";
+  // Un análisis que no se armó (nombró a alguien que no existe, o no salió
+  // con el filtro pedido): se dice por qué, sin sugerir otra cosa.
+  if ((p.intencion === "analizar" || p.intencion === "cambiar_vista") && p.aviso && !p.clientes?.length && !p.opciones.length) {
+    return "aviso";
+  }
   // Una herramienta a medida (G6): se arma aparte y su tarjeta muestra el progreso.
   if (p.intencion === "simular") return "herramienta";
   if (p.items) return "pedido";

@@ -36,6 +36,7 @@ import { ElegirClienteChat, ElegirLineaChat, TarjetaAviso, TarjetaGuia, TarjetaM
 import { TarjetaConfirmarCompra } from "./mesa/TarjetaCompra";
 import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import { TarjetaVista } from "./vista/TarjetaVista";
+import { ChipsAlcance } from "./vista/Alcance";
 import { TarjetaHerramienta } from "./herramienta/TarjetaHerramienta";
 import {
   BloqueProducto,
@@ -93,6 +94,11 @@ export interface AccionesRespuesta {
   onAbrirVista: () => void;
   /** La vista de ESTE mensaje es la que está abierta en el panel. */
   vistaAbierta: boolean;
+  /** El "Nuevo cliente" que se llena conversando (G6b). */
+  onAbrirFormulario: () => void;
+  onCampoFormulario: (clave: string, valor: string) => void;
+  onCrearFormulario: () => void;
+  onDescartarFormulario: () => void;
   /** Una herramienta a medida (G6): abrirla en el panel, armarla de nuevo, ver sus datos si se rompió. */
   onAbrirHerramienta: () => void;
   herramientaAbierta: boolean;
@@ -196,14 +202,32 @@ export function Respuesta({
         />
       );
     case "elegir-cliente":
-      return <ElegirClienteChat propuesta={p} hora={cuando} onElegir={acciones.onElegirCliente} />;
+      return (
+        <ElegirClienteChat
+          propuesta={p}
+          hora={cuando}
+          onElegir={acciones.onElegirCliente}
+          formulario={m.formulario}
+          onAbrirFormulario={acciones.onAbrirFormulario}
+          onCampoFormulario={acciones.onCampoFormulario}
+          onCrearFormulario={acciones.onCrearFormulario}
+          onDescartarFormulario={acciones.onDescartarFormulario}
+        />
+      );
     case "elegir-linea":
       return <ElegirLineaChat propuesta={p} hora={cuando} onElegir={acciones.onElegirLinea} />;
     case "aviso":
       return <TarjetaAviso aviso={p.aviso!} hora={cuando} />;
     case "vista":
       return (
-        <TarjetaVista propuesta={p} hora={cuando} abierta={acciones.vistaAbierta} onAbrir={acciones.onAbrirVista} />
+        <TarjetaVista
+          propuesta={p}
+          hora={cuando}
+          abierta={acciones.vistaAbierta}
+          onAbrir={acciones.onAbrirVista}
+          storeId={storeId}
+          pregunta={String((p.entidades as { pregunta?: unknown }).pregunta ?? m.texto ?? "")}
+        />
       );
     case "herramienta":
       return (
@@ -223,6 +247,7 @@ export function Respuesta({
           hora={cuando}
           productoAbierto={acciones.productoAbierto}
           onVerProducto={acciones.onVerProducto}
+          onSugerencia={acciones.onSugerencia}
         />
       );
     case "espera-confirmacion":
@@ -459,13 +484,57 @@ function Resuelta({
   hora: cuando,
   productoAbierto,
   onVerProducto,
+  onSugerencia,
 }: {
   propuesta: Propuesta;
   hora: string;
   productoAbierto?: string;
   onVerProducto: (p: ProductoOpcion) => void;
+  /** Mandar una frase como si se escribiera ("las ventas de José"). */
+  onSugerencia?: (texto: string) => void;
 }) {
   const datos = p.resultado?.datos as any;
+
+  // "Datos de José" (G6b): su ficha, ahí mismo, y a un toque sus ventas.
+  if (Array.isArray(datos?.clientes)) {
+    return (
+      <Tarjeta estado="resuelta" hora={cuando}>
+        <div data-testid="tarjeta-clientes" className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {(datos.clientes as { id: string; nombre: string; telefono: string; compras: number; ultimaCompra: string | null }[]).map((c) => (
+            <div key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-semibold uppercase text-primary">
+                {c.nombre.slice(0, 1)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{c.nombre}</p>
+                <p className="cifra text-xs text-muted-foreground">
+                  {c.telefono} · {c.compras} {c.compras === 1 ? "compra" : "compras"}
+                  {c.ultimaCompra
+                    ? ` · última: ${new Date(c.ultimaCompra).toLocaleDateString("es-BO", { day: "numeric", month: "short" })}`
+                    : ""}
+                </p>
+              </div>
+              {onSugerencia ? (
+                <BotonSecundario data-testid="cliente-ver-ventas" onClick={() => onSugerencia(`las ventas de ${c.nombre}`)} className="h-8 px-3">
+                  Ver sus ventas
+                </BotonSecundario>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </Tarjeta>
+    );
+  }
+
+  // "¿Esas son solo de José?" (G6b): la respuesta, escrita, con de quién es lo que se ve.
+  if (p.intencion === "explicar_vista") {
+    return (
+      <div data-testid="vista-explicacion" className="flex min-w-0 flex-1 flex-col gap-1.5 px-1">
+        <p className="text-[15px] leading-relaxed text-foreground">{p.resultado!.resumen}</p>
+        <ChipsAlcance filtros={datos?.filtros} />
+      </div>
+    );
+  }
 
   if (Array.isArray(datos?.productos)) {
     const unidad = datos.tipo === "fractional" && datos.unidad ? datos.unidad : "un";

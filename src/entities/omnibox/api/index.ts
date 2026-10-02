@@ -446,3 +446,16 @@ export function useCambiarPrecios() {
     },
   });
 }
+
+/**
+ * Con dos José, el análisis queda esperando a cuál (G6b): al elegir, el
+ * servidor le pone ese filtro a TODAS las piezas y lo vuelve a validar.
+ */
+export function useFiltrarVista() {
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; vista: VistaSpec; tipo: "cliente" | "producto" | "categoria"; id: string }) =>
+      (await apiFetch<VistaSpec>("/api/omnibox/vista/filtrar", { method: "POST", body: vars })).data!,
+    retry: false,
+  });
+}
+

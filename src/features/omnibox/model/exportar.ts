@@ -1,7 +1,7 @@
 import type { PiezaVista, TablaVista, TipoColumna, VistaSpec } from "@/entities/omnibox/model/types";
 
 import type { HojaExcel } from "./excel";
-import { alertaDe, comparar, etiquetaPeriodo, periodoComun, resumenPiezas, variacion } from "./vistas";
+import { alertaDe, comparar, etiquetaPeriodo, periodoComun, resumenPiezas, textoAlcance, variacion } from "./vistas";
 
 /**
  * Una vista como libro de Excel (G4): una hoja "Resumen" (qué se preguntó,
@@ -92,6 +92,7 @@ export function hojasDeVista(
       ["Tienda", meta.tienda],
       ["Generado", `${dosCifras(f.getDate())}/${dosCifras(f.getMonth() + 1)}/${f.getFullYear()} ${dosCifras(f.getHours())}:${dosCifras(f.getMinutes())}`],
       ["Período", periodo ? etiquetaPeriodo(periodo) : "Cada pieza tiene el suyo"],
+      ["De", textoAlcance(vista.filtros, vista.condiciones)],
     ],
   };
   for (const p of vista.piezas) {

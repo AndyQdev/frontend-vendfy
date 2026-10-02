@@ -8,7 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/shared/lib/cn";
 
 import type { AccionMesa, Analisis } from "../../model/mesa";
-import { opcionesPeriodo, periodoComun } from "../../model/vistas";
+import { filtrosDe, opcionesPeriodo, periodoComun, textoAlcance } from "../../model/vistas";
+import { AlcanceContext, ChipsAlcance } from "./Alcance";
 import { AccionesVistaContext, type AccionesVista } from "./acciones";
 import { PiezaAlerta, PiezaComparativa, PiezaConclusion, PiezaConDatos } from "./Piezas";
 
@@ -41,9 +42,12 @@ export function PanelVista({
   const periodo = periodoComun(vista);
   const fijadas = useVistasFijadas(storeId).data ?? [];
 
+  const filtrada = filtrosDe(vista.filtros).length > 0 || Boolean(vista.condiciones?.length);
   return (
     <AccionesVistaContext.Provider value={acciones}>
+      <AlcanceContext.Provider value={filtrada ? textoAlcance(vista.filtros, vista.condiciones).replace(/^Toda la tienda · /, "") : ""}>
       <div data-testid="omnibox-vista" className="space-y-3 p-3 sm:p-4">
+        <ChipsAlcance filtros={vista.filtros} condiciones={vista.condiciones} />
         {periodo || fijadas.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2" data-no-imprimir>
             {periodo ? (
@@ -114,6 +118,7 @@ export function PanelVista({
           ))}
         </div>
       </div>
+      </AlcanceContext.Provider>
     </AccionesVistaContext.Provider>
   );
 }

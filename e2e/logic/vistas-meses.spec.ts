@@ -50,3 +50,13 @@ test.describe("lo que no se vende", () => {
     );
   });
 });
+
+test.describe("condiciones a medida (G6b)", () => {
+  test("se leen igual que en el servidor y entran en el alcance", async () => {
+    const { textoAlcance, textoCondicion } = await import("../../src/features/omnibox/model/vistas");
+    expect(textoCondicion({ campo: "monto", op: ">", valor: 500 })).toBe("Ventas de más de Bs 500");
+    expect(textoCondicion({ campo: "pago", op: "=", valor: "qr" })).toBe("Pagadas con QR");
+    expect(textoCondicion({ campo: "dia_semana", op: "=", valor: "sabado" })).toBe("Los sábados");
+    expect(textoAlcance(undefined, [{ campo: "hora", op: ">=", valor: 18 }])).toBe("Toda la tienda · Desde las 18:00");
+  });
+});
