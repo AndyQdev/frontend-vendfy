@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/shared/lib/cn";
 
 import type { AccionMesa, Analisis } from "../../model/mesa";
-import { PERIODOS, periodoComun } from "../../model/vistas";
+import { opcionesPeriodo, periodoComun } from "../../model/vistas";
 import { AccionesVistaContext, type AccionesVista } from "./acciones";
 import { PiezaAlerta, PiezaComparativa, PiezaConclusion, PiezaConDatos } from "./Piezas";
 
@@ -54,7 +54,7 @@ export function PanelVista({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PERIODOS.map((p) => (
+                    {opcionesPeriodo(periodo).map((p) => (
                       <SelectItem key={p.id} value={p.id} className="text-[13px]">
                         {p.etiqueta}
                       </SelectItem>

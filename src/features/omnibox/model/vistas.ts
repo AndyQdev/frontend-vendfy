@@ -44,7 +44,7 @@ export function contraQue(periodo: unknown): string {
     case "este_anio":
       return "vs. el año pasado";
     default:
-      return "vs. el período anterior";
+      return typeof periodo === "string" && periodo.startsWith("mes:") ? "vs. el mes anterior" : "vs. el período anterior";
   }
 }
 
@@ -241,8 +241,24 @@ export function resumenPiezas(vista: VistaSpec): string[] {
 
 // ============================================================ G4
 
-export function etiquetaPeriodo(p: Periodo): string {
+const NOMBRES_MES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+/** "Últimos 30 días"; un mes con nombre, "Agosto" (este año) o "Agosto de 2025". */
+export function etiquetaPeriodo(p: Periodo, ahora = new Date()): string {
+  const m = /^mes:(\d{4})-(\d{2})$/.exec(p);
+  if (m) {
+    const nombre = NOMBRES_MES[Number(m[2]) - 1] ?? p;
+    return Number(m[1]) === ahora.getFullYear() ? nombre : `${nombre} de ${m[1]}`;
+  }
   return PERIODOS.find((x) => x.id === p)?.etiqueta ?? p;
+}
+
+/**
+ * Lo que ofrece el selector de período: los de siempre y, si la vista mira
+ * un mes con nombre ("agosto"), ese mes también, para que se vea elegido.
+ */
+export function opcionesPeriodo(actual: Periodo | null): { id: Periodo; etiqueta: string }[] {
+  return actual && !PERIODOS.some((p) => p.id === actual) ? [{ id: actual, etiqueta: etiquetaPeriodo(actual) }, ...PERIODOS] : PERIODOS;
 }
 
 // ------------------------------------------------------------ productos de una fila
@@ -365,6 +381,23 @@ export function alertaDe(fuente: string, tabla: TablaVista): Alerta | null {
         };
       }
       return conCosto.length > 0 ? { nivel: "bien", texto: `Todo lo vendido deja al menos ${u.margenMinimo} % de margen` } : null;
+    }
+    case "sin_ventas": {
+      const quietos = filas.filter((f) => num(f.vendidas) === 0);
+      if (quietos.length === 0) {
+        return filas.length > 0
+          ? { nivel: "bien", texto: "Todo lo que tenés en stock se vendió en este período" }
+          : { nivel: "bien", texto: "No hay productos con stock para revisar" };
+      }
+      const parado = quietos.reduce((s, f) => s + (f.parado == null ? 0 : num(f.parado)), 0);
+      const n = quietos.length;
+      return {
+        nivel: "advertencia",
+        texto: `${n === 1 ? "1 producto no se vendió" : `${n} productos no se vendieron`} en este período${
+          parado > 0 ? ` · Bs ${parado.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} parados` : ""
+        }`,
+        detalle: nombres(quietos),
+      };
     }
     case "kpis": {
       const ventas = filas.find((f) => f.indicador === "Ventas");

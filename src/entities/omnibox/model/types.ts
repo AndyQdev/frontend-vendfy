@@ -55,7 +55,9 @@ export interface Propuesta {
 // ------------------------------------------------------------ vistas (G3)
 // Espejo de `ventas-service/src/omnibox/model/vistas.ts`.
 
-export type Periodo = "hoy" | "ayer" | "7dias" | "30dias" | "90dias" | "este_mes" | "mes_pasado" | "este_anio";
+export type PeriodoFijo = "hoy" | "ayer" | "7dias" | "30dias" | "90dias" | "este_mes" | "mes_pasado" | "este_anio";
+/** Los relativos, o un mes con nombre: "mes:2026-08" (para "septiembre contra agosto"). */
+export type Periodo = PeriodoFijo | `mes:${string}`;
 
 export type TipoColumna = "texto" | "dinero" | "numero" | "porcentaje" | "fecha" | "hora" | "producto";
 

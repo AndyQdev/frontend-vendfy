@@ -85,6 +85,7 @@ const VACIO: Record<string, string> = {
   clientes_frecuentes: "No hay ventas con cliente en este período.",
   compras_por_proveedor: "No hay compras en este período.",
   margen_por_producto: "No hay ventas con costo cargado en este período.",
+  sin_ventas: "No hay productos con stock para revisar.",
 };
 
 // ------------------------------------------------------------ el marco
