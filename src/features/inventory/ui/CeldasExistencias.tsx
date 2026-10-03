@@ -1,3 +1,4 @@
+import { createContext, useContext, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import { TableCell } from "@/shared/ui/table";
 import { cn } from "@/shared/lib/cn";
@@ -10,6 +11,29 @@ import type { Inventory } from "@/entities/inventory/model/types";
 import type { AlcanceAjuste, DireccionAjuste } from "./AjusteStockDialog";
 
 type Abrir = (alcance: AlcanceAjuste, direccion: DireccionAjuste) => void;
+
+/**
+ * La misma pieza en la tabla y en la tarjeta.
+ *
+ * El control de -/+ es lo que se viene a hacer a esta pantalla, así que en el
+ * teléfono tiene que estar igual que en escritorio. Lo único que cambia es la
+ * envoltura: una celda de tabla o una caja suelta. Por defecto es celda, de
+ * modo que la tabla no necesita saber que esto existe.
+ */
+const Envoltura = createContext<"celda" | "caja">("celda");
+
+function Celda({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  if (useContext(Envoltura) === "caja") {
+    return <div className={className}>{children}</div>;
+  }
+  return <TableCell className={className}>{children}</TableCell>;
+}
 
 /**
  * El control de −/valor/+ como una sola pieza.
@@ -42,7 +66,9 @@ function GrupoPaso({
   tono?: string;
 }) {
   const base = cn(
-    "flex h-7 w-7 shrink-0 items-center justify-center transition-colors",
+    // 28 px alcanzan con el mouse; con el dedo, no. En el teléfono sube a 40,
+    // que es lo más grande que entra sin que la tarjeta crezca de más.
+    "flex h-7 w-7 max-md:h-10 max-md:w-10 shrink-0 items-center justify-center transition-colors",
     "text-muted-foreground",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
     "disabled:pointer-events-none disabled:opacity-25",
@@ -117,7 +143,7 @@ export function CeldasExistencias({
   if (!porMedida) {
     return (
       <>
-        <TableCell>
+        <Celda>
           <div className="flex flex-col items-center gap-1">
             <GrupoPaso
               valor={total}
@@ -129,13 +155,13 @@ export function CeldasExistencias({
             />
             <span className="text-[10px] text-muted-foreground">unidades</span>
           </div>
-        </TableCell>
+        </Celda>
 
-        <TableCell className="text-center">
+        <Celda className="text-center">
           <span className="text-xs text-muted-foreground/70">
             No se fracciona
           </span>
-        </TableCell>
+        </Celda>
       </>
     );
   }
@@ -147,7 +173,7 @@ export function CeldasExistencias({
   return (
     <>
       {/* Envases sellados */}
-      <TableCell>
+      <Celda>
         <div className="flex flex-col items-center gap-1">
           <GrupoPaso
             valor={sellados}
@@ -161,10 +187,10 @@ export function CeldasExistencias({
             sellados · {etiquetaEnvase} c/u
           </span>
         </div>
-      </TableCell>
+      </Celda>
 
       {/* Envase abierto */}
-      <TableCell>
+      <Celda>
         <div className="mx-auto flex w-[10.5rem] flex-col items-center gap-1.5">
           <GrupoPaso
             valor={abierto > 0 ? formatearCantidad(abierto, unidad) : "cerrado"}
@@ -214,7 +240,29 @@ export function CeldasExistencias({
             {formatearCantidad(total, unidad)} en total
           </span>
         </div>
-      </TableCell>
+      </Celda>
     </>
+  );
+}
+
+/**
+ * Lo mismo, apilado, para la tarjeta del teléfono.
+ *
+ * Las dos cajas conviven en una fila y bajan una debajo de la otra cuando no
+ * entran: en 360 px el envase abierto, con su barra, necesita el ancho entero.
+ */
+export function ExistenciasEnTarjeta({
+  inventory,
+  onAjustar,
+}: {
+  inventory: Inventory;
+  onAjustar: Abrir;
+}) {
+  return (
+    <Envoltura.Provider value="caja">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <CeldasExistencias inventory={inventory} onAjustar={onAjustar} />
+      </div>
+    </Envoltura.Provider>
   );
 }

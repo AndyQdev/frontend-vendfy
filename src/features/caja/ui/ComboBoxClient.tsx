@@ -67,7 +67,7 @@ export function ComboBoxClient({
               setClientSearchOpen(true);
             }
           }}
-          className="h-10 pr-8 text-sm"
+          className="h-10 pr-8 md:text-sm"
           disabled={disabled}
         />
         {selectedClient ? (

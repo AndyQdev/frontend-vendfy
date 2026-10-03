@@ -67,7 +67,7 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6 bg-background">
+    <main className="min-h-dvh flex flex-col items-center justify-center gap-8 p-6 bg-background">
       <VendfyLogo variant={resolvedDark ? "full-white" : "full"} size={40} />
       {children}
       <p className="text-xs text-muted-foreground">

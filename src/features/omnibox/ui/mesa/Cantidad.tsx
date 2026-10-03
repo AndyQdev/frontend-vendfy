@@ -48,7 +48,7 @@ export function Cantidad({
           const n = Math.floor(Number(e.target.value));
           if (Number.isFinite(n)) onCambio(n);
         }}
-        className="cifra w-12 border-x border-border bg-transparent text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+        className="cifra w-12 border-x border-border bg-transparent text-center text-base md:text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
       />
       <button
         type="button"

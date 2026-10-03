@@ -11,6 +11,14 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import {
+  FilaAcciones,
+  FilaDatos,
+  FilaTitulo,
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+} from "@/shared/ui/lista-tarjetas";
 import { PaginationControls } from "@/shared/ui/pagination";
 import {
   AlertDialog,
@@ -161,7 +169,7 @@ export default function CustomersTable() {
           />
         )
       ) : (
-        <div className="border rounded-lg">
+        <SoloEscritorio className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
@@ -238,7 +246,41 @@ export default function CustomersTable() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </SoloEscritorio>
+      )}
+
+      {/* La misma información en el teléfono: nombre y teléfono, que es por
+          donde se busca a un cliente, y la fecha como dato secundario. El
+          email y el género se ven al abrir la ficha. */}
+      {!isLoading && customers.length > 0 && (
+        <ListaTarjetas>
+          {customers.map((customer) => (
+            <TarjetaFila
+              key={customer.id}
+              onClick={() => handleCustomerClick(customer)}
+            >
+              <FilaTitulo
+                medio={
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                    <User className="size-4" />
+                  </span>
+                }
+                titulo={customer.name}
+                subtitulo={`${customer.country || "+591"} ${customer.phone}`}
+                derecha={getGenderBadge(customer.gender)}
+              />
+              <FilaDatos
+                datos={[
+                  {
+                    etiqueta: "Registrado",
+                    valor: format(new Date(customer.created_at), "dd/MM/yyyy"),
+                  },
+                  { etiqueta: "Email", valor: customer.email || "—" },
+                ]}
+              />
+            </TarjetaFila>
+          ))}
+        </ListaTarjetas>
       )}
 
       {/* Pagination */}

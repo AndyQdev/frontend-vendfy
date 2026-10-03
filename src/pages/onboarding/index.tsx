@@ -366,7 +366,7 @@ export default function OnboardingPage() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-dvh bg-background flex flex-col">
         {/* Topbar minimal */}
         <header className="border-b border-border bg-background sticky top-0 z-10">
           <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -641,7 +641,7 @@ function Step1({
             value={data.slug}
             placeholder="mi-tienda"
             onChange={(e) => update("slug", slugify(e.target.value))}
-            className="border-0 shadow-none p-0 h-auto bg-transparent focus-visible:ring-0 text-sm"
+            className="border-0 shadow-none p-0 h-auto bg-transparent focus-visible:ring-0 md:text-sm"
           />
         </div>
         {data.slug && (
@@ -795,7 +795,7 @@ function Step2({
               type="button"
               variant="destructive"
               size="icon"
-              className="absolute top-3 right-3 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-3 right-3 h-8 w-8 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation();
                 update("bannerUrl", "");

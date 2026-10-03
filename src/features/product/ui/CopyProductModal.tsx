@@ -10,13 +10,14 @@ import {
   Layers,
 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -282,6 +283,7 @@ export function CopyProductModal({
             </DialogDescription>
           </DialogHeader>
 
+          <DialogBody>
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -385,7 +387,7 @@ export function CopyProductModal({
                         setFormData((p) => ({ ...p, description: e.target.value }))
                       }
                       rows={4}
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none text-sm"
+                      className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none text-base md:text-sm"
                       placeholder="Describe el producto..."
                     />
                   </div>
@@ -765,6 +767,8 @@ export function CopyProductModal({
               </TabsContent>
             </div>
           </Tabs>
+
+          </DialogBody>
 
           <DialogFooter className="shrink-0 border-t pt-4 mt-2">
             <Button variant="outline" onClick={onClose}>

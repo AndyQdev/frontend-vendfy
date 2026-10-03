@@ -3,12 +3,13 @@ import { PackageSearch, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -79,6 +80,7 @@ export function SelectorProductosDisponibles({
           </DialogDescription>
         </DialogHeader>
 
+      <DialogBody>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -150,6 +152,9 @@ export function SelectorProductosDisponibles({
             </Button>
           </div>
         </div>
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

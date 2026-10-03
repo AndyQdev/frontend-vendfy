@@ -9,6 +9,13 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+} from "@/shared/ui/lista-tarjetas";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -167,7 +174,8 @@ export function MovimientosGlobales({ storeId }: { storeId: string }) {
           })}
         />
       ) : (
-        <div className="rounded-lg border">
+        <div className="rounded-lg md:border">
+          <SoloEscritorio>
           <Table>
             <TableHeader>
               <TableRow>
@@ -254,6 +262,76 @@ export function MovimientosGlobales({ storeId }: { storeId: string }) {
               })}
             </TableBody>
           </Table>
+          </SoloEscritorio>
+
+          {/* El libro de movimientos se lee de arriba hacia abajo: que entró o
+              salió, de qué producto y cuánto. Eso es la tarjeta. */}
+          <ListaTarjetas className="pb-2">
+            {movimientos.map((m) => {
+              const config = MOVEMENT_TYPE_CONFIG[m.type];
+              const salida = esSalida(m.type, m.direction);
+              const unidad = m.inventory?.product?.baseUnit;
+
+              return (
+                <TarjetaFila key={m.id}>
+                  <FilaTitulo
+                    titulo={m.inventory?.product?.name ?? "—"}
+                    subtitulo={m.inventory?.store?.name || undefined}
+                    derecha={
+                      <span
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          m.direction === 0
+                            ? "text-muted-foreground"
+                            : salida
+                              ? "text-orange-600 dark:text-orange-400"
+                              : "text-emerald-600 dark:text-emerald-400",
+                        )}
+                      >
+                        {m.direction === 0 ? "" : salida ? "−" : "+"}
+                        {formatearCantidad(m.quantity, unidad)}
+                      </span>
+                    }
+                  />
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                        config?.chip ?? "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {config?.icon}
+                      {config?.label ?? m.type}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {fechaLegible(m.created_at)}
+                    </span>
+                  </div>
+
+                  <FilaDatos
+                    datos={[
+                      {
+                        etiqueta: "Costo",
+                        valor: m.totalCost
+                          ? `Bs ${Number(m.totalCost).toFixed(2)}`
+                          : "—",
+                      },
+                      {
+                        etiqueta: "Registró",
+                        valor:
+                          m.createdBy?.name || m.createdBy?.email || "Sistema",
+                      },
+                    ]}
+                  />
+
+                  {m.notes && (
+                    <p className="text-xs text-muted-foreground">{m.notes}</p>
+                  )}
+                </TarjetaFila>
+              );
+            })}
+          </ListaTarjetas>
 
           <div className="border-t p-4">
             <PaginationControls

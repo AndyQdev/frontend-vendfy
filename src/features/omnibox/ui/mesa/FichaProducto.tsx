@@ -193,7 +193,7 @@ export function FichaProducto({
                 aria-label="Costo por unidad"
                 value={costo}
                 onChange={(e) => setCosto(e.target.value)}
-                className="cifra h-11 w-28 rounded-lg border border-border bg-card px-3 text-sm font-semibold outline-none focus:border-primary"
+                className="cifra h-11 w-28 rounded-lg border border-border bg-card px-3 text-base md:text-sm font-semibold outline-none focus:border-primary"
               />
             </label>
             <BotonCta

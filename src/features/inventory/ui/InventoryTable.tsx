@@ -50,7 +50,15 @@ import {
 } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { CeldasExistencias } from "./CeldasExistencias";
+import { CeldasExistencias, ExistenciasEnTarjeta } from "./CeldasExistencias";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+  FilaAcciones,
+} from "@/shared/ui/lista-tarjetas";
 import { MovimientosGlobales } from "./MovimientosGlobales";
 import {
   AjusteStockDialog,
@@ -343,7 +351,7 @@ export default function InventoryTable() {
             </div>
 
             {/* Rango de precio */}
-            <div className="flex items-center gap-1.5 px-2.5 h-10 rounded-md border bg-background">
+            <div className="flex items-center gap-1.5 px-2.5 h-10 max-md:h-11 rounded-md border bg-background">
               <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="number"
@@ -353,7 +361,7 @@ export default function InventoryTable() {
                 value={minPriceInput}
                 onChange={(e) => setFiltro("min", e.target.value)}
                 placeholder="Min"
-                className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="w-14 h-8 max-md:h-9 px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 md:text-sm"
               />
               <span className="text-muted-foreground text-sm">–</span>
               <Input
@@ -364,7 +372,7 @@ export default function InventoryTable() {
                 value={maxPriceInput}
                 onChange={(e) => setFiltro("max", e.target.value)}
                 placeholder="Max"
-                className="w-14 h-8 px-1 text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="w-14 h-8 max-md:h-9 px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 md:text-sm"
               />
             </div>
 
@@ -402,7 +410,8 @@ export default function InventoryTable() {
 
         {/* Table */}
         {isLoading ? (
-          <div className="border rounded-lg">
+          <>
+          <SoloEscritorio className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -451,7 +460,21 @@ export default function InventoryTable() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </SoloEscritorio>
+
+          <ListaTarjetas>
+            {[...Array(4)].map((_, i) => (
+              <TarjetaFila key={i}>
+                <FilaTitulo
+                  medio={<div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-muted" />}
+                  titulo={<div className="h-4 w-32 animate-pulse rounded bg-muted" />}
+                  subtitulo={<div className="mt-1 h-3 w-20 animate-pulse rounded bg-muted" />}
+                />
+                <div className="h-7 w-24 animate-pulse rounded-lg bg-muted" />
+              </TarjetaFila>
+            ))}
+          </ListaTarjetas>
+          </>
         ) : inventories.length === 0 ? (
           hasActiveFilters ? (
             <EmptyState
@@ -483,7 +506,8 @@ export default function InventoryTable() {
             />
           )
         ) : (
-          <div className="border rounded-lg">
+          <div className="rounded-lg md:border">
+            <SoloEscritorio>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -593,6 +617,82 @@ export default function InventoryTable() {
                 ))}
               </TableBody>
             </Table>
+            </SoloEscritorio>
+
+            {/* Nueve columnas no caben en 360 px. Lo que no se negocia es el
+                control de -/+: ajustar stock es para lo que se entra acá. */}
+            <ListaTarjetas className="pb-2">
+              {inventories.map((inventory) => (
+                <TarjetaFila
+                  key={inventory.id}
+                  acciones={
+                    <FilaAcciones>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openHistoryDialog(inventory.id)}
+                      >
+                        <History className="mr-1 h-4 w-4 text-gray-600" />
+                        Historial
+                      </Button>
+                    </FilaAcciones>
+                  }
+                >
+                  <FilaTitulo
+                    medio={
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        {inventory.product.imageUrls &&
+                        inventory.product.imageUrls.length > 0 ? (
+                          <img
+                            src={inventory.product.imageUrls[0]}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    }
+                    titulo={inventory.product.name}
+                    subtitulo={inventory.product.sku || "Sin código"}
+                    derecha={
+                      <>
+                        <div className="text-sm font-semibold text-green-600">
+                          Bs. {inventory.product.price?.toFixed(2) || "0.00"}
+                        </div>
+                        <div className="mt-1">{getStatusBadge(inventory.status)}</div>
+                      </>
+                    }
+                  />
+
+                  <ExistenciasEnTarjeta
+                    inventory={inventory}
+                    onAjustar={(alcance, direccion) =>
+                      abrirAjuste(inventory, alcance, direccion)
+                    }
+                  />
+
+                  <FilaDatos
+                    datos={[
+                      { etiqueta: "Tienda", valor: inventory.store.name },
+                      ...(inventory.reservedQuantity > 0
+                        ? [
+                            {
+                              etiqueta: "Reservado",
+                              valor: formatearCantidad(
+                                inventory.reservedQuantity,
+                                inventory.product?.baseUnit,
+                              ),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                </TarjetaFila>
+              ))}
+            </ListaTarjetas>
 
             {!isLoading && inventories.length > 0 && (
               <div className="border-t p-4">

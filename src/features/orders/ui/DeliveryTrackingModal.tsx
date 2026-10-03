@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink, Loader2, Truck } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -78,6 +79,7 @@ export function DeliveryTrackingModal({
           </DialogDescription>
         </DialogHeader>
 
+        <DialogBody>
         <div className="space-y-2">
           <Label htmlFor="tracking-url">Link de seguimiento</Label>
           <Input
@@ -98,6 +100,8 @@ export function DeliveryTrackingModal({
             la ubicación en tiempo real que te comparte tu repartidor.
           </p>
         </div>
+
+        </DialogBody>
 
         <DialogFooter>
           <Button

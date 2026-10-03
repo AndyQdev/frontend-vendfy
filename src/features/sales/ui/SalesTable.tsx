@@ -20,6 +20,14 @@ import { formatMoney } from "@/shared/lib/money";
 import { format } from "date-fns";
 import { SalesDetailsModal } from "./SalesDetailsModal";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+  type DatoFila,
+} from "@/shared/ui/lista-tarjetas";
 
 export default function SalesTable() {
   // La búsqueda, la pestaña y la página viven en la dirección: volver o
@@ -51,6 +59,14 @@ export default function SalesTable() {
   const { data: ordersResponse, isLoading } = useOrders(queryParams);
   
   const allOrders = ordersResponse?.data || [];
+
+  // Los tres contadores de las pestañas, en una pasada: cada etiqueta los
+  // nombra dos veces (la corta del teléfono y la larga), y no tiene sentido
+  // recorrer la lista seis veces para eso.
+  const conteos = allOrders.reduce<Record<string, number>>((acc, order) => {
+    acc[order.type] = (acc[order.type] ?? 0) + 1;
+    return acc;
+  }, {});
   
   // Filtrar órdenes según el tab seleccionado (en el frontend)
   const filteredOrders = allOrders.filter(order => order.type === selectedTab);
@@ -126,14 +142,27 @@ export default function SalesTable() {
       {/* Tabs */}
       <Tabs value={selectedTab} onValueChange={(value) => setFiltro("tipo", value)}>
         <TabsList className="grid w-full grid-cols-3">
+          {/* En 360 px cada pestaña tiene unos 90 px: "Venta Rápida (12)" no
+              entra. La forma corta es la que ya usa la caja para estas mismas
+              tres, así que no hay un nombre nuevo que aprender. */}
           <TabsTrigger value={OrderType.QUICK}>
-            Venta Rápida ({allOrders.filter(o => o.type === OrderType.QUICK).length})
+            <span className="md:hidden">
+              Rápida ({conteos[OrderType.QUICK] ?? 0})
+            </span>
+            <span className="hidden md:inline">
+              Venta Rápida ({conteos[OrderType.QUICK] ?? 0})
+            </span>
           </TabsTrigger>
           <TabsTrigger value={OrderType.DELIVERY}>
-            Delivery ({allOrders.filter(o => o.type === OrderType.DELIVERY).length})
+            Delivery ({conteos[OrderType.DELIVERY] ?? 0})
           </TabsTrigger>
           <TabsTrigger value={OrderType.INSTALLMENT}>
-            A Cuotas ({allOrders.filter(o => o.type === OrderType.INSTALLMENT).length})
+            <span className="md:hidden">
+              Cuotas ({conteos[OrderType.INSTALLMENT] ?? 0})
+            </span>
+            <span className="hidden md:inline">
+              A Cuotas ({conteos[OrderType.INSTALLMENT] ?? 0})
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -224,7 +253,8 @@ function OrdersTableContent({
   const colCount = 8 + (showDeliveryInfo ? 1 : 0) + (showInstallmentInfo ? 1 : 0);
 
   return (
-    <div className="border rounded-lg">
+    <>
+      <SoloEscritorio className="border rounded-lg">
       <Table>
         <TableHeader>
           <TableRow>
@@ -307,6 +337,75 @@ function OrdersTableContent({
           )}
         </TableBody>
       </Table>
-    </div>
+      </SoloEscritorio>
+
+      {/* Once columnas no caben en 360 px: la misma fila, como tarjeta. */}
+      <ListaTarjetas>
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <TarjetaFila key={`skel-movil-${i}`}>
+                <FilaTitulo
+                  titulo={<Skeleton className="h-4 w-32" />}
+                  subtitulo={<Skeleton className="mt-1 h-3 w-16" />}
+                  derecha={<Skeleton className="h-4 w-16" />}
+                />
+              </TarjetaFila>
+            ))
+          : orders.map((order) => {
+              // El tercer dato depende de la pestaña: en delivery lo que
+              // importa es a dónde va, y en cuotas cuántas son.
+              const datos: DatoFila[] = [
+                {
+                  etiqueta: "Fecha",
+                  valor: format(new Date(order.created_at), "dd/MM/yy"),
+                },
+                {
+                  etiqueta: "Pago",
+                  valor: <span className="capitalize">{order.paymentMethod}</span>,
+                },
+                showDeliveryInfo
+                  ? {
+                      etiqueta: "Dirección",
+                      valor: order.deliveryInfo?.address || "N/A",
+                    }
+                  : showInstallmentInfo
+                    ? {
+                        etiqueta: "Cuotas",
+                        valor: order.installmentInfo?.numberOfInstallments || 0,
+                      }
+                    : {
+                        etiqueta: "Recibido",
+                        valor: (
+                          <span className="text-green-600">
+                            {formatMoney(order.totalReceived)}
+                          </span>
+                        ),
+                      },
+              ];
+
+              return (
+                <TarjetaFila key={order.id} onClick={() => onOrderClick(order)}>
+                  <FilaTitulo
+                    titulo={order.customer?.name || "Sin cliente"}
+                    subtitulo={
+                      order.number
+                        ? `#${order.number}`
+                        : order.store?.name || undefined
+                    }
+                    derecha={
+                      <>
+                        <p className="text-sm font-semibold">
+                          {formatMoney(order.totalAmount)}
+                        </p>
+                        <div className="mt-1">{getStatusBadge(order.status)}</div>
+                      </>
+                    }
+                  />
+                  <FilaDatos datos={datos} />
+                </TarjetaFila>
+              );
+            })}
+      </ListaTarjetas>
+    </>
   );
 }

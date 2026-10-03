@@ -206,6 +206,35 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* El rebote del final de la página arrastra la interfaz entera y deja una
+     franja muerta arriba o abajo. Con mouse no molesta, pero en un teléfono
+     aparece en cada lista que se recorre rápido. Lo que importa desplazar es
+     el contenido, no el documento contra su borde. */
+  @media (max-width: 1023px) {
+    html,
+    body {
+      overscroll-behavior-y: none;
+    }
+  }
+
+  /* Instalada, sin barra del navegador, ese rebote se nota todavía más: no hay
+     nada alrededor que explique el hueco.
+
+     La guía pedía además `height: 100%; overflow: hidden` en html y body, con
+     el scroll mudado a un contenedor interno. Acá NO se puede: el panel tiene
+     a propósito UN solo scroll, el del documento, y de él dependen el header
+     `sticky` y el campo del asistente con `sticky bottom-0` (ver
+     widgets/layout/LayoutShell.tsx). Con `overflow: hidden` la app instalada
+     se queda sin forma de bajar en ninguna pantalla larga, y es un fallo que
+     solo se ve después de instalar. `overscroll-behavior` resuelve el rebote
+     —que es el problema real— sin apagar el scroll. */
+  @media (display-mode: standalone) {
+    html,
+    body {
+      overscroll-behavior: none;
+    }
+  }
+
   h1,
   h2,
   h3 {

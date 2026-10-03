@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { FolderPlus, Save } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -109,7 +116,8 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category-name">
               Nombre <span className="text-destructive">*</span>
@@ -157,10 +165,12 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
               value={formData.description}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none text-sm"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none text-base md:text-sm"
               placeholder="Describe la categoría..."
             />
           </div>
+
+          </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

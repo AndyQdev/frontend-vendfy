@@ -3,12 +3,14 @@ import { Camera, ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -116,7 +118,8 @@ export function AltaRapidaProducto({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={enviar} className="space-y-4">
+        <form onSubmit={enviar} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
           <input
             ref={inputFoto}
             type="file"
@@ -195,7 +198,9 @@ export function AltaRapidaProducto({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          </DialogBody>
+
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => cerrar(false)}>
               Listo
             </Button>
@@ -203,7 +208,7 @@ export function AltaRapidaProducto({
               {agregar.isPending ? "Agregando..." : "Agregar y seguir"}
               <ImagePlus className="ml-1 h-4 w-4" />
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

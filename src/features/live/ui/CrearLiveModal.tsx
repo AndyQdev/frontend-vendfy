@@ -4,12 +4,14 @@ import { Radio } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -78,7 +80,10 @@ export function CrearLiveModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={enviar} className="space-y-4">
+        {/* El formulario es el hijo flexible: el cuerpo scrollea y el pie
+            queda fijo abajo, alcanzable con el pulgar. */}
+        <form onSubmit={enviar} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="live-title">Título</Label>
             <Input
@@ -102,14 +107,16 @@ export function CrearLiveModal({
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          </DialogBody>
+
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={crear.isPending}>
               {crear.isPending ? "Creando..." : "Crear Live"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

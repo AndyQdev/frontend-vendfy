@@ -1,7 +1,13 @@
 import { formatMoney } from "@/shared/lib/money";
 import { Order } from "@/entities/order/model/types";
 import { Badge } from "@/shared/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 
 interface OrderDetailsModalProps {
   order: Order | null;
@@ -31,6 +37,7 @@ export function SalesDetailsModal({ order, open, onClose }: OrderDetailsModalPro
           </DialogTitle>
         </DialogHeader>
 
+      <DialogBody>
         <div className="space-y-6">
           {/* Información General */}
           <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/30">
@@ -171,6 +178,9 @@ export function SalesDetailsModal({ order, open, onClose }: OrderDetailsModalPro
             </div>
           )}
         </div>
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

@@ -3,12 +3,14 @@ import { Gavel } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -81,7 +83,8 @@ export function ConfigurarSubastaModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={enviar} className="space-y-4">
+        <form onSubmit={enviar} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="sub-inicial">Precio inicial</Label>
             <Input
@@ -113,14 +116,16 @@ export function ConfigurarSubastaModal({
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          </DialogBody>
+
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={preparar.isPending}>
               {preparar.isPending ? "Guardando..." : "Preparar subasta"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

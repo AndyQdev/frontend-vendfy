@@ -10,7 +10,14 @@ import { ElegirProducto } from "@/features/omnibox/ui/ElegirProducto";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/button";
 import { ButtonMagic } from "@/shared/ui/button-magic";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 
@@ -162,6 +169,7 @@ export function CompraConIaModal({
           </DialogDescription>
         </DialogHeader>
 
+      <DialogBody>
         {!lineas ? (
           <div className="space-y-4">
             <button
@@ -350,6 +358,9 @@ export function CompraConIaModal({
             </div>
           </div>
         )}
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

@@ -2,14 +2,6 @@ import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Separator } from "@/shared/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
 import { Input } from "@/shared/ui/input";
 import {

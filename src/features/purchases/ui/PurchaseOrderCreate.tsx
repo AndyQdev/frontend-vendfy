@@ -18,6 +18,13 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaAcciones,
+} from "@/shared/ui/lista-tarjetas";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -45,6 +52,84 @@ interface PurchaseItem {
   productSku?: string;
   quantity: number;
   unitCost: number;
+}
+
+/**
+ * El renglón editable: cuántas unidades y a qué costo.
+ *
+ * Son los dos únicos controles de la pantalla y aparecen en la tabla y en la
+ * tarjeta del teléfono, así que viven una sola vez.
+ */
+function PasoCantidad({
+  item,
+  index,
+  adjustQuantity,
+  updateItem,
+}: {
+  item: PurchaseItem;
+  index: number;
+  adjustQuantity: (index: number, delta: number) => void;
+  updateItem: (index: number, field: keyof PurchaseItem, value: any) => void;
+}) {
+  return (
+    <div className="inline-flex items-center rounded-md border border-input bg-background">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-r-none"
+        onClick={() => adjustQuantity(index, -1)}
+        disabled={item.quantity <= 1}
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </Button>
+      <Input
+        type="number"
+        min={1}
+        value={item.quantity}
+        onChange={(e) =>
+          updateItem(index, "quantity", Math.max(1, parseInt(e.target.value) || 1))
+        }
+        className="h-8 w-14 border-0 px-1 text-center focus-visible:border-0 focus-visible:ring-0 max-md:h-11"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-l-none"
+        onClick={() => adjustQuantity(index, 1)}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function CostoUnitario({
+  item,
+  index,
+  updateItem,
+}: {
+  item: PurchaseItem;
+  index: number;
+  updateItem: (index: number, field: keyof PurchaseItem, value: any) => void;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <span className="text-xs text-muted-foreground">Bs.</span>
+      <Input
+        type="number"
+        min={0}
+        step="0.01"
+        value={item.unitCost || ""}
+        onChange={(e) =>
+          updateItem(index, "unitCost", parseFloat(e.target.value) || 0)
+        }
+        placeholder="0.00"
+        className="h-8 w-24 text-right"
+      />
+    </div>
+  );
 }
 
 export function PurchaseOrderCreate() {
@@ -251,6 +336,7 @@ export function PurchaseOrderCreate() {
           {/* Items Table */}
           {items.length > 0 ? (
             <Card className="overflow-hidden">
+              <SoloEscritorio>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -293,63 +379,22 @@ export function PurchaseOrderCreate() {
                       </TableCell>
 
                       {/* Cantidad con stepper */}
-                      <TableCell>
-                        <div className="inline-flex items-center rounded-md border border-input bg-background mx-auto">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-r-none"
-                            onClick={() => adjustQuantity(index, -1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </Button>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItem(
-                                index,
-                                "quantity",
-                                Math.max(1, parseInt(e.target.value) || 1),
-                              )
-                            }
-                            className="h-8 w-14 border-0 text-center px-1 focus-visible:ring-0 focus-visible:border-0"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-l-none"
-                            onClick={() => adjustQuantity(index, 1)}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                      <TableCell className="text-center">
+                        <PasoCantidad
+                          item={item}
+                          index={index}
+                          adjustQuantity={adjustQuantity}
+                          updateItem={updateItem}
+                        />
                       </TableCell>
 
                       {/* Costo unitario */}
                       <TableCell>
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <span className="text-xs text-muted-foreground">Bs.</span>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.unitCost || ""}
-                            onChange={(e) =>
-                              updateItem(
-                                index,
-                                "unitCost",
-                                parseFloat(e.target.value) || 0,
-                              )
-                            }
-                            placeholder="0.00"
-                            className="h-8 w-24 text-right"
-                          />
-                        </div>
+                        <CostoUnitario
+                          item={item}
+                          index={index}
+                          updateItem={updateItem}
+                        />
                       </TableCell>
 
                       {/* Subtotal */}
@@ -373,6 +418,78 @@ export function PurchaseOrderCreate() {
                   ))}
                 </TableBody>
               </Table>
+              </SoloEscritorio>
+
+              {/* Seis columnas piden 540 px fijos. En el teléfono cada producto
+                  es una tarjeta, con los mismos dos controles. */}
+              <ListaTarjetas className="p-3">
+                {items.map((item, index) => (
+                  <TarjetaFila
+                    key={item.productId}
+                    acciones={
+                      <FilaAcciones>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => removeItem(index)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Quitar
+                        </Button>
+                      </FilaAcciones>
+                    }
+                  >
+                    <FilaTitulo
+                      medio={
+                        item.productImage ? (
+                          <img
+                            src={item.productImage}
+                            alt=""
+                            className="h-11 w-11 shrink-0 rounded-md border object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-muted">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )
+                      }
+                      titulo={item.productName}
+                      subtitulo={item.productSku || undefined}
+                      derecha={
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                          Bs. {(item.quantity * item.unitCost).toFixed(2)}
+                        </span>
+                      }
+                    />
+
+                    <div className="flex items-end justify-between gap-3">
+                      <label className="space-y-1">
+                        <span className="etiqueta block text-[10px] text-muted-foreground">
+                          Cantidad
+                        </span>
+                        <PasoCantidad
+                          item={item}
+                          index={index}
+                          adjustQuantity={adjustQuantity}
+                          updateItem={updateItem}
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-right">
+                        <span className="etiqueta block text-[10px] text-muted-foreground">
+                          Costo unit.
+                        </span>
+                        <CostoUnitario
+                          item={item}
+                          index={index}
+                          updateItem={updateItem}
+                        />
+                      </label>
+                    </div>
+                  </TarjetaFila>
+                ))}
+              </ListaTarjetas>
 
               {/* Footer con total destacado */}
               <div className="flex items-center justify-between gap-4 border-t bg-muted/30 px-4 py-3">

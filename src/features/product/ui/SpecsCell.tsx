@@ -94,13 +94,13 @@ export function SpecsCell({
                 value={clave}
                 onChange={(e) => editar(i, 0, e.target.value)}
                 placeholder="Clave"
-                className="h-7 w-[38%] text-xs"
+                className="h-7 w-[38%] max-md:h-10 md:text-xs"
               />
               <Input
                 value={valor}
                 onChange={(e) => editar(i, 1, e.target.value)}
                 placeholder="Valor"
-                className="h-7 flex-1 text-xs"
+                className="h-7 flex-1 max-md:h-10 md:text-xs"
               />
               <Button
                 variant="ghost"

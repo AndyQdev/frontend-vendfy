@@ -127,7 +127,7 @@ export function CompraBorrador({
                         despachar({ tipo: "costoCompra", productId: l.productId, costo: Number(e.target.value) })
                       }
                       className={cn(
-                        "cifra h-9 w-28 rounded-lg border bg-card pl-8 pr-2 text-sm font-semibold text-foreground outline-none focus:border-primary",
+                        "cifra h-9 w-28 rounded-lg border bg-card pl-8 pr-2 text-base md:text-sm font-semibold text-foreground outline-none focus:border-primary",
                         !(l.costo > 0) ? "border-warning" : "border-border",
                       )}
                     />
@@ -271,7 +271,7 @@ function Campo({
         value={valor}
         placeholder={placeholder}
         onChange={(e) => onCambio(e.target.value)}
-        className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+        className="h-11 w-full rounded-lg border border-border bg-card px-3 text-base md:text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
       />
     </label>
   );

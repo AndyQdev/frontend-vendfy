@@ -42,7 +42,7 @@ export function Composer({
             submit();
           }
         }}
-        className="max-h-32 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="max-h-32 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-base md:text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       />
       <Button
         size="icon"

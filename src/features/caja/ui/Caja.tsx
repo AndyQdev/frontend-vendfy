@@ -42,13 +42,14 @@ import { Separator } from "@/shared/ui/separator";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Label } from "@/shared/ui/label";
 import { NativeSelect } from "@/shared/ui/native-select";
 import { toast } from "sonner";
@@ -633,7 +634,7 @@ export default function Caja() {
                             placeholder="Buscar productos..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 sm:pl-12 pr-4 h-10 sm:h-12 text-sm sm:text-base"
+                            className="pl-10 sm:pl-12 pr-4 h-10 sm:h-12 sm:text-base"
                             autoFocus
                         />
                         </div>
@@ -1212,6 +1213,8 @@ export default function Caja() {
               Configura el plan de pagos para este pedido
             </DialogDescription>
           </DialogHeader>
+
+          <DialogBody>
           
           <div className="space-y-4 py-4">
             {/* Total */}
@@ -1280,6 +1283,9 @@ export default function Caja() {
             </div>
           </div>
           
+
+          </DialogBody>
+
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowInstallmentModal(false)}>
               Cancelar

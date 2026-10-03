@@ -5,11 +5,12 @@ import { es } from "date-fns/locale";
 import { Package, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Separator } from "@/shared/ui/separator";
 import { formatearCantidad } from "@/entities/inventory/model/envases";
 
@@ -45,6 +46,7 @@ export function OrderDetailsModal({ order, open, onClose }: { order: Order | nul
           <DialogTitle>Detalles de la Orden</DialogTitle>
         </DialogHeader>
 
+      <DialogBody>
         <div className="space-y-6">
           {/* Información del cliente */}
           <div>
@@ -207,6 +209,9 @@ export function OrderDetailsModal({ order, open, onClose }: { order: Order | nul
             </div>
           </div>
         </div>
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

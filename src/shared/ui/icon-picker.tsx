@@ -65,7 +65,13 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[360px] p-0" align="start">
+      {/* 360 px es justo el ancho de un teléfono de gama media: sin el techo,
+          el panel se sale por un costado en cuanto el disparador no arranca
+          pegado al borde. */}
+      <PopoverContent
+        className="w-[360px] max-w-[calc(100vw-1.5rem)] p-0"
+        align="start"
+      >
         <div className="p-3 border-b">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

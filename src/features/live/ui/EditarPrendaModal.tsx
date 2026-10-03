@@ -3,12 +3,14 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,7 +138,8 @@ export function EditarPrendaModal({
             <DialogDescription>Tocá la foto para cambiarla.</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={guardar} className="space-y-4">
+          <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
+            <DialogBody className="space-y-4">
             <input
               ref={inputFoto}
               type="file"
@@ -196,27 +199,26 @@ export function EditarPrendaModal({
               />
             </div>
 
-            <div className="flex items-center justify-between pt-1">
+            </DialogBody>
+
+            <DialogFooter>
               <Button
                 type="button"
                 variant="ghost"
-                className="text-destructive"
+                className="text-destructive md:mr-auto"
                 onClick={() => setConfirmando(true)}
                 disabled={eliminar.isPending}
               >
                 <Trash2 className="h-4 w-4" />
                 <span className="ml-1">Eliminar</span>
               </Button>
-
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={editar.isPending || subiendo}>
-                  {editar.isPending ? "Guardando..." : "Guardar"}
-                </Button>
-              </div>
-            </div>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={editar.isPending || subiendo}>
+                {editar.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

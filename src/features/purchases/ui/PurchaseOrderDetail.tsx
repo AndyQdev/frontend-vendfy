@@ -11,6 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+} from "@/shared/ui/lista-tarjetas";
 import { ArrowLeft, CheckCircle, XCircle, Package, User, FileText, Store } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +159,7 @@ export function PurchaseOrderDetail() {
             {po.items?.reduce((s, i) => s + i.quantity, 0) || 0} unidades
           </span>
         </div>
+        <SoloEscritorio>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
@@ -204,6 +212,51 @@ export function PurchaseOrderDetail() {
             })}
           </TableBody>
         </Table>
+        </SoloEscritorio>
+
+        {/* Las cinco columnas piden 440 px de ancho fijo; en el teléfono cada
+            producto es una tarjeta. */}
+        <ListaTarjetas className="p-3">
+          {po.items?.map((item) => {
+            const imageUrl = item.product?.imageUrls?.[0];
+            return (
+              <TarjetaFila key={item.id}>
+                <FilaTitulo
+                  medio={
+                    imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        className="h-11 w-11 shrink-0 rounded-md border object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-muted">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )
+                  }
+                  titulo={item.product?.name || "Producto"}
+                  subtitulo={item.product?.sku || undefined}
+                  derecha={
+                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                      Bs. {Number(item.subtotal).toFixed(2)}
+                    </span>
+                  }
+                />
+
+                <FilaDatos
+                  datos={[
+                    { etiqueta: "Cantidad", valor: item.quantity },
+                    {
+                      etiqueta: "Costo unit.",
+                      valor: `Bs. ${Number(item.unitCost).toFixed(2)}`,
+                    },
+                  ]}
+                />
+              </TarjetaFila>
+            );
+          })}
+        </ListaTarjetas>
 
         {/* Footer con total destacado */}
         <div className="flex items-center justify-end gap-6 border-t bg-muted/30 px-4 py-3">

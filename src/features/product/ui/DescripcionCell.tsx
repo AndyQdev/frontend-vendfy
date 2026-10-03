@@ -36,7 +36,7 @@ export function DescripcionCell({ value, onChange }: { value: string; onChange: 
           onChange={(e) => onChange(e.target.value)}
           rows={6}
           placeholder="Descripción del producto"
-          className="text-sm"
+          className="md:text-sm"
         />
       </PopoverContent>
     </Popover>

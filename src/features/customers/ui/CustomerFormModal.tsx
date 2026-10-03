@@ -1,4 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -107,7 +114,8 @@ export function CustomerFormModal({ customer, open, onClose }: CustomerFormModal
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
           {/* Nombre */}
           <div>
             <Label htmlFor="name">
@@ -188,6 +196,8 @@ export function CustomerFormModal({ customer, open, onClose }: CustomerFormModal
               </SelectContent>
             </Select>
           </div>
+
+          </DialogBody>
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={handleClose}>

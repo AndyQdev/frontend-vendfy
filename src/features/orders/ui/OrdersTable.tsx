@@ -167,7 +167,7 @@ function KanbanColumn({
 
       {/* Lista de órdenes */}
       <div 
-        className="bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-b-lg p-3 flex-1 overflow-y-auto h-[calc(100vh-280px)] max-h-[700px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all duration-200"
+        className="bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-b-lg p-3 flex-1 overflow-y-auto h-[calc(100dvh-280px)] max-h-[700px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all duration-200"
         style={{
           backgroundColor: isActive ? `${colors.pastel}80` : undefined,
         }}

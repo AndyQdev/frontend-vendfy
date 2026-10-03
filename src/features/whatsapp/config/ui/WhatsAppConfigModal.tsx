@@ -12,12 +12,13 @@ import {
   Smartphone,
 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/cn";
@@ -77,6 +78,7 @@ export function WhatsAppConfigModal({
           </DialogDescription>
         </DialogHeader>
 
+      <DialogBody>
         <Tabs value={tab} onValueChange={(v) => setTab(v as ConfigTab)}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="connection" className="gap-1.5">
@@ -102,6 +104,9 @@ export function WhatsAppConfigModal({
             <AgentPanel storeId={storeId} />
           </TabsContent>
         </Tabs>
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

@@ -249,7 +249,7 @@ export function LocationPicker({
           value={address}
           onChange={(e) => onAddressChange(e.target.value)}
           placeholder="Buscar dirección..."
-          className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${styles.input} focus:outline-none focus:ring-2 transition-colors text-sm`}
+          className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${styles.input} focus:outline-none focus:ring-2 transition-colors text-base md:text-sm`}
         />
       </div>
 

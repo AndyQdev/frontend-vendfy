@@ -116,7 +116,7 @@ export function ImportarModal<T>({
             placeholder={placeholder}
             spellCheck={false}
             disabled={guardando}
-            className="min-h-[180px] font-mono text-xs leading-relaxed"
+            className="min-h-[180px] font-mono leading-relaxed md:text-xs"
           />
 
           {texto.trim() === "" ? (

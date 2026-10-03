@@ -10,6 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+} from "@/shared/ui/lista-tarjetas";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { PaginationControls } from "@/shared/ui/pagination";
@@ -193,7 +200,8 @@ export default function MovementsView() {
         {/* Tab: Ventas (órdenes completadas) */}
         <TabsContent value="ventas" className="mt-4">
           {isLoadingOrders ? (
-            <div className="border rounded-lg">
+            <>
+            <SoloEscritorio className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -216,7 +224,19 @@ export default function MovementsView() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </SoloEscritorio>
+            <ListaTarjetas>
+              {[...Array(4)].map((_, i) => (
+                <TarjetaFila key={i}>
+                  <FilaTitulo
+                    titulo={<div className="h-4 w-32 animate-pulse rounded bg-muted" />}
+                    subtitulo={<div className="mt-1 h-3 w-20 animate-pulse rounded bg-muted" />}
+                    derecha={<div className="h-4 w-16 animate-pulse rounded bg-muted" />}
+                  />
+                </TarjetaFila>
+              ))}
+            </ListaTarjetas>
+            </>
           ) : orders.length === 0 ? (
             <div className="text-center py-12 bg-card border rounded-lg">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -226,7 +246,8 @@ export default function MovementsView() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg">
+            <div className="rounded-lg md:border">
+              <SoloEscritorio>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -281,6 +302,49 @@ export default function MovementsView() {
                   ))}
                 </TableBody>
               </Table>
+              </SoloEscritorio>
+
+              {/* De una venta, en el teléfono, se busca a quien le vendiste y
+                  por cuánto. El resto está en el detalle. */}
+              <ListaTarjetas className="pb-2">
+                {orders.map((order) => (
+                  <TarjetaFila key={order.id}>
+                    <FilaTitulo
+                      titulo={order.customer?.name || "—"}
+                      subtitulo={formatDate(order.created_at)}
+                      derecha={
+                        <span className="text-sm font-semibold text-green-600">
+                          Bs. {Number(order.totalAmount).toFixed(2)}
+                        </span>
+                      }
+                    />
+
+                    <FilaDatos
+                      datos={[
+                        {
+                          etiqueta: "Recibido",
+                          valor: `Bs. ${Number(order.totalReceived || 0).toFixed(2)}`,
+                        },
+                        { etiqueta: "Pago", valor: order.paymentMethod || "—" },
+                      ]}
+                    />
+
+                    {(order.items?.length || 0) > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {order.items
+                          ?.slice(0, 2)
+                          .map(
+                            (item) =>
+                              `${item.storeProduct?.product?.name || "Producto"} x${item.quantity}`,
+                          )
+                          .join(", ")}
+                        {(order.items?.length || 0) > 2 &&
+                          ` +${(order.items?.length || 0) - 2} más`}
+                      </p>
+                    )}
+                  </TarjetaFila>
+                ))}
+              </ListaTarjetas>
 
               {orders.length > 0 && (
                 <div className="border-t p-4">
@@ -305,7 +369,8 @@ export default function MovementsView() {
         {/* Tab: Compras (movimientos tipo purchase) */}
         <TabsContent value="compras" className="mt-4">
           {isLoadingMovements ? (
-            <div className="border rounded-lg">
+            <>
+            <SoloEscritorio className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -329,7 +394,19 @@ export default function MovementsView() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </SoloEscritorio>
+            <ListaTarjetas>
+              {[...Array(4)].map((_, i) => (
+                <TarjetaFila key={i}>
+                  <FilaTitulo
+                    titulo={<div className="h-4 w-32 animate-pulse rounded bg-muted" />}
+                    subtitulo={<div className="mt-1 h-3 w-20 animate-pulse rounded bg-muted" />}
+                    derecha={<div className="h-4 w-16 animate-pulse rounded bg-muted" />}
+                  />
+                </TarjetaFila>
+              ))}
+            </ListaTarjetas>
+            </>
           ) : movements.length === 0 ? (
             <div className="text-center py-12 bg-card border rounded-lg">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -339,7 +416,8 @@ export default function MovementsView() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg">
+            <div className="rounded-lg md:border">
+              <SoloEscritorio>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -390,6 +468,44 @@ export default function MovementsView() {
                   ))}
                 </TableBody>
               </Table>
+              </SoloEscritorio>
+
+              <ListaTarjetas className="pb-2">
+                {movements.map((movement) => (
+                  <TarjetaFila key={movement.id}>
+                    <FilaTitulo
+                      titulo={movement.inventory?.product?.name || "—"}
+                      subtitulo={movement.inventory?.store?.name || undefined}
+                      derecha={
+                        <span className="text-sm font-semibold text-red-600">
+                          {movement.totalCost
+                            ? `Bs. ${Number(movement.totalCost).toFixed(2)}`
+                            : "—"}
+                        </span>
+                      }
+                    />
+
+                    <FilaDatos
+                      datos={[
+                        { etiqueta: "Fecha", valor: formatDate(movement.created_at) },
+                        { etiqueta: "Cantidad", valor: movement.quantity },
+                        {
+                          etiqueta: "Costo unit.",
+                          valor: movement.unitCost
+                            ? `Bs. ${Number(movement.unitCost).toFixed(2)}`
+                            : "—",
+                        },
+                      ]}
+                    />
+
+                    {movement.notes && (
+                      <p className="text-xs text-muted-foreground">
+                        {movement.notes}
+                      </p>
+                    )}
+                  </TarjetaFila>
+                ))}
+              </ListaTarjetas>
 
               {movements.length > 0 && (
                 <div className="border-t p-4">

@@ -22,13 +22,14 @@ import { Switch } from "@/shared/ui/switch";
 import { Textarea } from "@/shared/ui/textarea";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -487,6 +488,7 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
             </DialogDescription>
           </DialogHeader>
 
+          <DialogBody>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="review-customer">Nombre del cliente</Label>
@@ -584,7 +586,7 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
                       type="button"
                       aria-label="Quitar imagen"
                       onClick={() => handleRemoveImage(url)}
-                      className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white transition-opacity hover:bg-black/80 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -641,6 +643,8 @@ export function StoreReviewsManager({ storeId, productId }: StoreReviewsManagerP
               />
             </div>
           </div>
+
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

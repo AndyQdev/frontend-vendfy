@@ -16,6 +16,12 @@ import { cn } from "../lib/cn"
  *
  * Radio 10 px, alto 40 px. Ningún botón se levanta al pasar el mouse: solo se
  * oscurece, y se comprime un poco al presionar.
+ *
+ * En el teléfono todo sube a 44 px, que es el mínimo que un dedo acierta sin
+ * mirar. El aumento va con `max-md:` y no con `h-11 md:h-10`: así la clase
+ * base de escritorio queda intacta y, sobre todo, en md+ no se emite ninguna
+ * regla nueva que le gane al `sm:w-auto` o al alto propio de quien usa el
+ * botón. Ese choque ya nos costó un texto desbordado.
  */
 const buttonVariants = cva(
   [
@@ -34,16 +40,19 @@ const buttonVariants = cva(
           "border border-input bg-card text-foreground hover:border-border-strong hover:bg-muted",
         secondary: "bg-muted text-foreground hover:bg-border",
         ghost: "text-foreground hover:bg-muted",
-        link: "h-auto px-0 text-primary underline-offset-4 hover:underline active:scale-100",
+        // El `max-md:h-auto` es necesario: sin él, el alto táctil del tamaño
+        // gana dentro de su media query y un enlace en medio de un párrafo se
+        // convierte en una caja de 44 px.
+        link: "h-auto max-md:h-auto px-0 text-primary underline-offset-4 hover:underline active:scale-100",
         navy: "bg-tinta text-tinta-foreground hover:bg-tinta/90",
         soft: "bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/70",
       },
       size: {
-        default: "h-10 px-4",
-        sm: "h-9 px-3",
+        default: "h-10 max-md:h-11 px-4",
+        sm: "h-9 max-md:h-10 px-3",
         lg: "h-11 px-5 text-sm",
-        icon: "size-10 p-0",
-        "icon-sm": "size-8 rounded-md p-0",
+        icon: "size-10 max-md:size-11 p-0",
+        "icon-sm": "size-8 max-md:size-9 rounded-md p-0",
       },
     },
     defaultVariants: {

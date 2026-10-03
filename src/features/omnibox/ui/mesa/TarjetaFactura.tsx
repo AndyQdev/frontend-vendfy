@@ -288,7 +288,7 @@ function CrearProducto({
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             aria-label="Nombre del producto nuevo"
-            className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+            className="h-10 w-full rounded-lg border border-border bg-card px-3 text-base md:text-sm outline-none focus:border-primary"
           />
         </label>
         <label className="block">
@@ -303,7 +303,7 @@ function CrearProducto({
             aria-label="Precio de venta del producto nuevo"
             placeholder={costo != null ? `más de ${dinero(costo)}` : "0,00"}
             className={cn(
-              "cifra h-10 w-full rounded-lg border bg-card px-3 text-sm font-semibold outline-none focus:border-primary",
+              "cifra h-10 w-full rounded-lg border bg-card px-3 text-base md:text-sm font-semibold outline-none focus:border-primary",
               bajoCosto ? "border-warning" : "border-border",
             )}
           />

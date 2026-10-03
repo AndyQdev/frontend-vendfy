@@ -2,6 +2,19 @@ import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "../lib/cn"
+
+/**
+ * Pestañas.
+ *
+ * En el teléfono una lista de tres pestañas deja unos 90 px por pestaña, y
+ * `whitespace-nowrap` sobre una etiqueta como "Venta Rápida (12)" no la corta
+ * con puntos: la desborda, y el `overflow-x: clip` del body se la come sin
+ * avisar. Abajo de md la etiqueta puede partirse en dos líneas y la lista
+ * crece: preferimos una barra más alta a un texto que no está.
+ *
+ * El alto táctil sube a 40 px y no a 44: una pestaña es un blanco ancho, donde
+ * el alto pesa mucho menos que en un botón de icono de 24 px.
+ */
 const Tabs = TabsPrimitive.Root
 
 const TabsList = React.forwardRef<
@@ -11,7 +24,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground",
+      "inline-flex h-10 max-md:h-auto items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground",
       className
     )}
     {...props}
@@ -26,7 +39,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-card [&_svg]:size-4",
+      "inline-flex h-8 max-md:h-auto max-md:min-h-10 max-md:whitespace-normal max-md:px-2 max-md:py-1 max-md:leading-tight items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-card [&_svg]:size-4",
       className
     )}
     {...props}

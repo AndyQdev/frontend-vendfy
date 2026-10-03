@@ -24,6 +24,13 @@ import {
   useStoreProducts,
 } from "@/entities/integration/api";
 import type { AdWithLink } from "@/entities/integration/model/types";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+} from "@/shared/ui/lista-tarjetas";
 
 interface Props {
   storeId: string;
@@ -54,6 +61,76 @@ const ESTADOS: Record<string, { label: string; clase: string }> = {
 const num = (n: number) => n.toLocaleString("es-BO");
 const money = (n: number, m: string) =>
   `${m} ${n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Lo que cada fila calcula, igual en la tabla que en la tarjeta. */
+function datosDeFila(a: AdWithLink) {
+  const estado = ESTADOS[a.estado ?? ""] ?? {
+    label: a.estado ?? "—",
+    clase: "bg-muted text-muted-foreground",
+  };
+  const actual = a.productos[0] ?? "";
+  const sugerido = a.sugeridos[0];
+  return {
+    estado,
+    valor: actual || (!a.revisado && sugerido ? sugerido.id : ""),
+    esSugerencia: !actual && Boolean(sugerido) && !a.revisado,
+  };
+}
+
+/**
+ * El selector de producto, con su aviso de sugerencia.
+ *
+ * Vive aparte porque es el único control editable de la pantalla y aparece en
+ * los dos lados: tenerlo dos veces escrito es tenerlo mal una de las dos.
+ */
+function QueVende({
+  a,
+  productos,
+  guardando,
+  guardar,
+}: {
+  a: AdWithLink;
+  productos: { id: string; nombre: string }[];
+  guardando: string | null;
+  guardar: (a: AdWithLink, valor: string) => void;
+}) {
+  const { valor, esSugerencia } = datosDeFila(a);
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <Select
+          value={valor || undefined}
+          onValueChange={(v) => guardar(a, v)}
+          disabled={guardando === a.id}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Sin definir" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={SIN_PRODUCTO}>
+              No promociona un producto puntual
+            </SelectItem>
+            {productos.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {guardando === a.id && (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+        )}
+      </div>
+      {esSugerencia && (
+        <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
+          <Sparkles className="h-3 w-3 shrink-0" />
+          Sugerido — confirmalo para que sea exacto
+        </p>
+      )}
+    </>
+  );
+}
 
 /**
  * Rendimiento de cada anuncio y qué producto vende.
@@ -144,7 +221,7 @@ export function AdLinksTable({ storeId, moneda }: Props) {
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border">
+      <SoloEscritorio className="overflow-x-auto rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -161,15 +238,7 @@ export function AdLinksTable({ storeId, moneda }: Props) {
           </TableHeader>
           <TableBody>
             {anuncios.map((a) => {
-              const estado = ESTADOS[a.estado ?? ""] ?? {
-                label: a.estado ?? "—",
-                clase: "bg-muted text-muted-foreground",
-              };
-              const actual = a.productos[0] ?? "";
-              const sugerido = a.sugeridos[0];
-              const valor =
-                actual || (!a.revisado && sugerido ? sugerido.id : "");
-              const esSugerencia = !actual && Boolean(sugerido) && !a.revisado;
+              const { estado } = datosDeFila(a);
 
               return (
                 <TableRow key={a.id}>
@@ -232,43 +301,81 @@ export function AdLinksTable({ storeId, moneda }: Props) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={valor || undefined}
-                        onValueChange={(v) => guardar(a, v)}
-                        disabled={guardando === a.id}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sin definir" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SIN_PRODUCTO}>
-                            No promociona un producto puntual
-                          </SelectItem>
-                          {productos.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {guardando === a.id && (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                    {esSugerencia && (
-                      <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
-                        <Sparkles className="h-3 w-3 shrink-0" />
-                        Sugerido — confirmalo para que sea exacto
-                      </p>
-                    )}
+                    <QueVende
+                      a={a}
+                      productos={productos}
+                      guardando={guardando}
+                      guardar={guardar}
+                    />
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
-      </div>
+      </SoloEscritorio>
+
+      {/* Nueve columnas de números no entran en 360 px. En la tarjeta manda el
+          retorno, que es la pregunta de la pantalla: si el anuncio devuelve
+          más de lo que cuesta. */}
+      <ListaTarjetas>
+        {anuncios.map((a) => {
+          const { estado } = datosDeFila(a);
+
+          return (
+            <TarjetaFila key={a.id}>
+              <FilaTitulo
+                titulo={a.nombre}
+                subtitulo={a.campana || undefined}
+                derecha={
+                  <>
+                    <div className="text-sm font-semibold tabular-nums">
+                      {a.roas === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span
+                          className={
+                            a.roas >= 1 ? "text-emerald-600" : "text-muted-foreground"
+                          }
+                        >
+                          {a.roas.toFixed(2)}x
+                        </span>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className={`mt-1 ${estado.clase}`}>
+                      {estado.label}
+                    </Badge>
+                  </>
+                }
+              />
+
+              <FilaDatos
+                datos={[
+                  { etiqueta: "Invertido", valor: money(a.gasto, moneda) },
+                  { etiqueta: "Conversaciones", valor: num(a.conversaciones) },
+                  {
+                    etiqueta: "Ventas",
+                    valor:
+                      a.ventas > 0 ? money(a.montoVendido, moneda) : "—",
+                  },
+                ]}
+              />
+
+              <div className="space-y-1 border-t border-border/60 pt-2">
+                <p className="etiqueta text-[10px] text-muted-foreground">
+                  Qué vende
+                </p>
+                <QueVende
+                  a={a}
+                  productos={productos}
+                  guardando={guardando}
+                  guardar={guardar}
+                />
+              </div>
+            </TarjetaFila>
+          );
+        })}
+      </ListaTarjetas>
 
       <p className="text-xs text-muted-foreground">
         Lo invertido, el alcance y los clics los reporta Meta. Las

@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -19,6 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaAcciones,
+} from "@/shared/ui/lista-tarjetas";
 import {
   Upload,
   Sparkles,
@@ -310,6 +317,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
           </DialogDescription>
         </DialogHeader>
 
+      <DialogBody>
         {/* ===== STEP: UPLOAD ===== */}
         {step === "upload" && (
           <div className="space-y-5">
@@ -460,10 +468,10 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
               </div>
             )}
 
-            {/* Scroll en vez de recortar: con la columna nueva son siete, y en
-                una pantalla angosta `overflow-hidden` se comía la última sin
-                avisar. */}
-            <div className="border rounded-lg overflow-x-auto">
+            {/* Scroll en vez de recortar: con la columna nueva son siete, y
+                entre md y lg `overflow-hidden` se comía la última sin avisar.
+                Más abajo de md ya no hay tabla, sino tarjetas. */}
+            <SoloEscritorio className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -484,7 +492,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                         <Input
                           value={product.name}
                           onChange={(e) => handleProductChange(index, "name", e.target.value)}
-                          className="h-8 text-sm"
+                          className="h-8 md:text-sm"
                         />
                       </TableCell>
                       <TableCell>
@@ -492,7 +500,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                           type="number"
                           value={product.price}
                           onChange={(e) => handleProductChange(index, "price", parseFloat(e.target.value) || 0)}
-                          className="h-8 text-sm w-20"
+                          className="h-8 w-20 md:text-sm"
                         />
                       </TableCell>
                       <TableCell>
@@ -500,7 +508,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                           type="number"
                           value={product.stockQuantity}
                           onChange={(e) => handleProductChange(index, "stockQuantity", parseInt(e.target.value) || 0)}
-                          className="h-8 text-sm w-16"
+                          className="h-8 w-16 md:text-sm"
                         />
                       </TableCell>
                       <TableCell>
@@ -539,7 +547,101 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </SoloEscritorio>
+
+            {/* En el teléfono esto es una hoja angosta: ocho columnas con
+                campos editables no se revisan de costado, se revisan de a uno. */}
+            <ListaTarjetas>
+              {generatedProducts.map((product, index) => (
+                <TarjetaFila
+                  key={index}
+                  acciones={
+                    <FilaAcciones className="justify-between">
+                      <div className="flex items-center gap-2">
+                        <DescripcionCell
+                          value={product.description}
+                          onChange={(v) => handleProductChange(index, "description", v)}
+                        />
+                        <SpecsCell
+                          value={product.specifications}
+                          onChange={(specs) =>
+                            handleProductChange(index, "specifications", specs)
+                          }
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleRemoveProduct(index)}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Quitar
+                      </Button>
+                    </FilaAcciones>
+                  }
+                >
+                  <Input
+                    value={product.name}
+                    onChange={(e) => handleProductChange(index, "name", e.target.value)}
+                    className="h-9 font-medium"
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="space-y-1">
+                      <span className="etiqueta block text-[10px] text-muted-foreground">
+                        Precio
+                      </span>
+                      <Input
+                        type="number"
+                        value={product.price}
+                        onChange={(e) =>
+                          handleProductChange(
+                            index,
+                            "price",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        className="h-9"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="etiqueta block text-[10px] text-muted-foreground">
+                        Stock
+                      </span>
+                      <Input
+                        type="number"
+                        value={product.stockQuantity}
+                        onChange={(e) =>
+                          handleProductChange(
+                            index,
+                            "stockQuantity",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        className="h-9"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="mr-1 text-xs text-muted-foreground">
+                      {product.categoryName || "—"}
+                    </span>
+                    {product.tags?.slice(0, 2).map((tag) => (
+                      <Badge key={tag} variant="outline" className="py-0 text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                    {(product.tags?.length || 0) > 2 && (
+                      <Badge variant="outline" className="py-0 text-xs">
+                        +{product.tags!.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </TarjetaFila>
+              ))}
+            </ListaTarjetas>
 
             {generatedProducts.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
@@ -576,6 +678,9 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
             </div>
           </div>
         )}
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );

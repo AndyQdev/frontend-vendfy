@@ -11,7 +11,7 @@ export default function LoginPage() {
     (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-dvh flex bg-background">
       {/* Lado izquierdo - Branding (oculto en mobile) */}
       <aside className="hidden lg:flex lg:w-1/2 relative bg-tinta overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{

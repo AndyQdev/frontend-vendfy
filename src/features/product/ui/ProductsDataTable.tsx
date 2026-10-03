@@ -2,6 +2,14 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { SwitchTienda } from "@/features/product/ui/SwitchTienda";
+import {
+  ListaTarjetas,
+  SoloEscritorio,
+  TarjetaFila,
+  FilaTitulo,
+  FilaDatos,
+  FilaAcciones,
+} from "@/shared/ui/lista-tarjetas";
 import { useNavegarConRegreso } from "@/shared/hooks/use-regreso";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
 import { useStore } from "@/app/providers/auth";
@@ -332,7 +340,8 @@ export function ProductsDataTable() {
             ))}
           </div>
         ) : (
-          <div className="border rounded-lg">
+          <>
+          <SoloEscritorio className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -390,7 +399,20 @@ export function ProductsDataTable() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </SoloEscritorio>
+
+          <ListaTarjetas>
+            {[...Array(4)].map((_, i) => (
+              <TarjetaFila key={i}>
+                <FilaTitulo
+                  medio={<div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-muted" />}
+                  titulo={<div className="h-4 w-32 animate-pulse rounded bg-muted" />}
+                  subtitulo={<div className="mt-1 h-3 w-20 animate-pulse rounded bg-muted" />}
+                />
+              </TarjetaFila>
+            ))}
+          </ListaTarjetas>
+          </>
         )
       ) : products.length === 0 ? (
         hayFiltros ? (
@@ -486,13 +508,13 @@ export function ProductsDataTable() {
                       <>
                         <button
                           onClick={() => handlePreviousImage(product.id, product.imageUrls!)}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleNextImage(product.id, product.imageUrls!)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                           <ChevronRight className="h-4 w-4" />
                         </button>
@@ -586,7 +608,10 @@ export function ProductsDataTable() {
         </div>
       ) : (
         /* LIST VIEW */
-        <div className="border rounded-lg">
+        // El borde envuelve a la tabla y a la paginación en escritorio; en el
+        // teléfono las tarjetas se ven solas y el borde sobra.
+        <div className="rounded-lg md:border">
+          <SoloEscritorio>
           <Table>
             <TableHeader>
               <TableRow>
@@ -719,6 +744,94 @@ export function ProductsDataTable() {
               ))}
             </TableBody>
           </Table>
+          </SoloEscritorio>
+
+          {/* Once columnas no caben en 360 px: la misma fila, como tarjeta. */}
+          <ListaTarjetas className="pb-2">
+            {products.map((product) => (
+              <TarjetaFila
+                key={product.id}
+                onClick={() => irAlProducto(`/products/${product.id}`)}
+                acciones={
+                  <FilaAcciones className="justify-between">
+                    {/* Un interruptor suelto no dice nada: acá van con nombre. */}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        Web
+                        <SwitchTienda product={product} storeId={activeStoreId} />
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        A pedido
+                        <SwitchTienda
+                          product={product}
+                          storeId={activeStoreId}
+                          campo="sellWithoutStock"
+                        />
+                      </span>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => irAlProducto(`/products/${product.id}`)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCopyingProduct(product)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleDelete(product.id, product.name)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </FilaAcciones>
+                }
+              >
+                <FilaTitulo
+                  medio={
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {product.imageUrls && product.imageUrls.length > 0 ? (
+                        <img
+                          src={product.imageUrls[0]}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  }
+                  titulo={product.name}
+                  subtitulo={product.sku || "Sin SKU"}
+                  derecha={renderPrice(product)}
+                />
+                <FilaDatos
+                  datos={[
+                    {
+                      etiqueta: "Categoría",
+                      valor: product.category?.name || "Sin categoría",
+                    },
+                    { etiqueta: "Marca", valor: product.brand?.name || "Sin marca" },
+                  ]}
+                />
+              </TarjetaFila>
+            ))}
+          </ListaTarjetas>
 
           {/* Pagination pegada al table */}
           {!productsLoading && products.length > 0 && (

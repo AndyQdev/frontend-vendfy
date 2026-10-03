@@ -3,12 +3,13 @@ import { MessageCircle, SkipForward, Trophy, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +105,7 @@ export function ColaPostores({
             </DialogDescription>
           </DialogHeader>
 
+        <DialogBody>
           {isLoading && (
             <p className="py-8 text-center text-sm text-muted-foreground">Cargando...</p>
           )}
@@ -180,6 +182,9 @@ export function ColaPostores({
               </Button>
             </div>
           )}
+
+        </DialogBody>
+
         </DialogContent>
       </Dialog>
 

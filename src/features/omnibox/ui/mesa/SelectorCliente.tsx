@@ -83,7 +83,7 @@ export function SelectorCliente({
                   onChange={(e) => setTexto(e.target.value)}
                   placeholder="Nombre o teléfono…"
                   aria-label="Buscar cliente"
-                  className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground"
                 />
                 {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
               </div>
@@ -207,7 +207,7 @@ export function NuevoCliente({
         onChange={(e) => setNombre(e.target.value)}
         placeholder="Nombre"
         aria-label="Nombre del cliente"
-        className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+        className="h-10 w-full rounded-lg border border-border bg-card px-3 text-base md:text-sm outline-none focus:border-primary"
       />
       <input
         value={telefono}
@@ -215,7 +215,7 @@ export function NuevoCliente({
         placeholder="Teléfono (WhatsApp)"
         inputMode="tel"
         aria-label="Teléfono del cliente"
-        className="cifra h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+        className="cifra h-10 w-full rounded-lg border border-border bg-card px-3 text-base md:text-sm outline-none focus:border-primary"
       />
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}
       <div className={cn("grid gap-2", sinVolver ? "grid-cols-1" : "grid-cols-2")}>

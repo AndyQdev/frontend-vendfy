@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -88,7 +96,8 @@ export function CreateClientModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4 pt-4">
           {/* Nombre Completo */}
           <div className="space-y-2">
             <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium">
@@ -129,20 +138,19 @@ export function CreateClientModal({
             </p>
           </div>
 
-          {/* Botones de acción */}
-          <div className="flex gap-3 pt-4">
+          </DialogBody>
+
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1"
               disabled={isCreating}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="flex-1"
               disabled={isCreating || !formData.name.trim() || !formData.phone.trim()}
             >
               {isCreating ? (
@@ -173,7 +181,7 @@ export function CreateClientModal({
                 "Crear Cliente"
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

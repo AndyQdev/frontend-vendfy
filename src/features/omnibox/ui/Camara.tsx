@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, RotateCcw, Upload } from "lucide-react";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogBody as DialogBody,
+} from "@/shared/ui/responsive-dialog";
 
 import { BotonCta, BotonSecundario } from "./piezas";
 
@@ -100,6 +107,7 @@ export function CamaraDialog({
           </DialogDescription>
         </DialogHeader>
 
+      <DialogBody>
         <div className="relative grid aspect-video place-items-center overflow-hidden rounded-lg border border-border bg-muted">
           {estado === "sin-camara" ? (
             <p className="max-w-xs p-6 text-center text-sm text-muted-foreground">
@@ -155,6 +163,9 @@ export function CamaraDialog({
             </BotonCta>
           )}
         </div>
+
+      </DialogBody>
+
       </DialogContent>
     </Dialog>
   );
