@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 
 import { AppHeader } from "@/widgets/app-header";
+import { AvisoInstalar } from "@/features/pwa";
 import { OnboardingChecklist } from "@/widgets/onboarding";
 
 /**
@@ -27,6 +28,7 @@ export default function LayoutShell() {
       </main>
 
       <OnboardingChecklist />
+      <AvisoInstalar />
     </div>
   );
 }

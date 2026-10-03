@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#F3F5F7" />
+    <title>Sin conexión · Vendfy</title>
+    <!--
+      Esta página la sirve el service worker cuando una navegación falla, así
+      que no puede depender de nada de la app: ni del bundle, ni de las fuentes
+      de Google, ni de la API. Todo va embebido y con tipografías del sistema.
+    -->
+    <style>
+      :root {
+        --fondo: #f3f5f7;
+        --tarjeta: #ffffff;
+        --tinta: #0f172a;
+        --primario: #0e7490;
+        --borde: #e3e8ee;
+        --suave: #64748b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+        background: var(--fondo);
+        color: var(--tinta);
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI",
+          sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .tarjeta {
+        width: 100%;
+        max-width: 380px;
+        padding: 32px 24px;
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        background: var(--tarjeta);
+        text-align: center;
+      }
+      svg {
+        width: 72px;
+        height: 72px;
+      }
+      h1 {
+        margin: 20px 0 8px;
+        font-size: 20px;
+        font-weight: 800;
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--suave);
+      }
+      button {
+        margin-top: 24px;
+        width: 100%;
+        min-height: 44px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primario);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button:active {
+        transform: scale(0.99);
+        filter: brightness(0.95);
+      }
+      #estado {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--suave);
+        min-height: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="tarjeta">
+      <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <rect x="13" y="48" width="82" height="58" rx="5" fill="#06B6D4" />
+        <rect x="8" y="34" width="92" height="16" rx="4" fill="#0F172A" />
+        <path
+          d="M8 50 Q18 60, 28 50 Q38 60, 48 50 Q58 60, 68 50 Q78 60, 88 50 Q96 60, 100 50"
+          fill="#0F172A"
+        />
+        <rect x="38" y="62" width="32" height="44" rx="5" fill="#0F172A" />
+        <rect x="41" y="65" width="26" height="41" rx="3.5" fill="#ECFEFF" />
+        <circle cx="61" cy="86" r="2.2" fill="#0F172A" />
+      </svg>
+
+      <h1>Sin conexión</h1>
+      <p>
+        No pudimos llegar a Vendfy. Revisá tu internet y volvé a intentarlo: tus
+        datos están a salvo en el servidor.
+      </p>
+
+      <button type="button" id="reintentar">Reintentar</button>
+      <p id="estado" role="status" aria-live="polite"></p>
+    </main>
+
+    <script>
+      // `navigator.onLine` miente: un wifi de cafetería sin salida a internet
+      // reporta true, y recargar ahí devuelve a esta misma página. Entonces no
+      // se recarga por lo que diga el navegador, sino solo cuando NUESTRO
+      // servidor contesta de verdad.
+      var boton = document.getElementById("reintentar");
+      var estado = document.getElementById("estado");
+      var probando = false;
+
+      function hayServidor() {
+        return fetch("/favicon.svg?sonda=" + Date.now(), {
+          method: "GET",
+          cache: "no-store",
+        })
+          .then(function (r) {
+            return r.ok;
+          })
+          .catch(function () {
+            return false;
+          });
+      }
+
+      function reintentar() {
+        if (probando) return;
+        probando = true;
+        boton.disabled = true;
+        estado.textContent = "Probando la conexión…";
+
+        hayServidor().then(function (vivo) {
+          probando = false;
+          boton.disabled = false;
+          if (vivo) {
+            estado.textContent = "Listo, volviendo…";
+            location.reload();
+          } else {
+            estado.textContent = "Todavía sin conexión.";
+          }
+        });
+      }
+
+      boton.addEventListener("click", reintentar);
+
+      // Al volver la red el navegador avisa, pero igual se comprueba contra el
+      // servidor antes de recargar, por lo mismo de arriba.
+      window.addEventListener("online", reintentar);
+    </script>
+  </body>
+</html>

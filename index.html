@@ -5,6 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#F3F5F7" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Vendfy" />
+    <!--
+      `black` y no `black-translucent`: con translucent iOS dibuja bajo la barra
+      de estado pero le da el alto completo a la página y la desplaza, dejando
+      una franja blanca muerta abajo. Además calza con el header.
+      Ojo: iOS lee esta etiqueta AL AGREGAR A INICIO. Para ver un cambio acá
+      hay que reinstalar la app; recargar no alcanza.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+    <!--
+      `beforeinstallprompt` llega antes de que monte React. Si no se guarda acá
+      se pierde, y el botón de instalar nunca tiene qué disparar. El evento es
+      de un solo uso, así que vive en un buzón global con sus oyentes; el store
+      de src/features/pwa/model/instalacion.ts lo lee desde ahí.
+    -->
+    <script>
+      window.__vendfyInstall = { evento: null, oyentes: new Set() };
+      (function () {
+        function avisar() {
+          window.__vendfyInstall.oyentes.forEach(function (f) {
+            f();
+          });
+        }
+        window.addEventListener("beforeinstallprompt", function (e) {
+          e.preventDefault();
+          window.__vendfyInstall.evento = e;
+          avisar();
+        });
+        window.addEventListener("appinstalled", function () {
+          window.__vendfyInstall.evento = null;
+          avisar();
+        });
+      })();
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

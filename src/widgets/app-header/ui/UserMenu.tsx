@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Globe, LogOut, Menu, MessageCircle, Moon, Store, Sun } from "lucide-react";
 
+import { OpcionInstalar, limpiarCachesDelServiceWorker } from "@/features/pwa";
+
 import { useAuth } from "@/app/providers/auth";
 import { useTheme } from "@/app/providers/theme";
 import {
@@ -115,10 +117,15 @@ export function UserMenu({
           {isDark ? "Modo claro" : "Modo oscuro"}
         </DropdownMenuItem>
 
+        <OpcionInstalar />
+
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:bg-destructive-soft focus:text-destructive-soft-foreground"
           onSelect={() => {
+            // En un mostrador el equipo se comparte: deja la máquina limpia
+            // para quien entre después.
+            limpiarCachesDelServiceWorker();
             logout();
             // `replace`: sin esto, "atrás" vuelve a dibujar un instante la
             // pantalla del panel antes de que el guard la eche.
