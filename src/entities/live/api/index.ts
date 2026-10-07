@@ -11,6 +11,7 @@ import type {
   PostorEnCola,
   ProductoReutilizable,
   QuickItemInput,
+  ProductosDisponibles,
 } from "../model/types";
 
 /**
@@ -57,7 +58,13 @@ export function useLive(id?: string, opciones: { refrescarCada?: number } = {}) 
     enabled: !!id,
     // Durante la transmisión conviene refrescar: el stock se mueve por la caja
     // y por los compradores, no solo por lo que hace esta pantalla.
-    refetchInterval: opciones.refrescarCada,
+    //
+    // La decisión se toma acá y no en quien llama, porque depende del estado
+    // que trae esta misma consulta: un Live de hace tres semanas no tiene nada
+    // que refrescar, y preguntar cada cuatro segundos por él sería gratis para
+    // nadie.
+    refetchInterval: (consulta) =>
+      consulta.state.data?.status === "active" ? opciones.refrescarCada ?? false : false,
   });
 }
 
@@ -195,6 +202,27 @@ export function useEliminarProducto(id?: string) {
   });
 }
 
+/**
+ * Quitar varias prendas de una.
+ *
+ * El contrapeso de poder agregar cien con un toque. El servidor devuelve
+ * cuántas salieron y cuáles no, porque una con la puja abierta no puede
+ * frenar a las otras noventa.
+ */
+export function useQuitarVariasPrendas(id?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      const res = await apiFetch<{
+        quitadas: number;
+        rechazadas: { itemId: string; motivo: string }[];
+      }>(`/api/live/${id}/items/remove`, { method: "POST", body: { itemIds } });
+      return res.data!;
+    },
+    onSuccess: () => invalidar(qc, id),
+  });
+}
+
 export function useRemoveLiveItem(id?: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -209,20 +237,52 @@ export function useRemoveLiveItem(id?: string) {
 }
 
 /** Lo que sobró de Lives anteriores y todavía tiene stock. */
-export function useProductosReutilizables(storeId?: string, excluirLiveId?: string) {
+/**
+ * Los productos que pueden entrar al Live.
+ *
+ * La búsqueda y el recorte viven en el servidor: el catálogo de una tienda
+ * puede crecer a miles y traerlo entero para filtrarlo en el teléfono es lo
+ * que vuelve lenta la pantalla justo en medio de una transmisión.
+ *
+ * `soloDeLives` angosta la misma lista; no es otra. Lo que pasó por un Live es
+ * un subconjunto del catálogo.
+ */
+export function useProductosReutilizables(
+  storeId?: string,
+  excluirLiveId?: string,
+  filtro: { q?: string; soloDeLives?: boolean; limite?: number } = {},
+) {
+  const { q = "", soloDeLives = false, limite } = filtro;
+
   const qs = new URLSearchParams();
   if (storeId) qs.append("storeId", storeId);
   if (excluirLiveId) qs.append("excludeSessionId", excluirLiveId);
+  if (q.trim()) qs.append("q", q.trim());
+  if (soloDeLives) qs.append("soloDeLives", "true");
+  if (limite) qs.append("limit", String(limite));
 
-  return useQuery<ProductoReutilizable[]>({
-    queryKey: ["live-reutilizables", storeId, excluirLiveId],
+  return useQuery<ProductosDisponibles>({
+    queryKey: [
+      "live-reutilizables",
+      storeId,
+      excluirLiveId,
+      q.trim(),
+      soloDeLives,
+      limite,
+    ],
     queryFn: async () => {
       const res = await apiFetch<ProductoReutilizable[]>(
         `/api/live/available-products?${qs.toString()}`,
       );
-      return res.data ?? [];
+      const items = res.data ?? [];
+      // `countData` trae el total que cumple el filtro, no el largo de la
+      // página: es lo que deja decir "97 de 100" sin traer los 100.
+      return { items, total: res.countData ?? items.length };
     },
     enabled: !!storeId && storeId !== "all",
+    // Al tipear, mantener la lista anterior evita que la hoja parpadee en
+    // blanco entre una búsqueda y la siguiente.
+    placeholderData: (previo) => previo,
   });
 }
 

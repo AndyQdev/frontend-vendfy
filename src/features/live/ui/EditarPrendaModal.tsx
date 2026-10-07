@@ -202,12 +202,21 @@ export function EditarPrendaModal({
             </DialogBody>
 
             <DialogFooter>
+              {/* Dar de baja un producto que alguien ya pidió dejaría su
+                  cuenta apuntando a algo deshabilitado. El servidor lo
+                  rechaza; acá se dice antes, para no ofrecer un botón que
+                  solo puede fallar. */}
               <Button
                 type="button"
                 variant="ghost"
                 className="text-destructive md:mr-auto"
                 onClick={() => setConfirmando(true)}
-                disabled={eliminar.isPending}
+                disabled={eliminar.isPending || (item?.pedidos ?? 0) > 0}
+                title={
+                  (item?.pedidos ?? 0) > 0
+                    ? "Ya hay pedidos de esta prenda: quitala del Live en vez de borrarla"
+                    : undefined
+                }
               >
                 <Trash2 className="h-4 w-4" />
                 <span className="ml-1">Eliminar</span>

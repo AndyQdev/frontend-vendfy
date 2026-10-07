@@ -6,8 +6,12 @@ import {
   Layers,
   Radio,
   MessageSquareText,
+  Megaphone,
   Package,
+  ChartColumnBig,
   ReceiptText,
+  Settings,
+  Plug,
   Store,
   Tags,
   Truck,
@@ -44,7 +48,7 @@ export interface NavRoute {
 export const NAV_ROUTES: NavRoute[] = [
   // El asistente va primero: es la puerta de entrada del comerciante.
   { href: "/omnibox", label: "Asistente", icon: MessageSquareText },
-  // { href: "/dashboard", label: "Inicio", icon: House }, // oculto para la presentación del Sprint 1
+  { href: "/dashboard", label: "Inicio", icon: House },
   { href: "/caja", label: "Caja", icon: Calculator },
   { href: "/orders", label: "Pedidos", icon: ClipboardList, badge: "pending-orders" },
   { href: "/sales", label: "Ventas", icon: ReceiptText },
@@ -54,11 +58,22 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/inventory", label: "Inventario", icon: Layers },
   { href: "/purchases", label: "Compras", icon: Truck },
   { href: "/customers", label: "Clientes", icon: Users },
-  // { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp" }, // oculto para la presentación del Sprint 1
+  // Leer el negocio, después de las pantallas con las que se opera.
+  { href: "/reports", label: "Reportes", icon: ChartColumnBig, match: "/reports" },
+  // Los canales por donde llega el cliente, juntos.
+  { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp" },
+  { href: "/campaigns", label: "Campañas", icon: Megaphone },
   // Lo que se configura, al final.
+  { href: "/integrations", label: "Integraciones", icon: Plug },
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags },
   { href: "/stores", label: "Tienda", icon: Store, match: "/stores" },
+  { href: "/settings", label: "Configuración", icon: Settings },
 ];
+
+// OJO: "Campañas", "Reportes" y "Configuración" apuntan hoy a pantallas
+// prácticamente vacías -un título y nada más-. Están en el carril a propósito,
+// para ver el conjunto y decidir el flujo; no son funcionalidad terminada.
+// Si se decide que alguna no va, se saca de acá y se borra su `pages/`.
 
 /** La ruta de la tienda depende de si hay una elegida o están "todas". */
 export function resolveHref(route: NavRoute, storeId: string | null): string {

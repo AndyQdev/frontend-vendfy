@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Camera, MessageCircle, Square } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, MessageCircle, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/shared/ui/page-header";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -15,9 +16,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import { useCuentasDelLive, useFinishLive, useLive } from "@/entities/live/api";
-import { AltaRapidaProducto } from "@/features/live/ui/AltaRapidaProducto";
-import { GrillaItemsLive } from "@/features/live/ui/GrillaItemsLive";
+import {
+  useCuentasDelLive,
+  useFinishLive,
+  useLive,
+  useStartLive,
+} from "@/entities/live/api";
+import { AgregarPrendas } from "@/features/live/ui/AgregarPrendas";
+import {
+  GrillaItemsLive,
+  type EstadoGrilla,
+} from "@/features/live/ui/GrillaItemsLive";
 import { CompartirLive } from "@/features/live/ui/CompartirLive";
 import { ConfigurarSubastaModal } from "@/features/live/ui/ConfigurarSubastaModal";
 import { ColaPostores } from "@/features/live/ui/ColaPostores";
@@ -28,25 +37,36 @@ import type { LiveItem } from "@/entities/live/model/types";
 const REFRESCO = 4000;
 
 /**
- * El panel durante la transmisión.
+ * El Live, en una sola pantalla.
  *
- * Es una vista distinta de la de preparación porque el vendedor está haciendo
- * otra cosa: no arma el Live, lo conduce. Acá manda lo que se está vendiendo y
- * las cuentas que hay que cobrar, no el catálogo.
+ * Antes eran dos —preparar y control— y compartían la grilla y cinco modales.
+ * La diferencia real nunca fue lo que se podía hacer, sino **el orden en que
+ * importa**: preparando manda el catálogo que estás armando; en el aire mandan
+ * los contadores y las cuentas por cobrar, y la grilla pasa abajo. Lo que
+ * cambia según el estado es el orden, no lo que está disponible.
  *
- * Se refresca solo cada cuatro segundos. El stock se mueve por fuera de esta
- * pantalla -los compradores, la caja- así que esperar a que alguien recargue
- * sería mostrar algo que ya no es cierto.
+ * Agregar prendas está en los dos momentos, porque sumar lo que acaba de
+ * entrar es el módulo entero.
+ *
+ * Sirve además de detalle del historial: un Live cerrado se abre acá y se ve
+ * qué pasó, con la cola de postores de cada subasta y las cuentas que queden
+ * por cobrar, que es lo que se resuelve al día siguiente.
  */
-export default function ControlLivePage() {
+export default function SesionLivePage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
 
+  // El refresco lo decide el hook según el estado que trae: un Live cerrado no
+  // tiene nada que volver a preguntar.
   const { data: live, isLoading } = useLive(id, { refrescarCada: REFRESCO });
-  const { data: cuentas = [] } = useCuentasDelLive(id, { refrescarCada: REFRESCO });
+  const enVivo = live?.status === "active";
+
+  const { data: cuentas = [] } = useCuentasDelLive(id, {
+    refrescarCada: enVivo ? REFRESCO : undefined,
+  });
+
+  const iniciar = useStartLive(id);
   const finalizar = useFinishLive(id);
 
-  const [altaAbierta, setAltaAbierta] = useState(false);
   const [subastando, setSubastando] = useState<LiveItem | null>(null);
   const [viendoCola, setViendoCola] = useState<LiveItem | null>(null);
   const [editando, setEditando] = useState<LiveItem | null>(null);
@@ -55,17 +75,33 @@ export default function ControlLivePage() {
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando...</p>;
   if (!live) return <p className="text-sm text-muted-foreground">Live no encontrado.</p>;
 
+  const cerrado = live.status === "finished" || live.status === "cancelled";
+  const preparando = live.status === "preparing";
+  const estadoGrilla: EstadoGrilla = enVivo
+    ? "vivo"
+    : cerrado
+      ? "cerrado"
+      : "preparando";
+
   const activos = live.items.filter((i) => i.status === "active");
   const disponibles = activos.filter((i) => i.disponible > 0);
   const vendidas = activos.length - disponibles.length;
   const subastasAbiertas = activos.filter((i) => i.auction?.status === "open");
-  const total = cuentas.reduce((s, c) => s + Number(c.totalAmount ?? 0), 0);
+  const totalCuentas = cuentas.reduce((s, c) => s + Number(c.totalAmount ?? 0), 0);
+
+  const empezar = async () => {
+    try {
+      await iniciar.mutateAsync();
+      toast.success("El Live está en el aire");
+    } catch (error) {
+      toast.error((error as Error).message || "No se pudo iniciar");
+    }
+  };
 
   const terminar = async () => {
     try {
       await finalizar.mutateAsync();
       toast.success("Live finalizado");
-      navigate(`/live/${id}/preparar`);
     } catch (error) {
       toast.error((error as Error).message || "No se pudo finalizar");
     } finally {
@@ -75,45 +111,79 @@ export default function ControlLivePage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/live">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <span className="relative flex h-3 w-3">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" />
-          </span>
-          <h1 className="text-lg font-semibold">{live.title}</h1>
+      <Button variant="ghost" size="sm" asChild>
+        <Link to="/live">
+          <ArrowLeft className="h-4 w-4" />
+          <span className="ml-1">Modo Live</span>
+        </Link>
+      </Button>
+
+      {/* En el aire el encabezado se achica a lo imprescindible: el punto que
+          avisa que está transmitiendo, el título y las acciones. El resumen lo
+          dan los contadores, que vienen justo abajo. */}
+      {enVivo ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" />
+            </span>
+            <h1 className="truncate text-lg font-semibold">{live.title}</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <AgregarPrendas liveId={id} storeId={live.store?.id} compacto />
+            <Button variant="destructive" onClick={() => setConfirmandoFin(true)}>
+              <Square className="h-4 w-4" />
+              <span className="ml-1">Finalizar</span>
+            </Button>
+          </div>
         </div>
+      ) : (
+        <PageHeader
+          title={live.title}
+          description={live.description ?? undefined}
+          stats={[
+            { value: activos.length, label: "prendas" },
+            { value: disponibles.length, label: "disponibles", tone: "success" },
+            ...(live.summary
+              ? [{ value: live.summary.vendidos, label: "vendidas" }]
+              : []),
+          ]}
+          actions={
+            preparando ? (
+              <Button
+                onClick={empezar}
+                disabled={iniciar.isPending || activos.length === 0}
+              >
+                <Play className="h-4 w-4" />
+                <span className="ml-1">Iniciar Live</span>
+              </Button>
+            ) : (
+              <Badge variant="secondary">Finalizado</Badge>
+            )
+          }
+        />
+      )}
 
-        <div className="flex gap-2">
-          <CompartirLive token={live.publicToken} storeSlug={live.store?.slug} compacto />
-          <Button variant="outline" onClick={() => setAltaAbierta(true)}>
-            <Camera className="h-4 w-4" />
-            <span className="ml-1 hidden sm:inline">Agregar</span>
-          </Button>
-          <Button variant="destructive" onClick={() => setConfirmandoFin(true)}>
-            <Square className="h-4 w-4" />
-            <span className="ml-1">Finalizar</span>
-          </Button>
+      {/* El enlace va grande mientras se transmite: al arrancar es lo primero
+          que hace falta, y copiarlo de un botón chico en la fila de acciones es
+          más difícil de encontrar. */}
+      {enVivo && (
+        <CompartirLive token={live.publicToken} storeSlug={live.store?.slug} />
+      )}
+
+      {enVivo && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tarjeta valor={disponibles.length} etiqueta="disponibles" />
+          <Tarjeta valor={vendidas} etiqueta="vendidas" />
+          <Tarjeta valor={cuentas.length} etiqueta="cuentas abiertas" />
+          <Tarjeta valor={totalCuentas.toFixed(2)} etiqueta="vendido" />
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tarjeta valor={disponibles.length} etiqueta="disponibles" />
-        <Tarjeta valor={vendidas} etiqueta="vendidas" />
-        <Tarjeta valor={cuentas.length} etiqueta="cuentas abiertas" />
-        <Tarjeta valor={total.toFixed(2)} etiqueta="vendido" />
-      </div>
-
-      {subastasAbiertas.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Subastas abiertas
-          </h2>
+      {enVivo && subastasAbiertas.length > 0 && (
+        <Seccion titulo="Subastas abiertas">
           <div className="grid gap-2 sm:grid-cols-2">
             {subastasAbiertas.map((item) => (
               <div
@@ -127,33 +197,19 @@ export default function ControlLivePage() {
                     {item.auction!.bidCount === 1 ? "" : "s"}
                   </p>
                 </div>
-                <span className="tabular-nums font-semibold">
+                <span className="font-semibold tabular-nums">
                   {(item.auction!.currentAmount ?? item.auction!.startingPrice).toFixed(2)}
                 </span>
               </div>
             ))}
           </div>
-        </section>
+        </Seccion>
       )}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Prendas
-        </h2>
-        <GrillaItemsLive
-          live={live}
-          enVivo
-          onSubastar={setSubastando}
-          onVerCola={setViendoCola}
-          onEditar={setEditando}
-        />
-      </section>
-
+      {/* Las cuentas siguen abiertas después de finalizar: cobrarlas es lo que
+          queda por hacer, así que la sección no desaparece al cerrar el Live. */}
       {cuentas.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Cuentas por cobrar
-          </h2>
+        <Seccion titulo="Cuentas por cobrar">
           <div className="space-y-1">
             {cuentas.map((c) => (
               <div
@@ -183,7 +239,7 @@ export default function ControlLivePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="tabular-nums font-semibold">
+                  <span className="font-semibold tabular-nums">
                     {Number(c.totalAmount).toFixed(2)}
                   </span>
                   <Badge variant="outline">#{c.number ?? "—"}</Badge>
@@ -191,10 +247,22 @@ export default function ControlLivePage() {
               </div>
             ))}
           </div>
-        </section>
+        </Seccion>
       )}
 
-      <AltaRapidaProducto open={altaAbierta} onOpenChange={setAltaAbierta} liveId={id} />
+      {/* Preparando, agregar es lo único que se hace acá: va grande y arriba de
+          la grilla. En el aire ya está en el encabezado. */}
+      {preparando && <AgregarPrendas liveId={id} storeId={live.store?.id} />}
+
+      <Seccion titulo="Prendas">
+        <GrillaItemsLive
+          live={live}
+          estado={estadoGrilla}
+          onSubastar={setSubastando}
+          onVerCola={setViendoCola}
+          onEditar={setEditando}
+        />
+      </Seccion>
 
       <ConfigurarSubastaModal
         open={!!subastando}
@@ -242,6 +310,23 @@ export default function ControlLivePage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function Seccion({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        {titulo}
+      </h2>
+      {children}
+    </section>
   );
 }
 

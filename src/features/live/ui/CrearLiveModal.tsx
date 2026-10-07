@@ -61,7 +61,7 @@ export function CrearLiveModal({
       onOpenChange(false);
       setTitle("");
       setDescription("");
-      navigate(`/live/${live.id}/preparar`);
+      navigate(`/live/${live.id}`);
     } catch (error) {
       toast.error((error as Error).message || "No se pudo crear el Live");
     }

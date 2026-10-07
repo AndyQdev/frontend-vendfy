@@ -1,11 +1,11 @@
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import McpConnectPage from "@/pages/mcp-connect";
 import OnboardingPage from "@/pages/onboarding";
-// El dashboard dejó de ser la vista principal: ahora lo es el asistente.
-// Se deja comentado, no borrado, por si se retoma.
-// import DashboardPage from "@/pages/dashboard"; // oculto para la presentación del Sprint 1
+// El dashboard ya no es la vista principal -ahora lo es el asistente- pero
+// sigue siendo una pantalla propia, alcanzable desde el carril.
+import DashboardPage from "@/pages/dashboard";
 import CajaPage from "@/pages/caja";
 import OrdersPage from "@/pages/orders";
 import SalesPage from "@/pages/sales";
@@ -14,14 +14,13 @@ import CreateProductPage from "@/pages/products/create";
 import ProductTaxonomiesPage from "@/pages/products/taxonomies";
 import InventoryPage from "@/pages/inventory";
 import LivePage from "@/pages/live";
-import PrepararLivePage from "@/pages/live/preparar";
-import ControlLivePage from "@/pages/live/control";
+import SesionLivePage from "@/pages/live/sesion";
 import CustomersPage from "@/pages/customers";
 import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
-// import WhatsAppPage from "@/pages/whatsapp"; // oculto para la presentación del Sprint 1
+import WhatsAppPage from "@/pages/whatsapp";
 import CampaignsPage from "@/pages/campaigns";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
@@ -46,6 +45,11 @@ function Protected() {
   return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
+function RedirigirASesion() {
+  const { id } = useParams();
+  return <Navigate to={`/live/${id}`} replace />;
+}
+
 export default function AppRouter() {
   return (
     <Routes>
@@ -63,10 +67,8 @@ export default function AppRouter() {
 
           {/* Resto de la app: requiere onboarding completo */}
           <Route element={<LayoutShell />}>
-            {/* WhatsApp oculto para la presentación del Sprint 1. */}
             <Route path="/omnibox" element={<OmniboxPage />} />
-            {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
-            <Route path="/dashboard" element={<Navigate to="/caja" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/caja" element={<CajaPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/sales" element={<SalesPage />} />
@@ -76,8 +78,12 @@ export default function AppRouter() {
             <Route path="/products/:id" element={<CreateProductPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/live" element={<LivePage />} />
-            <Route path="/live/:id/preparar" element={<PrepararLivePage />} />
-            <Route path="/live/:id/control" element={<ControlLivePage />} />
+            <Route path="/live/:id" element={<SesionLivePage />} />
+            {/* Preparar y control eran dos pantallas y ahora son una. Las
+                direcciones viejas siguen existiendo porque quedaron en enlaces
+                compartidos y en el historial del navegador. */}
+            <Route path="/live/:id/preparar" element={<RedirigirASesion />} />
+            <Route path="/live/:id/control" element={<RedirigirASesion />} />
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/purchases/new" element={<PurchaseCreatePage />} />
             <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
@@ -87,7 +93,7 @@ export default function AppRouter() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/movements" element={<MovementPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            {/* <Route path="/whatsapp" element={<WhatsAppPage />} /> */}
+            <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
 

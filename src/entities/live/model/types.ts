@@ -59,6 +59,13 @@ export interface LiveItem {
   price: number;
   imageUrls: string[];
   disponible: number;
+  /**
+   * Cuántas cuentas abiertas de ESTE Live la tienen pedida.
+   *
+   * Separa "me equivoqué al cargarla" de "ya se la debo a alguien": con cero
+   * se quita sin preguntar, con uno o más hay que avisar antes.
+   */
+  pedidos: number;
   /** Si existe, esta prenda se subasta. Su existencia ES el modo de venta. */
   auction: LiveAuction | null;
 }
@@ -101,6 +108,14 @@ export interface ProductoReutilizable {
   price: number;
   imageUrls: string[];
   disponible: number;
+  /** Ya pasó por algún Live. Se marca en la lista completa. */
+  deLive: boolean;
+}
+
+export interface ProductosDisponibles {
+  items: ProductoReutilizable[];
+  /** Cuántos cumplen el filtro, no cuántos llegaron en esta página. */
+  total: number;
 }
 
 export interface CreateLiveInput {

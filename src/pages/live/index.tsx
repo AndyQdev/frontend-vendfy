@@ -111,16 +111,11 @@ function LiveEnCurso({ live }: { live: LiveSession }) {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to={`/live/${live.id}/preparar`}>Preparar</Link>
-          </Button>
-          {activo && (
-            <Button asChild>
-              <Link to={`/live/${live.id}/control`}>Ir al control</Link>
-            </Button>
-          )}
-        </div>
+        {/* Un botón y no dos: el Live es una sola pantalla, y el estado ya
+            dice a qué vas: a armarlo o a conducirlo. */}
+        <Button asChild variant={activo ? "default" : "outline"}>
+          <Link to={`/live/${live.id}`}>{activo ? "Ir al Live" : "Preparar"}</Link>
+        </Button>
       </div>
 
       {activo && (
@@ -136,7 +131,7 @@ function FilaHistorial({ live }: { live: LiveSession }) {
 
   return (
     <Link
-      to={`/live/${live.id}/preparar`}
+      to={`/live/${live.id}`}
       className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 hover:border-border-strong"
     >
       <div className="min-w-0">
