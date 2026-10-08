@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapPin, Search } from 'lucide-react'
+import { Loader2, LocateFixed, MapPin, Maximize2, Minimize2, Search } from 'lucide-react'
 
 // Declaración de tipos para Google Maps
 declare global {
@@ -61,6 +61,14 @@ export function LocationPicker({
   const inputRef = useRef<HTMLInputElement>(null)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false)
+  const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null)
+  // Pantalla completa real del navegador, o -donde no existe- el mapa agrandado
+  // en su lugar. Son dos estados porque no son lo mismo: uno lo decide el
+  // navegador (y se sale con Esc), el otro lo decidimos nosotros.
+  const [pantallaCompleta, setPantallaCompleta] = useState(false)
+  const [ampliado, setAmpliado] = useState(false)
+  const contenedorMapaRef = useRef<HTMLDivElement>(null)
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
   const styles = THEME_STYLES[theme]
@@ -238,6 +246,181 @@ export function LocationPicker({
     }
   }, [isMapLoaded, userLocation, onAddressChange, onLocationChange])
 
+  // El navegador avisa cuando se entra o se sale (Esc incluido), y puede ser
+  // por algo que no pasó por nuestro botón.
+  useEffect(() => {
+    const alCambiar = () =>
+      setPantallaCompleta(document.fullscreenElement === contenedorMapaRef.current)
+    document.addEventListener('fullscreenchange', alCambiar)
+    return () => document.removeEventListener('fullscreenchange', alCambiar)
+  }, [])
+
+  // El mapa no se entera solo de que su contenedor cambió de tamaño: sin esto
+  // queda dibujado en el recuadro viejo, con el resto en gris.
+  useEffect(() => {
+    const mapa = mapInstanceRef.current
+    if (!mapa || !window.google?.maps) return
+    const t = setTimeout(
+      () => window.google.maps.event.trigger(mapa, 'resize'),
+      150
+    )
+    return () => clearTimeout(t)
+  }, [pantallaCompleta, ampliado])
+
+  /**
+   * Pantalla completa del bloque del mapa.
+   *
+   * Se usa la API del navegador sobre el contenedor y no un `position: fixed`:
+   * el mapa vive dentro de un diálogo o un cajón, que llevan `transform`, y un
+   * elemento fijo dentro de un ancestro con transform se posiciona respecto de
+   * ESE ancestro, no de la pantalla. Quedaría "completo" dentro del cajón.
+   *
+   * El iPhone no deja poner un div en pantalla completa; ahí el mapa se
+   * agranda en su lugar, que alivia lo mismo (el recuadro chico) sin la API.
+   */
+  const alternarPantallaCompleta = async () => {
+    const contenedor = contenedorMapaRef.current
+    if (!contenedor) return
+
+    if (pantallaCompleta) {
+      try {
+        await document.exitFullscreen()
+      } catch {
+        /* ya había salido */
+      }
+      return
+    }
+    if (ampliado) {
+      setAmpliado(false)
+      return
+    }
+
+    if (contenedor.requestFullscreen && document.fullscreenEnabled) {
+      try {
+        await contenedor.requestFullscreen()
+        return
+      } catch {
+        /* el navegador lo rechazó: se cae al agrandado */
+      }
+    }
+    setAmpliado(true)
+  }
+
+  /**
+   * Ir a donde estoy ahora.
+   *
+   * La ubicación solo se pedía una vez, al abrir el mapa. Si en ese momento no
+   * había permiso, fallaba y nadie volvía a preguntar: aunque se lo dieras
+   * después, el mapa se quedaba donde estaba. Con el botón se pide cuando la
+   * persona lo pide.
+   *
+   * A diferencia del centrado automático del arranque, acá sí se fija la
+   * ubicación y la dirección: tocar el botón es decir "es acá".
+   *
+   * Se pide la ubicación APROXIMADA y no la de alta precisión. Con alta
+   * precisión el navegador espera un GPS, y una PC no tiene: la consulta se
+   * queda esperando un receptor que no existe. La aproximada sale del wifi o de
+   * la IP en segundos y, para elegir una dirección, alcanza: el marcador se
+   * arrastra.
+   *
+   * Un intento, y corto. Antes había un reintento con GPS que sumaba hasta 27
+   * segundos de spinner; Google Maps, con el mismo permiso, se rinde en 5.
+   */
+  const irAMiUbicacion = () => {
+    setErrorUbicacion(null)
+
+    // Fuera de https y de localhost el navegador ni siquiera ofrece el permiso:
+    // desde http://192.168.x.x el botón nunca puede funcionar, y callarlo haría
+    // creer que es un fallo del mapa.
+    if (!window.isSecureContext) {
+      setErrorUbicacion(
+        'El navegador solo da la ubicación en páginas seguras (https o localhost).'
+      )
+      return
+    }
+    if (!navigator.geolocation) {
+      setErrorUbicacion('Este navegador no permite obtener la ubicación.')
+      return
+    }
+
+    setBuscandoUbicacion(true)
+
+    const sinUbicacion =
+      'No se pudo obtener tu ubicación actual. Buscá la dirección o mové el marcador a mano.'
+
+    // Un tope propio, aparte del `timeout` del navegador: hay casos en que el
+    // navegador no llama a ninguna de las dos funciones y el spinner giraría
+    // para siempre. No invalida el intento: si el permiso estaba esperando la
+    // respuesta de la persona y llega una posición más tarde, se aplica igual.
+    const reloj = setTimeout(() => {
+      setBuscandoUbicacion(false)
+      setErrorUbicacion(sinUbicacion)
+    }, 9000)
+
+    navigator.geolocation.getCurrentPosition(
+      (posicion) => {
+        clearTimeout(reloj)
+        setErrorUbicacion(null)
+
+        const ubicacion = {
+          lat: posicion.coords.latitude,
+          lng: posicion.coords.longitude,
+        }
+        mapInstanceRef.current?.setCenter(ubicacion)
+        mapInstanceRef.current?.setZoom(17)
+        markerRef.current?.setPosition(ubicacion)
+        onLocationChange(ubicacion)
+
+        // La dirección que corresponde a ese punto, igual que al arrastrar el
+        // marcador.
+        new window.google.maps.Geocoder().geocode(
+          { location: ubicacion },
+          (resultados: any, estado: any) => {
+            if (estado === 'OK' && resultados && resultados[0]) {
+              onAddressChange(resultados[0].formatted_address)
+            }
+          }
+        )
+        setBuscandoUbicacion(false)
+      },
+      (error) => {
+        clearTimeout(reloj)
+        setBuscandoUbicacion(false)
+        // El texto del navegador distingue casos que el código no: "User denied
+        // Geolocation" es el sitio; los de "location provider" son el sistema.
+        console.warn('Geolocalización:', error.code, error.message)
+
+        if (error.code !== 1) {
+          setErrorUbicacion(sinUbicacion)
+          return
+        }
+
+        // "Denegado" tiene dos causas con arreglos distintos, y decirle que
+        // mire el candado a quien ya aceptó el permiso solo lo confunde. Se
+        // pregunta cuál es: si el navegador SÍ tiene el permiso, lo bloquea el
+        // sistema operativo, que es lo que pasa en Windows con los servicios de
+        // ubicación apagados.
+        const bloqueoDelSitio =
+          'El permiso de ubicación está bloqueado para este sitio. Habilitalo en los permisos del sitio de tu navegador y volvé a tocar el botón.'
+        if (!navigator.permissions?.query) {
+          setErrorUbicacion(bloqueoDelSitio)
+          return
+        }
+        navigator.permissions
+          .query({ name: 'geolocation' })
+          .then((estado) =>
+            setErrorUbicacion(
+              estado.state === 'granted'
+                ? 'El navegador tiene el permiso para este sitio, pero el dispositivo bloquea la ubicación. Revisá que los servicios de ubicación estén activados en la configuración del dispositivo.'
+                : bloqueoDelSitio
+            )
+          )
+          .catch(() => setErrorUbicacion(bloqueoDelSitio))
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 30000 }
+    )
+  }
+
   return (
     <div className="space-y-3">
       {/* Buscador de dirección */}
@@ -254,8 +437,74 @@ export function LocationPicker({
       </div>
 
       {/* Mapa */}
-      <div className="relative rounded-lg overflow-hidden border border-gray-200">
-        <div ref={mapRef} className="w-full h-[200px]" />
+      <div
+        ref={contenedorMapaRef}
+        className={`relative overflow-hidden border border-gray-200 ${
+          pantallaCompleta ? 'bg-white' : 'rounded-lg'
+        }`}
+      >
+        <div
+          ref={mapRef}
+          className={
+            pantallaCompleta
+              ? 'h-full w-full'
+              : ampliado
+                ? 'h-[70dvh] min-h-[320px] w-full'
+                : 'h-[200px] w-full'
+          }
+        />
+        {isMapLoaded && (
+          <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={alternarPantallaCompleta}
+              title={
+                pantallaCompleta || ampliado
+                  ? 'Salir de pantalla completa'
+                  : 'Ver el mapa en pantalla completa'
+              }
+              aria-label={
+                pantallaCompleta || ampliado
+                  ? 'Salir de pantalla completa'
+                  : 'Ver el mapa en pantalla completa'
+              }
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-black/10 transition-colors hover:bg-gray-50 md:h-10 md:w-10"
+            >
+              {pantallaCompleta || ampliado ? (
+                <Minimize2 className="h-5 w-5" />
+              ) : (
+                <Maximize2 className="h-5 w-5" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={irAMiUbicacion}
+              disabled={buscandoUbicacion}
+              title="Usar mi ubicación actual"
+              aria-label="Usar mi ubicación actual"
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-gray-700 shadow-md ring-1 ring-black/10 transition-colors hover:bg-gray-50 disabled:opacity-60 md:h-10 md:w-10"
+            >
+              {buscandoUbicacion ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <LocateFixed className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Dentro del bloque y no debajo: en pantalla completa solo se ve lo que
+            está adentro, y un aviso afuera no lo vería nadie. */}
+        {errorUbicacion && (
+          <p
+            role="alert"
+            onClick={() => setErrorUbicacion(null)}
+            title="Tocá para cerrar"
+            className="absolute inset-x-3 bottom-3 z-10 cursor-pointer rounded-md bg-white/95 px-3 py-2 text-xs text-red-600 shadow"
+          >
+            {errorUbicacion}
+          </p>
+        )}
         {!apiKey && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-50">
             <div className="text-center p-4">
@@ -278,7 +527,7 @@ export function LocationPicker({
       {/* Info de ayuda */}
       <p className="text-xs text-gray-500 flex items-center gap-1">
         <MapPin className="w-3 h-3" />
-        Haz click en el mapa o arrastra el marcador para seleccionar ubicación
+        Haz click en el mapa, arrastra el marcador o usa el botón de ubicación
       </p>
     </div>
   )

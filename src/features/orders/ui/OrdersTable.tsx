@@ -1,6 +1,6 @@
 
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useOrders, useUpdateOrder } from "@/entities/order/api";
 import { useStore } from "@/app/providers/auth";
 import { Order, OrderStatus } from "@/entities/order/model/types";
@@ -11,7 +11,9 @@ import {
   DragOverlay,
   DragStartEvent,
   DragOverEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
+  MeasuringStrategy,
   useSensor,
   useSensors,
   closestCenter,
@@ -24,8 +26,11 @@ import {
 import {
   Package,
   ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Card } from "@/shared/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -41,6 +46,10 @@ import { Bell } from "lucide-react";
 type DateFilter = "day" | "week" | "month" | "year";
 
 // Configuración de columnas del Kanban
+/** Los dos bordes de la pantalla, que en móvil pasan de columna al arrastrar. */
+const BORDE_ANTERIOR = "borde-anterior";
+const BORDE_SIGUIENTE = "borde-siguiente";
+
 const KANBAN_COLUMNS = [
   {
     // Primera por una razón: es la bandeja de "esto todavía no es una venta".
@@ -94,6 +103,7 @@ function KanbanColumn({
   isActive,
   activeId,
   draggedOrderId,
+  altoCuerpo,
   sortOrder,
   onToggleSort,
 }: {
@@ -103,6 +113,8 @@ function KanbanColumn({
   isActive: boolean;
   activeId: string | null;
   draggedOrderId: string | null;
+  /** En móvil lo decide la pantalla, no una constante. Ver `altoDelTablero`. */
+  altoCuerpo?: number | null;
   sortOrder: 'ASC' | 'DESC';
   onToggleSort: () => void;
 }) {
@@ -167,9 +179,14 @@ function KanbanColumn({
 
       {/* Lista de órdenes */}
       <div 
-        className="bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-b-lg p-3 flex-1 overflow-y-auto h-[calc(100dvh-280px)] max-h-[700px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all duration-200"
+        // El alto medido pisa la cuenta fija: cuando viene, hay que soltar
+        // también el techo de 700 px, que si no lo recorta igual.
+        className={`bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-b-lg p-3 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all duration-200 ${
+          altoCuerpo ? "max-h-none" : "h-[calc(100dvh-280px)] max-h-[700px]"
+        }`}
         style={{
           backgroundColor: isActive ? `${colors.pastel}80` : undefined,
+          ...(altoCuerpo ? { height: altoCuerpo } : {}),
         }}
       >
         <SortableContext items={orders.map((o) => o.id)} strategy={verticalListSortingStrategy}>
@@ -268,14 +285,117 @@ export default function OrdersTable() {
     return grouped;
   }, [allOrders]);
 
-  // Configurar sensores para drag and drop - balance entre precisión y usabilidad
+  /**
+   * Mouse y dedo activan distinto, y tiene que ser así.
+   *
+   * Con el mouse alcanza mover 8 px: el puntero no scrollea. Con el dedo eso
+   * es un desastre -cualquier intento de bajar por la lista se convierte en un
+   * arrastre-, así que el dedo pide mantener presionado, que además es el
+   * gesto que ya conoce todo el mundo de mover un ícono en el home de Android.
+   *
+   * Un PointerSensor solo no sirve para esto: atiende a los dos con la misma
+   * regla, y una de las dos siempre queda mal.
+   */
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Requiere arrastrar 8px antes de activar
-      },
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 8 },
     })
   );
+
+  /**
+   * En el teléfono el tablero es una columna por pantalla, no seis apiladas.
+   *
+   * Seis listas una debajo de otra dejan de ser un tablero: para ver "En
+   * camino" hay que pasar por todo lo demás. Y la salida obvia -poner las seis
+   * de costado y desplazar- es justo la que no funciona: en este proyecto se
+   * intentó tres veces y las tres se fue en diagonal, porque adentro de cada
+   * columna ya hay un scroll vertical. Con una sola columna montada no hay
+   * segundo eje con el que pelear.
+   */
+  const esMovil = useIsMobile();
+  const [columnaMovil, setColumnaMovil] = useState(0);
+
+  const moverColumna = (paso: number) => {
+    setColumnaMovil((previo) => {
+      const siguiente = previo + paso;
+      if (siguiente < 0 || siguiente >= KANBAN_COLUMNS.length) return previo;
+      return siguiente;
+    });
+  };
+
+  // El deslizar del dedo para cambiar de columna. Va a mano y no con scroll
+  // CSS: un contenedor que se desplaza de costado volvería a traer el
+  // problema de los dos ejes.
+  const inicioDelToque = useRef<{ x: number; y: number } | null>(null);
+
+  const alEmpezarToque = (evento: React.TouchEvent) => {
+    const toque = evento.touches[0];
+    inicioDelToque.current = { x: toque.clientX, y: toque.clientY };
+  };
+
+  const alSoltarToque = (evento: React.TouchEvent) => {
+    const inicio = inicioDelToque.current;
+    inicioDelToque.current = null;
+    // Durante un arrastre manda dnd-kit; el deslizar no se mete.
+    if (!inicio || activeOrder) return;
+
+    const toque = evento.changedTouches[0];
+    const dx = toque.clientX - inicio.x;
+    const dy = toque.clientY - inicio.y;
+
+    // Claramente horizontal, o era alguien bajando por la lista.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    moverColumna(dx < 0 ? 1 : -1);
+  };
+
+  /**
+   * Cuánto alto queda de verdad para el tablero.
+   *
+   * La cuenta fija de `100dvh - 280px` es una adivinanza: encima de la columna
+   * hay un título, unos filtros y ahora el carril de estados, y eso cambia con
+   * el ancho y con el idioma. Se mide dónde arranca el tablero y se le da todo
+   * lo que sobra hasta el final de la pantalla.
+   *
+   * Se mide al montar y al cambiar el tamaño, no al scrollear: `top` es
+   * relativo a la ventana y con la página corrida daría un número menor.
+   */
+  const refTablero = useRef<HTMLDivElement>(null);
+  const [altoDelTablero, setAltoDelTablero] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!esMovil) {
+      setAltoDelTablero(null);
+      return;
+    }
+
+    const medir = () => {
+      const nodo = refTablero.current;
+      if (!nodo) return;
+      const arriba = nodo.getBoundingClientRect().top + window.scrollY;
+      const libre = window.innerHeight - arriba + window.scrollY - 16;
+      // Un piso, por si se mide en un momento raro del montaje.
+      setAltoDelTablero(Math.max(260, libre));
+    };
+
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [esMovil]);
+
+  /**
+   * Arrastrar hasta el borde pasa de columna, como mover un ícono entre
+   * pantallas del home. Se limita a uno por vez: sin esto, dejar el dedo
+   * quieto en el borde recorre las seis columnas en un segundo.
+   */
+  const ultimoAvance = useRef(0);
+
+  const avanzarPorBorde = (paso: number) => {
+    const ahora = Date.now();
+    if (ahora - ultimoAvance.current < 700) return;
+    ultimoAvance.current = ahora;
+    moverColumna(paso);
+  };
 
   // Manejar vista de detalles
   const handleViewDetails = (order: Order) => {
@@ -297,7 +417,11 @@ export default function OrdersTable() {
   // Manejar el drag sobre una columna (en tiempo real)
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
-    
+
+    // Los bordes no son una columna: son el gesto de pasar a la siguiente.
+    if (over?.id === BORDE_ANTERIOR) return avanzarPorBorde(-1);
+    if (over?.id === BORDE_SIGUIENTE) return avanzarPorBorde(1);
+
     if (!over) {
       setActiveColumnId(null);
       setActiveId(null);
@@ -329,6 +453,8 @@ export default function OrdersTable() {
     setActiveId(null);
 
     if (!over) return;
+    // Soltar sobre un borde no cambia de estado: solo se estaba paginando.
+    if (over.id === BORDE_ANTERIOR || over.id === BORDE_SIGUIENTE) return;
 
     const orderId = active.id as string;
     let newStatus: OrderStatus;
@@ -462,30 +588,115 @@ export default function OrdersTable() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        // En móvil la columna de destino no existe cuando empieza el arrastre:
+        // se monta al pasar de página. Con la medición por defecto -una sola
+        // vez al arrancar- dnd-kit no la vería y la tarjeta no tendría dónde
+        // caer. En escritorio están las seis desde el principio y no hace
+        // falta pagar esa medición.
+        measuring={
+          esMovil
+            ? { droppable: { strategy: MeasuringStrategy.Always } }
+            : undefined
+        }
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {KANBAN_COLUMNS.map((column) => (
-            <SortableContext
-              key={column.id}
-              items={ordersByStatus[column.id].map((o) => o.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <KanbanColumn 
-                column={column} 
-                orders={ordersByStatus[column.id]} 
-                onViewDetails={handleViewDetails}
-                isActive={activeColumnId === column.id}
-                activeId={activeId}
-                draggedOrderId={activeOrder?.id || null}
-                sortOrder={sortOrder}
-                onToggleSort={handleToggleSort}
-              />
-            </SortableContext>
-          ))}
-        </div>
+        {esMovil ? (
+          <div onTouchStart={alEmpezarToque} onTouchEnd={alSoltarToque}>
+            {/* El carril de estados: dice dónde estás y deja saltar directo.
+                Es un solo eje y sin scroll vertical adentro, que es la forma
+                que sí funciona. */}
+            <div className="carril -mx-3 mb-3 flex gap-2 px-3 pb-1">
+              {KANBAN_COLUMNS.map((column, indice) => {
+                const activa = indice === columnaMovil;
+                return (
+                  <button
+                    key={column.id}
+                    type="button"
+                    onClick={() => setColumnaMovil(indice)}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
+                      activa
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground"
+                    }`}
+                  >
+                    {column.title}
+                    <span
+                      className={`rounded-full px-1.5 text-[10px] tabular-nums ${
+                        activa ? "bg-white/20" : "bg-muted"
+                      }`}
+                    >
+                      {ordersByStatus[column.id].length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const column = KANBAN_COLUMNS[columnaMovil];
+              return (
+                <div ref={refTablero}>
+                <SortableContext
+                  items={ordersByStatus[column.id].map((o) => o.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <KanbanColumn
+                    column={column}
+                    orders={ordersByStatus[column.id]}
+                    onViewDetails={handleViewDetails}
+                    isActive={activeColumnId === column.id}
+                    activeId={activeId}
+                    draggedOrderId={activeOrder?.id || null}
+                    sortOrder={sortOrder}
+                    onToggleSort={handleToggleSort}
+                    altoCuerpo={altoDelTablero}
+                  />
+                </SortableContext>
+                </div>
+              );
+            })()}
+
+            {/* Solo existen mientras se arrastra: el resto del tiempo serían
+                dos franjas muertas comiéndose el ancho de la pantalla. */}
+            {activeOrder && (
+              <>
+                <BordeDeArrastre
+                  id={BORDE_ANTERIOR}
+                  lado="izquierda"
+                  habilitado={columnaMovil > 0}
+                />
+                <BordeDeArrastre
+                  id={BORDE_SIGUIENTE}
+                  lado="derecha"
+                  habilitado={columnaMovil < KANBAN_COLUMNS.length - 1}
+                />
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {KANBAN_COLUMNS.map((column) => (
+              <SortableContext
+                key={column.id}
+                items={ordersByStatus[column.id].map((o) => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <KanbanColumn 
+                  column={column} 
+                  orders={ordersByStatus[column.id]} 
+                  onViewDetails={handleViewDetails}
+                  isActive={activeColumnId === column.id}
+                  activeId={activeId}
+                  draggedOrderId={activeOrder?.id || null}
+                  sortOrder={sortOrder}
+                  onToggleSort={handleToggleSort}
+                />
+              </SortableContext>
+            ))}
+          </div>
+        )}
 
         {/* Overlay durante el drag */}
         <DragOverlay>
@@ -512,6 +723,49 @@ export default function OrdersTable() {
         onOpenChange={(open) => !open && setTrackingOrder(null)}
       />
 
+    </div>
+  );
+}
+
+/**
+ * La franja del borde que pasa de columna mientras se arrastra.
+ *
+ * Es el mismo gesto que mover un ícono entre pantallas del home de Android:
+ * llevás la tarjeta al costado y el tablero avanza. Es droppable y no un
+ * cálculo de coordenadas a mano para que lo resuelva la misma detección de
+ * colisiones que el resto, y no dos sistemas que se contradicen.
+ */
+function BordeDeArrastre({
+  id,
+  lado,
+  habilitado,
+}: {
+  id: string;
+  lado: "izquierda" | "derecha";
+  habilitado: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !habilitado });
+  const Flecha = lado === "izquierda" ? ChevronLeft : ChevronRight;
+
+  if (!habilitado) return null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      aria-hidden
+      className={`fixed inset-y-0 z-50 grid w-14 place-items-center transition-colors md:hidden ${
+        lado === "izquierda" ? "left-0" : "right-0"
+      } ${
+        isOver
+          ? "bg-primary/25"
+          : lado === "izquierda"
+            ? "bg-gradient-to-r from-black/10 to-transparent"
+            : "bg-gradient-to-l from-black/10 to-transparent"
+      }`}
+    >
+      <Flecha
+        className={`h-6 w-6 ${isOver ? "text-primary" : "text-muted-foreground/60"}`}
+      />
     </div>
   );
 }
