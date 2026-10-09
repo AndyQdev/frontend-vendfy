@@ -46,9 +46,10 @@ export type Tono = "exito" | "aviso" | "error" | "info" | "neutro";
 /** El color de un estado, por lo que dice (los textos salen del servidor, en castellano). */
 export function tonoDe(texto: string): Tono {
   const t = texto.toLowerCase();
-  if (/^(completada|recibida|se ve|compra|ajuste \(\+\)|devoluci)/.test(t)) return "exito";
+  if (/^(completada|recibida|se ve|publicada|compra|ajuste \(\+\)|devoluci)/.test(t)) return "exito";
   if (/^(cancelada|merma|ajuste \(−\)|ajuste \(-\))/.test(t)) return "error";
-  if (/^(pendiente|por confirmar)/.test(t)) return "aviso";
+  if (/^(pendiente|por confirmar|oculta)/.test(t)) return "aviso";
+  if (/^destacada/.test(t)) return "info";
   if (/^(en proceso|en camino|venta)/.test(t)) return "info";
   return "neutro";
 }

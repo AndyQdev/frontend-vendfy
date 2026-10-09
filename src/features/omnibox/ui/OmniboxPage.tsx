@@ -24,6 +24,8 @@ import {
   useVistasFijadas,
   guardarConversacion,
   traerConversacion,
+  useEjecutarOperacion,
+  usePrepararOperacion,
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
@@ -31,6 +33,7 @@ import {
   type BorradorProducto,
   type FichaRecurso,
   type ListaRecurso,
+  type VistaOperacion,
   type PedidoResumen,
   type CostoProducto,
   type HerramientaGenerada,
@@ -176,6 +179,8 @@ export function OmniboxPage() {
       ...(m.lista && (m.abierta === "lista" || m.abierta === null)
         ? { enPantalla: "lista", lista: { recurso: m.lista.consulta.recurso, filtros: m.lista.consulta.filtros } }
         : {}),
+      // La ficha a la derecha (G9c): "cancelá esta compra" es sobre ella.
+      ...(m.ficha && m.abierta === "ficha" ? { enPantalla: "ficha", ficha: { recurso: m.ficha.recurso, id: m.ficha.id, titulo: m.ficha.titulo } } : {}),
     };
   };
 
@@ -859,6 +864,41 @@ export function OmniboxPage() {
       toast.error(error?.message ?? "No se pudo hacer");
     } finally {
       setEjecutandoId(null);
+    }
+  }
+
+  const prepararOperacionApi = usePrepararOperacion();
+  const ejecutarOperacionApi = useEjecutarOperacion();
+
+  /** Confirmar una operación (G9c): la ejecuta el servidor con el servicio de la pantalla. */
+  async function confirmarOperacion(m: Mensaje, datos: Record<string, string>) {
+    const vista = (m.propuesta?.entidades as { vista?: VistaOperacion } | undefined)?.vista;
+    if (!storeId || !vista) return;
+    setEjecutandoId(m.id);
+    try {
+      const r = await ejecutarOperacionApi.mutateAsync({ storeId, operacion: vista.operacion, id: vista.id, datos });
+      actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "hecho", resumen: r.resumen, despues: null, entidades: { ...vista.datos } } }));
+    } catch (error: any) {
+      toast.error(error?.message ?? "No se pudo hacer");
+    } finally {
+      setEjecutandoId(null);
+    }
+  }
+
+  /**
+   * Un botón de la ficha ("Confirmar la compra", "Anular la venta"): arma la
+   * tarjeta en el chat para confirmarla. Nada se hace con un solo toque.
+   */
+  async function accionDeFicha(accion: FichaRecurso["acciones"][number], ficha: FichaRecurso) {
+    if (!storeId) return;
+    try {
+      const vista = await prepararOperacionApi.mutateAsync({ storeId, operacion: accion.operacion, id: ficha.id, datos: {} });
+      const m = mensajeDeAccion(propuestaLocal("operacion", { titulo: vista.titulo, entidades: { vista }, requiereConfirmacion: true, ejecutable: !vista.bloqueo }));
+      setMensajes((prev) => [...prev, m]);
+      // En el teléfono la hoja tapa el chat: se cierra para ver la tarjeta.
+      if (!ancho) despachar({ tipo: "cerrar" });
+    } catch (error: any) {
+      toast.error(error?.message ?? "No se pudo preparar");
     }
   }
 
@@ -1881,6 +1921,7 @@ export function OmniboxPage() {
                     onConfirmarAccion={() => void confirmarAccion(m)}
                     onMoverPedido={moverPedido}
                     onCrearProductoEnChat={crearProductoEnChat}
+                    onConfirmarOperacion={(datos) => void confirmarOperacion(m, datos)}
                     onAbrirRecurso={() => abrirRecurso(m)}
                     recursoAbierto={recursoAbierto(m)}
                     productosEnPanel={Boolean(ancho && mesa.productos?.mensajeId === m.id)}
@@ -1949,6 +1990,7 @@ export function OmniboxPage() {
               listaInicial={listaInicial}
               fichaInicial={fichaInicial}
               productos={panelProductos}
+              onAccionFicha={(accion, ficha) => void accionDeFicha(accion, ficha)}
             />
           </div>
         )}
@@ -1991,6 +2033,7 @@ export function OmniboxPage() {
               listaInicial={listaInicial}
               fichaInicial={fichaInicial}
               productos={panelProductos}
+              onAccionFicha={(accion, ficha) => void accionDeFicha(accion, ficha)}
             />
           </DrawerContent>
         </Drawer>

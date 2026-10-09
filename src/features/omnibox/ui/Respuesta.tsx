@@ -44,6 +44,7 @@ import { ResumenProductosNuevos, TarjetaProductosNuevos } from "./formularios/Fo
 import { FormularioCliente } from "./formularios/FormularioCliente";
 import { TarjetaBajaProducto, TarjetaCambioProducto, TarjetaEstadoPedido, TarjetaPedidos, TextoAgente } from "./agente/TarjetasAgente";
 import { TarjetaFicha, TarjetaLista } from "./recursos/TarjetasRecursos";
+import { TarjetaOperacion } from "./recursos/TarjetaOperacion";
 import { nuevoFormularioProductos } from "../model/formularios";
 import {
   BloqueProducto,
@@ -124,6 +125,8 @@ export interface AccionesRespuesta {
   /** Una lista o una ficha (G9a): abrirla a la derecha, y si es la que está a la vista. */
   onAbrirRecurso: () => void;
   recursoAbierto: boolean;
+  /** Confirmar una operación (G9c) con los datos como quedaron en la tarjeta. */
+  onConfirmarOperacion: (datos: Record<string, string>) => void;
   /** El formulario de productos nuevos de ESTE mensaje va en el panel (G9b), y si se está viendo. */
   productosEnPanel: boolean;
   productosAbiertos: boolean;
@@ -230,6 +233,16 @@ export function Respuesta({
       return <TarjetaEstadoPedido propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
     case "lista-pedidos":
       return <TarjetaPedidos propuesta={p} hora={cuando} onMover={acciones.onMoverPedido} />;
+    case "operacion":
+      return (
+        <TarjetaOperacion
+          propuesta={p}
+          hora={cuando}
+          ejecutando={ejecutando}
+          onConfirmar={acciones.onConfirmarOperacion}
+          onCancelar={acciones.onCancelar}
+        />
+      );
     case "lista":
       return <TarjetaLista lista={(p.entidades as any).lista} hora={cuando} abierta={acciones.recursoAbierto} onAbrir={acciones.onAbrirRecurso} />;
     case "ficha":

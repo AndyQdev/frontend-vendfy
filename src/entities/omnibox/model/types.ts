@@ -81,7 +81,7 @@ export interface BorradorProducto {
 // ------------------------------------------------------------ listas y fichas (G9a)
 // Espejo de `ventas-service/src/omnibox/model/recursos.ts`.
 
-export type IdRecurso = "ventas" | "compras" | "productos" | "clientes" | "movimientos" | "categorias" | "marcas";
+export type IdRecurso = "ventas" | "compras" | "productos" | "clientes" | "movimientos" | "categorias" | "marcas" | "resenas" | "tiendas";
 export type FormatoColumna = "texto" | "dinero" | "numero" | "fecha" | "estado" | "porcentaje";
 export type ValorFiltro = string | number | boolean;
 
@@ -113,6 +113,21 @@ export interface ListaRecurso {
   resumen: { total: number; suma: number | null };
   texto: string;
   ignorados?: string[];
+}
+
+/** Una operación para confirmar (G9c). Espejo de `VistaOperacion` del servidor. */
+export interface VistaOperacion {
+  operacion: string;
+  id: string | null;
+  titulo: string;
+  sujeto: string;
+  filas: { etiqueta: string; antes: string; despues: string }[];
+  detalle: string[];
+  seria: boolean;
+  datos: Record<string, string>;
+  editables: { clave: string; etiqueta: string; tipo: string; valor: string; actual: string }[];
+  bloqueo: string | null;
+  sinCambios: boolean;
 }
 
 export interface FichaRecurso {
@@ -363,6 +378,7 @@ export type EstadoTarjeta =
   | "nuevo-cliente"
   | "lista"
   | "ficha"
+  | "operacion"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
@@ -378,6 +394,8 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
   // Una lista o una ficha (G9a): se abre a la derecha; en el chat, su resumen.
   if (p.intencion === "lista" && (p.entidades as any).lista) return "lista";
   if (p.intencion === "ficha" && (p.entidades as any).ficha) return "ficha";
+  // Una operación para confirmar (G9c): confirmar una compra, anular una venta, editar un cliente…
+  if (p.intencion === "operacion" && (p.entidades as any).vista) return "operacion";
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";

@@ -79,3 +79,40 @@ test("una ficha pedida por el agente: se abre a la derecha y su tarjeta dice qu�
   await expect(panel.getByTestId("ficha-titulo")).toHaveText(ficha.titulo);
   await expect(panel).toContainText("Precio");
 });
+
+/**
+ * Fase G9c · una operación: la tarjeta dice qué va a pasar, se confirma y la
+ * hace el servidor (con el mismo servicio de la pantalla). Se crea una
+ * categoría de prueba y se borra al final.
+ */
+test("«creá la categoría…»: la tarjeta con lo que va a pasar, Confirmar la crea de verdad", async ({ page, request }) => {
+  const nombre = `Prueba E2E ${Date.now().toString().slice(-6)}`;
+  const login = await request.post(`${API_URL}/api/auth/login`, { data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD } });
+  const headers = { Authorization: `Bearer ${(await login.json()).data.accessToken as string}` };
+  const vista = (await (await request.post(`${API_URL}/api/omnibox/operacion/preparar`, { headers, data: { storeId: TIENDA.id, operacion: "categoria.crear", datos: { nombre } } })).json()).data;
+  await simularFrases(page, {
+    [`creá la categoría ${nombre}`]: delAgente("Revisalo y confirmalo acá abajo.", [
+      propuesta({ intencion: "operacion", titulo: vista.titulo, capa: "C3", entidades: { vista }, requiereConfirmacion: true }),
+    ]),
+  });
+  await page.goto("/omnibox");
+  try {
+    await decir(page, `creá la categoría ${nombre}`);
+    const tarjeta = page.getByTestId("tarjeta-operacion");
+    await expect(tarjeta).toHaveAttribute("data-operacion", "categoria.crear");
+    await expect(tarjeta.getByTestId("operacion-cambios")).toContainText(nombre);
+    await tarjeta.getByTestId("operacion-confirmar").click();
+    await expect(page.getByText(`Categoría creada: ${nombre}`)).toBeVisible();
+    // De verdad: está en la lista de categorías.
+    const q = new URLSearchParams({ storeId: TIENDA.id, filtros: JSON.stringify({ texto: nombre }) });
+    const lista = (await (await request.get(`${API_URL}/api/omnibox/recurso/categorias?${q}`, { headers })).json()).data;
+    expect(lista.filas.map((f: { categoria: string }) => f.categoria)).toContain(nombre);
+  } finally {
+    const q = new URLSearchParams({ storeId: TIENDA.id, filtros: JSON.stringify({ texto: nombre }) });
+    const lista = (await (await request.get(`${API_URL}/api/omnibox/recurso/categorias?${q}`, { headers })).json()).data;
+    for (const f of lista.filas as { _id: string }[]) {
+      await request.post(`${API_URL}/api/omnibox/operacion`, { headers, data: { storeId: TIENDA.id, operacion: "categoria.eliminar", id: f._id } });
+    }
+  }
+});
+

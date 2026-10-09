@@ -8,6 +8,7 @@ import type {
   FichaRecurso,
   IdRecurso,
   ListaRecurso,
+  VistaOperacion,
   ConversacionResumen,
   ClienteOpcion,
   CompraRegistrada,
@@ -580,5 +581,31 @@ export function useFichaRecurso(storeId: string | null, recurso: IdRecurso | nul
     initialData: inicial && inicial.id === id ? inicial : undefined,
     staleTime: 15_000,
     queryFn: async () => (await apiFetch<FichaRecurso>(`/api/omnibox/recurso/${recurso}/${id}?storeId=${storeId}`)).data!,
+  });
+}
+
+// ------------------------------------------------------------ operaciones (G9c)
+
+/** La tarjeta de una operación, desde un botón de la ficha: lo que va a pasar, sin hacer nada. */
+export function usePrepararOperacion() {
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; operacion: string; id?: string | null; datos?: Record<string, string> }) =>
+      (await apiFetch<VistaOperacion>("/api/omnibox/operacion/preparar", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
+  });
+}
+
+/** Confirmada: se ejecuta (el servidor valida todo de nuevo). Las listas y fichas se vuelven a pedir. */
+export function useEjecutarOperacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; operacion: string; id?: string | null; datos?: Record<string, string> }) =>
+      (await apiFetch<{ resumen: string }>("/api/omnibox/operacion", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["omnibox", "recurso"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "categorias"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      invalidarProductos(qc);
+    },
   });
 }
