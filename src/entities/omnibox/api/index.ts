@@ -602,7 +602,7 @@ export function useEjecutarOperacion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (vars: { storeId: string; operacion: string; id?: string | null; datos?: Record<string, string> }) =>
-      (await apiFetch<{ resumen: string }>("/api/omnibox/operacion", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
+      (await apiFetch<{ resumen: string; enlace?: string }>("/api/omnibox/operacion", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["omnibox", "recurso"] });
       qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });

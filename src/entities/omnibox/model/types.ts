@@ -92,7 +92,9 @@ export type IdRecurso =
   | "resenas"
   | "tiendas"
   | "conversaciones"
-  | "lives";
+  | "lives"
+  | "integraciones"
+  | "anuncios";
 export type FormatoColumna = "texto" | "dinero" | "numero" | "fecha" | "estado" | "porcentaje";
 export type ValorFiltro = string | number | boolean;
 

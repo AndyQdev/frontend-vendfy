@@ -879,6 +879,8 @@ export function OmniboxPage() {
     try {
       const r = await ejecutarOperacionApi.mutateAsync({ storeId, operacion: vista.operacion, id: vista.id, datos });
       actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "hecho", resumen: r.resumen, despues: null, entidades: { ...vista.datos } } }));
+      // Lo que se termina en otra página (conectar Meta): se va a darle permiso y vuelve a Integraciones.
+      if (r.enlace) window.location.assign(r.enlace);
     } catch (error: any) {
       toast.error(error?.message ?? "No se pudo hacer");
     } finally {
@@ -893,7 +895,7 @@ export function OmniboxPage() {
   async function accionDeFicha(accion: FichaRecurso["acciones"][number], ficha: FichaRecurso) {
     if (!storeId) return;
     try {
-      const vista = await prepararOperacionApi.mutateAsync({ storeId, operacion: accion.operacion, id: ficha.id, datos: {} });
+      const vista = await prepararOperacionApi.mutateAsync({ storeId, operacion: accion.operacion, id: ficha.id, datos: (accion.datos ?? {}) as Record<string, string> });
       const m = mensajeDeAccion(propuestaLocal("operacion", { titulo: vista.titulo, entidades: { vista }, requiereConfirmacion: true, ejecutable: !vista.bloqueo }));
       setMensajes((prev) => [...prev, m]);
       // En el teléfono la hoja tapa el chat: se cierra para ver la tarjeta.

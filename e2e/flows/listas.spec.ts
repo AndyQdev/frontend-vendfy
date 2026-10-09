@@ -116,3 +116,41 @@ test("«creá la categoría…»: la tarjeta con lo que va a pasar, Confirmar la
   }
 });
 
+
+/**
+ * Fase G9i · conectar Meta desde el chat. La tarjeta sale del backend de
+ * verdad (preparar no escribe nada); confirmar se simula, porque armar el link
+ * deja la conexión "pendiente" en la tienda, y Meta se reemplaza por una página
+ * local: lo que se prueba es que el chat lleva a la página de permiso.
+ */
+test("«conectá Meta»: la tarjeta dice adónde lleva y Conectar abre la página de Meta", async ({ page, request }) => {
+  const login = await request.post(`${API_URL}/api/auth/login`, { data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD } });
+  const headers = { Authorization: `Bearer ${(await login.json()).data.accessToken as string}` };
+  const vista = (await (await request.post(`${API_URL}/api/omnibox/operacion/preparar`, { headers, data: { storeId: TIENDA.id, operacion: "integracion.conectar", datos: { proveedor: "meta" } } })).json()).data;
+  expect(vista.bloqueo).toBeNull();
+  const lista = await listaReal(request, "integraciones", {});
+  await simularFrases(page, {
+    "conectá Meta": delAgente("Meta (Facebook e Instagram): sin conectar. Tocá Conectar y te llevo a Meta para que des el permiso.", [
+      propuesta({ intencion: "lista", titulo: "Integraciones", capa: "C3", entidades: { lista } }),
+      propuesta({ intencion: "operacion", titulo: vista.titulo, capa: "C3", entidades: { vista }, requiereConfirmacion: true }),
+    ]),
+  });
+  let pedido: Record<string, unknown> | null = null;
+  await page.route("**/api/omnibox/operacion", async (route) => {
+    pedido = route.request().postDataJSON();
+    await route.fulfill({ json: { statusCode: 200, data: { resumen: "Abriendo Meta para dar el permiso…", enlace: "https://www.facebook.com/v23.0/dialog/oauth?state=e2e" } } });
+  });
+  await page.route("https://www.facebook.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Meta (simulada)</h1>" }));
+  await page.goto("/omnibox");
+  await decir(page, "conectá Meta");
+  // La lista a la derecha: Meta, sin conectar (sin ficha: se conecta pidiéndolo).
+  const panel = page.getByTestId("omnibox-mesa");
+  await expect(panel).toHaveAttribute("data-mesa", "lista");
+  await expect(panel.getByTestId("lista-fila").first()).toContainText("Sin conectar");
+  const tarjeta = page.getByTestId("tarjeta-operacion");
+  await expect(tarjeta).toHaveAttribute("data-operacion", "integracion.conectar");
+  await expect(tarjeta).toContainText("página de Meta");
+  await tarjeta.getByTestId("operacion-confirmar").click();
+  await page.waitForURL(/facebook\.com\/v23\.0\/dialog\/oauth/);
+  expect(pedido).toMatchObject({ operacion: "integracion.conectar", datos: { proveedor: "meta" } });
+});
