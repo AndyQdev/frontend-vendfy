@@ -114,8 +114,8 @@ export const Compositor = forwardRef<
               data-testid="omnibox-adjuntar"
               onClick={() => archivo.current?.click()}
               disabled={leyendo}
-              aria-label="Subir la foto o el PDF de una factura"
-              title="Subir la foto o el PDF de una factura"
+              aria-label="Adjuntar una factura, la foto de un producto o una lista de precios"
+              title="Adjuntar una factura, la foto de un producto, la captura de un cliente o una lista de precios"
               className={cn(botonRedondo, "text-muted-foreground hover:bg-muted hover:text-foreground")}
             >
               {leyendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-[18px] w-[18px]" />}
@@ -188,8 +188,8 @@ export const Compositor = forwardRef<
             data-testid="omnibox-camara"
             onClick={abrirCamara}
             disabled={leyendo || grabando}
-            aria-label="Sacarle una foto a una factura"
-            title="Sacarle una foto a una factura"
+            aria-label="Sacar una foto (a una factura o a un producto)"
+            title="Sacar una foto (a una factura o a un producto)"
             className={cn(botonRedondo, "bg-muted text-foreground hover:bg-border")}
           >
             <Camera className="h-[18px] w-[18px]" />
@@ -200,7 +200,7 @@ export const Compositor = forwardRef<
       <input
         ref={archivo}
         type="file"
-        accept="image/*,application/pdf"
+        accept="image/*,application/pdf,.xlsx,.xls,.csv,.docx,.txt"
         data-testid="omnibox-archivo"
         onChange={elegido}
         className="hidden"

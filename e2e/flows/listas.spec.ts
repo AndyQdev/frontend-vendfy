@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
 import type { ListaRecurso, Propuesta } from "../../src/entities/omnibox/model/types";
@@ -153,4 +155,51 @@ test("«conectá Meta»: la tarjeta dice adónde lleva y Conectar abre la págin
   await tarjeta.getByTestId("operacion-confirmar").click();
   await page.waitForURL(/facebook\.com\/v23\.0\/dialog\/oauth/);
   expect(pedido).toMatchObject({ operacion: "integracion.conectar", datos: { proveedor: "meta" } });
+});
+
+/**
+ * Fase G9l · lo que se adjunta y no es una factura. El lector se simula (que
+ * reconozca la foto lo prueba el backend contra el modelo de verdad); la
+ * tarjeta sale del backend de verdad y confirmar se intercepta: lo que se
+ * prueba es que la foto se ve, el producto se puede corregir y la foto viaja
+ * aunque no sea un campo de la tarjeta.
+ */
+test("una foto de un producto: «¿se la pongo a…?», con la foto a la vista y el producto corregible", async ({ page, request }) => {
+  const login = await request.post(`${API_URL}/api/auth/login`, { data: { email: COMERCIO_EMAIL, password: COMERCIO_PASSWORD } });
+  const headers = { Authorization: `Bearer ${(await login.json()).data.accessToken as string}` };
+  const [producto] = (await listaReal(request, "productos", {})).filas as { producto: string }[];
+  const foto = "https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400";
+  const vista = (await (await request.post(`${API_URL}/api/omnibox/operacion/preparar`, { headers, data: { storeId: TIENDA.id, operacion: "producto.foto", datos: { producto: producto.producto, foto } } })).json()).data;
+  expect(vista.editables[0].valor).toBe(producto.producto);
+  const texto = `Es la foto de un producto, no una factura. ¿Se la pongo a ${producto.producto}?`;
+  await page.route("**/api/omnibox/factura", (route) =>
+    route.fulfill({
+      json: {
+        statusCode: 200,
+        data: propuesta({
+          intencion: "agente",
+          titulo: null,
+          capa: "C4",
+          entidades: { adjunto: foto },
+          agente: { texto, acciones: [propuesta({ intencion: "operacion", titulo: vista.titulo, capa: "C3", entidades: { vista }, requiereConfirmacion: true })], motivo: "adjunto" },
+        }),
+      },
+    }),
+  );
+  let pedido: Record<string, any> | null = null;
+  await page.route("**/api/omnibox/operacion", async (route) => {
+    pedido = route.request().postDataJSON();
+    await route.fulfill({ json: { statusCode: 200, data: { resumen: `${pedido!.datos.producto}: foto agregada` } } });
+  });
+  await page.goto("/omnibox");
+  await page.getByTestId("omnibox-archivo").setInputFiles(path.join(__dirname, "..", "fixtures", "producto.jpg"));
+  await expect(page.getByText(texto)).toBeVisible();
+  const tarjeta = page.getByTestId("tarjeta-operacion");
+  await expect(tarjeta).toHaveAttribute("data-operacion", "producto.foto");
+  await expect(tarjeta.getByTestId("operacion-imagen")).toHaveAttribute("src", foto);
+  // Si el lector se equivocó de producto, se corrige ahí mismo.
+  await tarjeta.getByLabel("Producto").fill("Otro producto");
+  await tarjeta.getByTestId("operacion-confirmar").click();
+  await expect(page.getByText("Otro producto: foto agregada")).toBeVisible();
+  expect(pedido).toMatchObject({ operacion: "producto.foto", datos: { producto: "Otro producto", foto } });
 });

@@ -38,8 +38,10 @@ export function TarjetaOperacion({
         .filter((e) => (valores[e.clave] ?? "").trim() !== e.actual && (valores[e.clave] ?? "").trim() !== "")
         .map((e) => ({ etiqueta: e.etiqueta, antes: e.actual || "—", despues: valores[e.clave].trim() }))
     : vista.filas;
+  // Lo que no se edita en la tarjeta (la foto, el proveedor de Meta) viaja igual.
+  const fijos = Object.fromEntries(Object.entries(vista.datos).filter(([k]) => !vista.editables.some((e) => e.clave === k)));
   const datos = vista.editables.length
-    ? Object.fromEntries(vista.editables.map((e) => [e.clave, (valores[e.clave] ?? "").trim()]).filter(([, v]) => v))
+    ? { ...fijos, ...Object.fromEntries(vista.editables.map((e) => [e.clave, (valores[e.clave] ?? "").trim()]).filter(([, v]) => v)) }
     : vista.datos;
   const sinCambios = vista.editables.length > 0 && filas.length === 0;
 
@@ -48,6 +50,14 @@ export function TarjetaOperacion({
       <div data-testid="tarjeta-operacion" data-operacion={vista.operacion}>
         <Cabecera icono={vista.seria ? ShieldAlert : Wrench}>{vista.titulo}</Cabecera>
         {vista.sujeto ? <p className="-mt-1 mb-3 text-[13px] text-muted-foreground">{vista.sujeto}</p> : null}
+        {vista.imagen ? (
+          <img
+            src={vista.imagen}
+            alt={vista.sujeto ? `Foto: ${vista.sujeto}` : "La foto"}
+            data-testid="operacion-imagen"
+            className="mb-3 h-28 w-28 rounded-lg border border-border object-cover"
+          />
+        ) : null}
 
         {vista.editables.length ? (
           <div className="mb-3 grid gap-2 sm:grid-cols-2">

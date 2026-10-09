@@ -135,6 +135,9 @@ import { TarjetaPrecios } from "./herramienta/TarjetaPrecios";
  * contestó, qué quedó hecho. La versión anterior era un buscador con un
  * historial abajo y no se entendía qué respondía a qué.
  */
+/** Las listas de precios que el servidor sabe leer además de fotos y PDF. */
+const DOCUMENTOS = /\.(xlsx|xls|csv|docx|txt)$/i;
+
 export function OmniboxPage() {
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
@@ -1206,9 +1209,12 @@ export function OmniboxPage() {
    */
   function leerFactura(archivo: File) {
     if (!storeId) return;
-    const esPdf = archivo.type === "application/pdf";
-    if (!esPdf && !archivo.type.startsWith("image/")) {
-      toast.error("Mandá una foto o un PDF de la factura.");
+    const esImagen = archivo.type.startsWith("image/");
+    // Una lista de precios en Excel o Word también se lee (G9l): el servidor saca el texto.
+    const esDocumento = !esImagen && (archivo.type === "application/pdf" || DOCUMENTOS.test(archivo.name));
+    const esPdf = !esImagen;
+    if (!esImagen && !esDocumento) {
+      toast.error("Mandá una foto, un PDF, un Excel o un Word.");
       return;
     }
     if (archivo.size > 10 * 1024 * 1024) {
@@ -1216,7 +1222,7 @@ export function OmniboxPage() {
       return;
     }
     const m: Mensaje = {
-      ...nuevoMensaje(esPdf ? archivo.name : "Factura del proveedor", false),
+      ...nuevoMensaje(esPdf ? archivo.name : "Foto", false),
       adjunto: { url: URL.createObjectURL(archivo), nombre: archivo.name, esPdf },
     };
     facturas.current.set(m.id, archivo);
@@ -1228,11 +1234,19 @@ export function OmniboxPage() {
     if (!storeId) return;
     try {
       const p = await leer.mutateAsync({ archivo, storeId });
+      // No era una factura (G9l): la foto de un producto, la captura de un cliente o una
+      // lista de precios. Llega como la respuesta del agente: su tarjeta o el formulario.
+      if (p.agente) {
+        actualizar(id, (x) => ({ ...x, fase: "listo", propuesta: p }));
+        desplegarAgente(id, p);
+        return;
+      }
       if (!p.items?.length) {
         actualizar(id, (x) => ({
           ...x,
           fase: "error",
-          error: "No encontré productos en esa foto. Probá con otra más nítida: entera, derecha y con buena luz.",
+          error:
+            "No reconocí qué es. Mandame una factura, la foto de un producto, la captura de un cliente o una lista de precios; si es una foto, más nítida: entera, derecha y con buena luz.",
         }));
         return;
       }

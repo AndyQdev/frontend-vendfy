@@ -141,6 +141,8 @@ export interface VistaOperacion {
   editables: { clave: string; etiqueta: string; tipo: string; valor: string; actual: string }[];
   bloqueo: string | null;
   sinCambios: boolean;
+  /** La foto de la que se habla (G9l): la tarjeta la muestra. */
+  imagen?: string | null;
 }
 
 export interface FichaRecurso {

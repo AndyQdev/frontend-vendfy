@@ -34,8 +34,8 @@ test.describe("cobrar", () => {
     await decir(page, "vendé un aceite");
     const mesa = page.getByTestId("omnibox-mesa");
     await expect(mesa.getByTestId("omnibox-linea-venta")).toHaveCount(1);
-    // Arranca sin método: ninguno marcado.
-    await expect(mesa.getByRole("radio", { checked: true })).toHaveCount(0);
+    // Arranca sin método: ninguno marcado (el tipo de venta, G9f, sí arranca en "Rápida").
+    await expect(mesa.getByRole("radiogroup", { name: "Método de pago" }).getByRole("radio", { checked: true })).toHaveCount(0);
 
     await mesa.getByTestId("omnibox-cobrar").click();
     await expect(guia(page)).toHaveAttribute("data-codigo", "FALTA_PAGO");
