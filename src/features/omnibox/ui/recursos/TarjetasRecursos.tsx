@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, FileText, Package, PanelRight, Receipt, Star, Store, Tags, Truck, Users } from "lucide-react";
+import { ArrowLeftRight, FileText, MessageCircle, Package, PanelRight, Radio, Receipt, Star, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { FichaRecurso, IdRecurso, ListaRecurso } from "@/entities/omnibox/model/types";
 
@@ -17,6 +17,8 @@ export const ICONO_RECURSO: Record<IdRecurso, LucideIcon> = {
   marcas: Tags,
   resenas: Star,
   tiendas: Store,
+  conversaciones: MessageCircle,
+  lives: Radio,
 };
 
 /**

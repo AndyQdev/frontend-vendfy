@@ -162,6 +162,9 @@ export function useCobrar() {
       lineas: { storeProductId: string; cantidad: number; precio: number }[];
       clienteId: string | null;
       pago: "efectivo" | "qr" | "tarjeta";
+      /** G9f: con delivery o a cuotas. */
+      entrega?: { direccion: string; costo: number; notas?: string } | null;
+      cuotas?: { cantidad: number; inicial: number; proximaFecha: string } | null;
     }) => (await apiFetch<VentaCobrada>("/api/omnibox/cobrar", { method: "POST", body: vars })).data!,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });

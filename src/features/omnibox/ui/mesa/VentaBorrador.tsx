@@ -1,14 +1,30 @@
 import type { Dispatch } from "react";
-import { AlertTriangle, Banknote, CreditCard, Loader2, QrCode, ShoppingCart, Trash2, X } from "lucide-react";
+import { AlertTriangle, Banknote, CalendarClock, CreditCard, Loader2, QrCode, ShoppingCart, Trash2, Truck, X } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 
-import { totalVenta, type AccionMesa, type BorradorVenta, type MetodoPago } from "../../model/mesa";
+import { faltaParaCobrar, totalConEnvio, totalVenta, type AccionMesa, type BorradorVenta, type MetodoPago } from "../../model/mesa";
 import { BotonCta, FotoProducto, dinero } from "../piezas";
 import { SelectorCliente } from "./SelectorCliente";
 import { Cantidad } from "./Cantidad";
 import { Vacio } from "./PanelMesa";
 import { NumeroAnimado } from "../coreografia/NumeroAnimado";
+
+const CAMPO = "h-10 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary";
+
+/** "15", "15,50", "" → número o null. */
+const numero = (v: string): number | null => {
+  const t = v.replace(",", ".").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+const TIPOS: { id: "rapida" | "delivery" | "cuotas"; nombre: string }[] = [
+  { id: "rapida", nombre: "En el momento" },
+  { id: "delivery", nombre: "Con delivery" },
+  { id: "cuotas", nombre: "A cuotas" },
+];
 
 const METODOS: { id: MetodoPago; nombre: string; icono: typeof Banknote }[] = [
   { id: "efectivo", nombre: "Efectivo", icono: Banknote },
@@ -160,6 +176,118 @@ export function VentaBorrador({
         </div>
       </div>
 
+      {/* ---- G9f: en el momento, con delivery o a cuotas (como en la Caja) */}
+      <div data-campo="tipo-venta" className="space-y-2 border-t border-border pt-3">
+        <div role="radiogroup" aria-label="Tipo de venta" className="flex gap-2">
+          {TIPOS.map((t) => {
+            const activo = t.id === "delivery" ? Boolean(venta.entrega) : t.id === "cuotas" ? Boolean(venta.cuotas) : !venta.entrega && !venta.cuotas;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={activo}
+                data-testid={`tipo-venta-${t.id}`}
+                onClick={() => despachar({ tipo: "tipoVenta", tipoVenta: t.id })}
+                className={cn(
+                  "flex h-9 flex-1 items-center justify-center rounded-lg border text-[13px] font-medium transition-colors",
+                  activo ? "border-primary bg-primary-soft text-primary" : "border-border bg-card text-muted-foreground hover:border-border-strong",
+                )}
+              >
+                {t.nombre}
+              </button>
+            );
+          })}
+        </div>
+        {venta.entrega ? (
+          <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Truck className="size-3.5" />
+                Dirección de entrega
+              </span>
+              <input
+                value={venta.entrega.direccion}
+                onChange={(e) => despachar({ tipo: "entrega", entrega: { direccion: e.target.value } })}
+                placeholder="Calle, número, zona…"
+                aria-label="Dirección de entrega"
+                className={cn(CAMPO, !venta.entrega.direccion.trim() && "border-warning")}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] text-muted-foreground">Envío (Bs)</span>
+              <input
+                value={venta.entrega.costo ?? ""}
+                onChange={(e) => despachar({ tipo: "entrega", entrega: { costo: numero(e.target.value) } })}
+                inputMode="decimal"
+                placeholder="A coordinar"
+                aria-label="Costo del envío"
+                className={cn(CAMPO, "cifra")}
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-[11px] text-muted-foreground">Notas para la entrega (opcional)</span>
+              <input
+                value={venta.entrega.notas}
+                onChange={(e) => despachar({ tipo: "entrega", entrega: { notas: e.target.value } })}
+                placeholder="Tocar el timbre, casa verde…"
+                aria-label="Notas para la entrega"
+                className={CAMPO}
+              />
+            </label>
+          </div>
+        ) : null}
+        {venta.cuotas ? (
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <CalendarClock className="size-3.5" />
+                Cuotas
+              </span>
+              <input
+                value={venta.cuotas.cantidad}
+                onChange={(e) => despachar({ tipo: "cuotas", cuotas: { cantidad: Math.max(0, Math.round(numero(e.target.value) ?? 0)) } })}
+                inputMode="numeric"
+                aria-label="Cantidad de cuotas"
+                className={cn(CAMPO, "cifra", venta.cuotas.cantidad < 2 && "border-warning")}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] text-muted-foreground">Paga hoy (Bs)</span>
+              <input
+                value={venta.cuotas.inicial ?? ""}
+                onChange={(e) => despachar({ tipo: "cuotas", cuotas: { inicial: numero(e.target.value) } })}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Pago de hoy"
+                className={cn(CAMPO, "cifra", venta.cuotas.inicial == null && "border-warning")}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] text-muted-foreground">Próximo pago</span>
+              <input
+                type="date"
+                value={venta.cuotas.proxima}
+                onChange={(e) => despachar({ tipo: "cuotas", cuotas: { proxima: e.target.value } })}
+                aria-label="Fecha del próximo pago"
+                className={cn(CAMPO, !venta.cuotas.proxima && "border-warning")}
+              />
+            </label>
+            {venta.cuotas.inicial != null && venta.cuotas.cantidad >= 2 ? (
+              <p className="col-span-3 text-xs text-muted-foreground">
+                Resta Bs {dinero(Math.max(0, totalVenta(venta) - venta.cuotas.inicial))} en {venta.cuotas.cantidad - 1}{" "}
+                {venta.cuotas.cantidad - 1 === 1 ? "cuota" : "cuotas"}.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {faltaParaCobrar(venta).length ? (
+          <p data-testid="venta-falta" className="text-xs text-muted-foreground">
+            Falta {faltaParaCobrar(venta).join(", ")}.
+          </p>
+        ) : null}
+      </div>
+
       {/* Lo que dijo el servidor, donde se va a leer: al lado del botón. */}
       {error && (
         <p role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
@@ -171,9 +299,11 @@ export function VentaBorrador({
       {/* ---- total y cobrar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
         <div>
-          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="text-xs text-muted-foreground">
+            Total{venta.entrega?.costo ? ` (con envío de Bs ${dinero(venta.entrega.costo)})` : ""}
+          </p>
           <p data-testid="omnibox-total-venta" className="cifra text-3xl font-bold">
-            Bs <NumeroAnimado valor={totalVenta(venta)} formato={dinero} />
+            Bs <NumeroAnimado valor={totalConEnvio(venta)} formato={dinero} />
           </p>
         </div>
         <BotonCta
@@ -182,11 +312,21 @@ export function VentaBorrador({
           // D3: faltar stock se AVISA en la línea, no bloquea. Un producto
           // "a pedido" se puede vender igual; si no, el servidor lo rechaza
           // con el motivo y se muestra arriba.
-          disabled={cobrando || venta.lineas.length === 0}
+          disabled={cobrando || venta.lineas.length === 0 || faltaParaCobrar(venta).length > 0}
           className="h-12 min-w-[12rem] flex-1 text-[15px] sm:flex-none"
         >
-          {cobrando ? <Loader2 className="size-5 animate-spin" /> : <CreditCard className="size-5" />}
-          Cobrar Bs <NumeroAnimado valor={totalVenta(venta)} formato={dinero} />
+          {cobrando ? <Loader2 className="size-5 animate-spin" /> : venta.entrega ? <Truck className="size-5" /> : <CreditCard className="size-5" />}
+          {venta.entrega ? (
+            <>
+              Registrar pedido · Bs <NumeroAnimado valor={totalConEnvio(venta)} formato={dinero} />
+            </>
+          ) : venta.cuotas ? (
+            <>Registrar a cuotas · hoy Bs {dinero(venta.cuotas.inicial ?? 0)}</>
+          ) : (
+            <>
+              Cobrar Bs <NumeroAnimado valor={totalVenta(venta)} formato={dinero} />
+            </>
+          )}
         </BotonCta>
       </div>
     </div>

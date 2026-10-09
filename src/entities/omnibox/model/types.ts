@@ -81,7 +81,18 @@ export interface BorradorProducto {
 // ------------------------------------------------------------ listas y fichas (G9a)
 // Espejo de `ventas-service/src/omnibox/model/recursos.ts`.
 
-export type IdRecurso = "ventas" | "compras" | "productos" | "clientes" | "movimientos" | "categorias" | "marcas" | "resenas" | "tiendas";
+export type IdRecurso =
+  | "ventas"
+  | "compras"
+  | "productos"
+  | "clientes"
+  | "movimientos"
+  | "categorias"
+  | "marcas"
+  | "resenas"
+  | "tiendas"
+  | "conversaciones"
+  | "lives";
 export type FormatoColumna = "texto" | "dinero" | "numero" | "fecha" | "estado" | "porcentaje";
 export type ValorFiltro = string | number | boolean;
 
@@ -517,4 +528,9 @@ export interface VentaCobrada {
   /** "por-confirmar" si algo era a pedido y faltaba: no descontó stock. */
   estado: string;
   unidades: number;
+  /** G9f: rápida, con delivery o a cuotas. */
+  tipo?: "rapida" | "delivery" | "cuotas";
+  envio?: number;
+  inicial?: number;
+  cuotas?: number;
 }

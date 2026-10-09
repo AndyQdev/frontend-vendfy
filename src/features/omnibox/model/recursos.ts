@@ -49,7 +49,8 @@ export function tonoDe(texto: string): Tono {
   if (/^(completada|recibida|se ve|publicada|compra|ajuste \(\+\)|devoluci)/.test(t)) return "exito";
   if (/^(cancelada|merma|ajuste \(−\)|ajuste \(-\))/.test(t)) return "error";
   if (/^(pendiente|por confirmar|oculta)/.test(t)) return "aviso";
-  if (/^destacada/.test(t)) return "info";
+  if (/^(destacada|en vivo|una persona|vos)/.test(t)) return "info";
+  if (/^(cliente|la ia|ia|preparando)$/.test(t) || /^(cliente|la ia|preparando)/.test(t)) return "neutro";
   if (/^(en proceso|en camino|venta)/.test(t)) return "info";
   return "neutro";
 }

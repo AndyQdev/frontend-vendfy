@@ -93,6 +93,7 @@ import {
   totalCompra,
   type MetodoPago,
   type TipoMesa,
+  faltaParaCobrar,
 } from "../model/mesa";
 import { useDictado } from "../model/use-dictado";
 import { crearCoreografia, efectosDeCambio } from "../model/coreografia";
@@ -1641,11 +1642,22 @@ export function OmniboxPage() {
     const lineas = venta0.lineas;
     coreografia.emitir([{ tipo: "cobrando", origen: opciones.mensajeId ? "chat" : "boton" }]);
     try {
+      // G9f: con delivery o a cuotas, lo que le falta se dice antes de mandar nada.
+      const falta = faltaParaCobrar(venta0);
+      if (falta.length) {
+        setErrorCobro(`Falta ${falta.join(", ")}.`);
+        if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
+        return;
+      }
       const venta = await cobrar.mutateAsync({
         storeId,
         clienteId: venta0.clienteId,
         pago,
         lineas: lineas.map((l) => ({ storeProductId: l.storeProductId, cantidad: l.cantidad, precio: l.precio })),
+        ...(venta0.entrega
+          ? { entrega: { direccion: venta0.entrega.direccion.trim(), costo: venta0.entrega.costo ?? 0, ...(venta0.entrega.notas.trim() ? { notas: venta0.entrega.notas.trim() } : {}) } }
+          : {}),
+        ...(venta0.cuotas ? { cuotas: { cantidad: venta0.cuotas.cantidad, inicial: venta0.cuotas.inicial ?? 0, proximaFecha: venta0.cuotas.proxima } } : {}),
       });
       const evento = {
         tipo: "venta" as const,
