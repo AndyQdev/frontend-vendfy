@@ -29,6 +29,8 @@ import {
   esDeVenta,
   estadoDe,
   type BorradorProducto,
+  type FichaRecurso,
+  type ListaRecurso,
   type PedidoResumen,
   type CostoProducto,
   type HerramientaGenerada,
@@ -43,17 +45,7 @@ import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { Drawer, DrawerContent, DrawerTitle } from "@/shared/ui/drawer";
 import { cn } from "@/shared/lib/cn";
 
-import {
-  completar,
-  mensajeDeEvento,
-  mensajeDePrecios,
-  mensajeDeVistaFijada,
-  mensajeRespuestaGuia,
-  nuevoMensaje,
-  propuestaLocal,
-  hora as horaDe,
-  type Mensaje,
-} from "../model/mensaje";
+import { completar, mensajeDeEvento, mensajeDePrecios, mensajeDeVistaFijada, mensajeRespuestaGuia, nuevoMensaje, propuestaLocal, hora as horaDe, type Mensaje } from "../model/mensaje";
 import type { CambioPrecio } from "../model/herramienta";
 import { validarPropuesta } from "../model/herramienta";
 import { memoriaDe } from "../model/memoria-chat";
@@ -71,6 +63,7 @@ import {
   type Formulario,
 } from "../model/formularios";
 import { CrearEnChatContext } from "./formularios/crear-en-chat";
+import { TarjetaProductosNuevos } from "./formularios/FormularioProductos";
 import { useCreateCustomer } from "@/entities/customer";
 import { respuestaAGuia, resumenRespuesta } from "../model/respuesta-guia";
 import { fraseDeGuia, paraHablar } from "../model/voz";
@@ -178,6 +171,11 @@ export function OmniboxPage() {
       ...memoriaDe(mensajesRef.current),
       // El formulario de productos nuevos abierto (G7a): "el alcohol a 15" es para él.
       ...formularioProductosAbierto(),
+      // La lista a la derecha (G9a): "solo las de QR" la refina. En el teléfono,
+      // con el panel cerrado, la última que se abrió sigue siendo "esa".
+      ...(m.lista && (m.abierta === "lista" || m.abierta === null)
+        ? { enPantalla: "lista", lista: { recurso: m.lista.consulta.recurso, filtros: m.lista.consulta.filtros } }
+        : {}),
     };
   };
 
@@ -587,6 +585,7 @@ export function OmniboxPage() {
     // Un código de barras que la tienda no tiene (G7c): el formulario, lleno con lo que dijo el catálogo.
     if (estadoDe(p) === "productos-nuevos") {
       abrirFormulario(id, nuevoFormularioProductos(((p.entidades as any).productos ?? []) as BorradorProducto[]));
+      abrirProductosEnPanel(id);
     }
   }
 
@@ -629,6 +628,9 @@ export function OmniboxPage() {
     const lista = f.productos ?? [];
     const sinPrecio = lista.map((b, i) => ({ b, i })).filter(({ b }) => faltanProducto(b).includes("precio"));
     const precio = precioDeFrase(frase);
+    // De lo comprado sin costo, el número suelto es lo que costó (G9b): lo
+    // resuelve el servidor, que con el costo sugiere el precio.
+    if (sinPrecio.length === 1 && sinPrecio[0].b.compra && !sinPrecio[0].b.compra.costo) return null;
     return precio != null && sinPrecio.length === 1 ? { indice: sinPrecio[0].i, precio } : null;
   }
 
@@ -688,11 +690,11 @@ export function OmniboxPage() {
       if (a.intencion === "completar_formulario") {
         const activo = formularioActivo(mensajesRef.current);
         if (activo?.formulario?.tipo === "productos") {
-          cambiarProductos(activo.id, (e.productos ?? []) as BorradorProducto[]);
+          cambiarProductos(activo.id, (e.productos ?? []) as BorradorProducto[], e.margen ?? undefined);
           continue;
         }
         // Sin formulario abierto (se descartó), es uno nuevo.
-        nuevos.push({ ...mensajeDeAccion({ ...a, intencion: "crear_producto" }), formulario: nuevoFormularioProductos(e.productos ?? []) });
+        nuevos.push({ ...mensajeDeAccion({ ...a, intencion: "crear_producto" }), formulario: nuevoFormularioProductos(e.productos ?? [], e.margen ?? null) });
         continue;
       }
       if (a.intencion === "cambiar_precios") {
@@ -701,7 +703,7 @@ export function OmniboxPage() {
         continue;
       }
       const m = mensajeDeAccion(a);
-      if (a.intencion === "crear_producto") m.formulario = nuevoFormularioProductos((e.productos ?? []) as BorradorProducto[]);
+      if (a.intencion === "crear_producto") m.formulario = nuevoFormularioProductos((e.productos ?? []) as BorradorProducto[], e.margen ?? null);
       if (a.intencion === "crear_cliente") {
         m.formulario = nuevoFormulario("cliente", { nombre: titular(String(e.nombre ?? "")), telefono: String(e.telefono ?? "") });
       }
@@ -722,15 +724,46 @@ export function OmniboxPage() {
       if (!a) continue;
       if (esDeVenta(a)) aplicarVenta(n.id, a);
       if (a.vista) mostrarAnalisis(n.id, String((a.entidades as any).pregunta ?? ""), a);
+      // G9a: lo que se pidió ver, a la derecha (en el teléfono sube la hoja).
+      if (a.intencion === "lista" || a.intencion === "ficha") abrirRecurso(n);
+      // G9b: los productos nuevos se arman a la derecha.
+      if (n.formulario?.tipo === "productos") abrirProductosEnPanel(n.id);
     }
+  }
+
+  /** Una lista o una ficha del chat (G9a), a la derecha. */
+  function abrirRecurso(m: Mensaje) {
+    const e = (m.propuesta?.entidades ?? {}) as { lista?: ListaRecurso; ficha?: FichaRecurso };
+    if (e.lista) {
+      despachar({ tipo: "abrirLista", lista: { mensajeId: m.id, titulo: e.lista.titulo, consulta: e.lista.consulta } });
+    } else if (e.ficha) {
+      despachar({ tipo: "abrirFicha", ficha: { recurso: e.ficha.recurso, id: e.ficha.id, titulo: e.ficha.titulo, desdeLista: false } });
+    }
+  }
+
+  /** Si la lista o la ficha de este mensaje es la que está a la vista. */
+  function recursoAbierto(m: Mensaje): boolean {
+    const e = (m.propuesta?.entidades ?? {}) as { lista?: ListaRecurso; ficha?: FichaRecurso };
+    if (e.lista) return mesa.abierta === "lista" && mesa.lista?.mensajeId === m.id;
+    if (e.ficha) return mesa.abierta === "ficha" && mesa.ficha?.id === e.ficha.id;
+    return false;
   }
 
   function mensajeDeAccion(a: Propuesta): Mensaje {
     return { id: crypto.randomUUID(), texto: null, porVoz: false, hora: new Date(), fase: "listo", propuesta: a };
   }
 
-  function cambiarProductos(id: string, productos: BorradorProducto[]) {
-    actualizar(id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, productos, error: undefined } } : x));
+  function cambiarProductos(id: string, productos: BorradorProducto[], margen?: number) {
+    actualizar(id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, productos, error: undefined, ...(margen ? { margen } : {}) } } : x));
+  }
+
+  /**
+   * El formulario de productos nuevos a la derecha (G9b), en pantalla ancha:
+   * se ve cómo se arman mientras se conversa. En el teléfono queda en el
+   * chat (una hoja encima taparía la conversación que lo está llenando).
+   */
+  function abrirProductosEnPanel(mensajeId: string) {
+    if (ancho) despachar({ tipo: "abrirProductos", mensajeId });
   }
 
   const crearProductosApi = useCrearProductos();
@@ -747,6 +780,10 @@ export function OmniboxPage() {
     try {
       const r = await crearProductosApi.mutateAsync({ storeId, productos: f.productos ?? [] });
       actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creado", creados: r.creados } }));
+      // Creados: el formulario ya no se arma a la derecha (G9b). Si van a la
+      // compra o a la venta, el panel pasa ahí; si no, se cierra y queda el
+      // resumen en el chat.
+      if (mesaRef.current.abierta === "productos" && mesaRef.current.productos?.mensajeId === id) despachar({ tipo: "cerrar" });
       // "Vendé un mouse" y no existía: ya creado, va a la venta.
       const vendidos = r.creados.filter((c) => c.venta?.cantidad);
       if (vendidos.length) {
@@ -797,6 +834,7 @@ export function OmniboxPage() {
       ...prev.map((x) => (x.formulario?.estado === "abierto" ? { ...x, formulario: { ...x.formulario, estado: "descartado" as const } } : x)),
       m,
     ]);
+    abrirProductosEnPanel(m.id);
   }
 
   const cambiarProductoApi = useCambiarProducto();
@@ -1701,6 +1739,32 @@ export function OmniboxPage() {
       onVerDatos={(vista) => verDatosDeHerramienta(conHerramienta, vista)}
     />
   ) : null;
+  // Los productos nuevos (G9b): el formulario de su mensaje, en el panel.
+  const conProductos = mesa.productos ? mensajes.find((x) => x.id === mesa.productos!.mensajeId) : undefined;
+  const panelProductos =
+    conProductos?.formulario?.tipo === "productos" ? (
+      <TarjetaProductosNuevos
+        enPanel
+        formulario={conProductos.formulario}
+        storeId={storeId!}
+        hora={horaDe(conProductos.hora)}
+        aviso={conProductos.propuesta?.aviso}
+        onCambiar={(productos) => cambiarProductos(conProductos.id, productos)}
+        onCrear={() => void crearProductos(conProductos.id)}
+        onDescartar={() =>
+          actualizar(conProductos.id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, estado: "descartado" } } : x))
+        }
+      />
+    ) : null;
+  // La lista y la ficha (G9a) como las trajo el agente: el panel no espera para mostrarlas.
+  const listaInicial = mesa.lista
+    ? ((mensajes.find((x) => x.id === mesa.lista!.mensajeId)?.propuesta?.entidades as { lista?: ListaRecurso } | undefined)?.lista)
+    : undefined;
+  const fichaInicial = mesa.ficha
+    ? mensajes
+        .map((x) => (x.propuesta?.entidades as { ficha?: FichaRecurso } | undefined)?.ficha)
+        .find((f) => f && f.id === mesa.ficha!.id && f.recurso === mesa.ficha!.recurso)
+    : undefined;
   // Ampliado: el panel ocupa todo y el chat se esconde (solo en pantalla ancha;
   // en el teléfono el panel ya es de pantalla completa).
   const ampliada = dividido && mesa.ampliada;
@@ -1817,6 +1881,11 @@ export function OmniboxPage() {
                     onConfirmarAccion={() => void confirmarAccion(m)}
                     onMoverPedido={moverPedido}
                     onCrearProductoEnChat={crearProductoEnChat}
+                    onAbrirRecurso={() => abrirRecurso(m)}
+                    recursoAbierto={recursoAbierto(m)}
+                    productosEnPanel={Boolean(ancho && mesa.productos?.mensajeId === m.id)}
+                    productosAbiertos={mesa.abierta === "productos" && mesa.productos?.mensajeId === m.id}
+                    onAbrirProductos={() => despachar({ tipo: "abrirProductos", mensajeId: m.id })}
                   />
                 </FilaAsistente>
               </Fragment>
@@ -1877,6 +1946,9 @@ export function OmniboxPage() {
               tienda={tienda!.name}
               acciones={accionesVista}
               herramienta={panelHerramienta}
+              listaInicial={listaInicial}
+              fichaInicial={fichaInicial}
+              productos={panelProductos}
             />
           </div>
         )}
@@ -1890,7 +1962,11 @@ export function OmniboxPage() {
         <Drawer open={panelAbierto} onOpenChange={(abierto) => !abierto && despachar({ tipo: "cerrar" })}>
           <DrawerContent className="h-[92dvh]">
             <DrawerTitle className="sr-only">
-              {mesa.abierta === "analisis"
+              {mesa.abierta === "lista"
+                ? (mesa.lista?.titulo ?? "Lista")
+                : mesa.abierta === "ficha"
+                  ? (mesa.ficha?.titulo ?? "Ficha")
+                  : mesa.abierta === "analisis"
                 ? "Análisis"
                 : mesa.abierta === "herramienta"
                   ? "Herramienta"
@@ -1912,6 +1988,9 @@ export function OmniboxPage() {
               tienda={tienda!.name}
               acciones={accionesVista}
               herramienta={panelHerramienta}
+              listaInicial={listaInicial}
+              fichaInicial={fichaInicial}
+              productos={panelProductos}
             />
           </DrawerContent>
         </Drawer>

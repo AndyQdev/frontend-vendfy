@@ -48,7 +48,7 @@ function delAgente(texto: string, acciones: Propuesta[]): Propuesta {
   return propuesta({ intencion: "agente", titulo: null, capa: "C4", agente: { texto, acciones, motivo: "sin_ejecutor" } });
 }
 
-test("«no tengo alcohol, crealo»: el texto del agente, el formulario en el chat, «a 12» y «crealo» sin salir", async ({ page, request }) => {
+test("«no tengo alcohol, crealo»: el texto del agente, el formulario a la derecha, «a 12» y «crealo» sin salir", async ({ page, request }) => {
   const nombre = `Alcohol en Gel ${SUFIJO}`;
   await simularFrases(page, {
     "no tengo alcohol en gel, crealo": delAgente("No tenés alcohol en gel en tu catálogo. Falta el precio de venta.", [
@@ -59,7 +59,10 @@ test("«no tengo alcohol, crealo»: el texto del agente, el formulario en el cha
   try {
     await decir(page, "no tengo alcohol en gel, crealo");
     await expect(page.getByTestId("agente-texto")).toContainText("No tenés alcohol en gel en tu catálogo");
-    const form = page.getByTestId("formulario-productos");
+    // G9b: en pantalla ancha el formulario se arma a la derecha; en el chat queda el resumen.
+    const form = page.getByTestId("omnibox-mesa").getByTestId("formulario-productos");
+    await expect(page.getByTestId("omnibox-mesa")).toHaveAttribute("data-mesa", "productos");
+    await expect(page.getByTestId("resumen-productos")).toContainText(nombre);
     await expect(form.getByLabel("Nombre del producto 1")).toHaveValue(nombre);
     await expect(form.getByTestId("formulario-falta")).toContainText("Falta el precio");
 
@@ -69,7 +72,9 @@ test("«no tengo alcohol, crealo»: el texto del agente, el formulario en el cha
     await expect(form.getByTestId("formulario-falta")).toHaveCount(0);
 
     await decir(page, "crealo");
+    // Creado: el panel lo suelta y en el chat queda lo que se creó.
     await expect(page.getByTestId("formulario-productos")).toHaveAttribute("data-estado", "creado");
+    await expect(page.getByTestId("omnibox-mesa")).toHaveCount(0);
     await expect(page.getByTestId("producto-creado")).toContainText(nombre);
     // Nada navegó: seguimos en el asistente.
     await expect(page).toHaveURL(/\/omnibox/);
@@ -150,7 +155,7 @@ test("una frase con el formulario abierto viaja con él, para que el agente lo c
   await expect(forms.getByTestId("formulario-falta")).toHaveCount(0);
 });
 
-test("«No está en tu catálogo» → «Crear ahora» abre el formulario en el chat, no la pantalla de Productos", async ({ page }) => {
+test("«No está en tu catálogo» → «Crear ahora» abre el formulario a la derecha, no la pantalla de Productos", async ({ page }) => {
   await simularFrases(page, {
     "cuánto queda de desinfectante": propuesta({
       intencion: "consultar_stock",

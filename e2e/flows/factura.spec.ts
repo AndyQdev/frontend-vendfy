@@ -61,14 +61,15 @@ test("sacarle una foto a la factura termina en una compra registrada", async ({ 
     await expect(page.getByTestId("omnibox-foto-factura")).toBeVisible();
 
     const tarjeta = page.locator('[data-estado="factura"], [data-estado="factura-lista"]').last();
-    await expect(tarjeta).toContainText("Distribuidora Andina", { timeout: 60_000 });
+    // El lector a veces lo devuelve como está impreso ("DISTRIBUIDORA ANDINA S.R.L.").
+    await expect(tarjeta).toContainText("Distribuidora Andina", { timeout: 60_000, ignoreCase: true });
     const renglones = tarjeta.getByTestId("omnibox-renglon-factura");
     await expect(renglones).toHaveCount(5);
 
     // Lo reconocido ya está a la derecha, con el proveedor y la foto.
     const mesa = page.getByTestId("omnibox-mesa");
     await expect(mesa).toHaveAttribute("data-mesa", "compra");
-    await expect(mesa.getByPlaceholder("Distribuidora, marca…")).toHaveValue(/Distribuidora Andina/);
+    await expect(mesa.getByPlaceholder("Distribuidora, marca…")).toHaveValue(/Distribuidora Andina/i);
     await expect(mesa.getByTestId("omnibox-adjunto-compra")).toBeVisible();
 
     // Con renglones pendientes, no se puede registrar.

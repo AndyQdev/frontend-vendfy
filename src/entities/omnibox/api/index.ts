@@ -3,7 +3,11 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiFetch } from "@/shared/api/client";
 import type {
   BorradorProducto,
+  ConsultaRecurso,
   ConversacionGuardada,
+  FichaRecurso,
+  IdRecurso,
+  ListaRecurso,
   ConversacionResumen,
   ClienteOpcion,
   CompraRegistrada,
@@ -536,5 +540,45 @@ export function useEstadoPedido() {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
     },
+  });
+}
+
+// ------------------------------------------------------------ listas y fichas (G9a)
+
+/**
+ * Una lista del chat, como la ve el panel: arranca con la que trajo el agente
+ * (`inicial`, sin esperar) y vuelve a consultar al sacar un chip, ordenar o
+ * pedir más filas. Los filtros se validan en el servidor contra el recurso.
+ */
+export function useListaRecurso(storeId: string | null, consulta: ConsultaRecurso | null, inicial?: ListaRecurso) {
+  const clave = consulta ? JSON.stringify([consulta.recurso, consulta.filtros, consulta.orden, consulta.limite]) : null;
+  const esLaInicial = Boolean(inicial && consulta && JSON.stringify([inicial.recurso, inicial.consulta.filtros, inicial.consulta.orden, inicial.consulta.limite]) === clave);
+  return useQuery({
+    queryKey: ["omnibox", "recurso", storeId, clave],
+    enabled: Boolean(storeId && consulta),
+    placeholderData: keepPreviousData,
+    initialData: esLaInicial ? inicial : undefined,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const q = new URLSearchParams({
+        storeId: storeId!,
+        filtros: JSON.stringify(consulta!.filtros),
+        orden: consulta!.orden.campo,
+        sentido: consulta!.orden.sentido,
+        limite: String(consulta!.limite),
+      });
+      return (await apiFetch<ListaRecurso>(`/api/omnibox/recurso/${consulta!.recurso}?${q}`)).data!;
+    },
+  });
+}
+
+/** La ficha de una venta, compra, cliente o producto (G9a). */
+export function useFichaRecurso(storeId: string | null, recurso: IdRecurso | null, id: string | null, inicial?: FichaRecurso) {
+  return useQuery({
+    queryKey: ["omnibox", "ficha", storeId, recurso, id],
+    enabled: Boolean(storeId && recurso && id),
+    initialData: inicial && inicial.id === id ? inicial : undefined,
+    staleTime: 15_000,
+    queryFn: async () => (await apiFetch<FichaRecurso>(`/api/omnibox/recurso/${recurso}/${id}?storeId=${storeId}`)).data!,
   });
 }

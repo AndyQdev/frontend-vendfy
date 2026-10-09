@@ -1,4 +1,4 @@
-import type { CostoProducto, ItemPedido, Periodo, ProductoOpcion, VistaSpec } from "@/entities/omnibox/model/types";
+import type { ConsultaRecurso, CostoProducto, IdRecurso, ItemPedido, Periodo, ProductoOpcion, VistaSpec } from "@/entities/omnibox/model/types";
 
 import { conPeriodo } from "./vistas";
 
@@ -25,7 +25,7 @@ export type TipoMesa = "venta" | "compra";
  * análisis (G3) o una herramienta a medida (G6). Esos dos no son mesas: no
  * se arman ni se cobran, se miran (y a lo sumo proponen algo).
  */
-export type TipoPanel = TipoMesa | "analisis" | "herramienta";
+export type TipoPanel = TipoMesa | "analisis" | "herramienta" | "lista" | "ficha" | "productos";
 
 export type Pestana = "producto" | "borrador";
 
@@ -104,6 +104,26 @@ export interface HerramientaAbierta {
   titulo: string;
 }
 
+/**
+ * La lista a la vista (G9a): las ventas de septiembre, las compras de un
+ * proveedor. Se guarda la CONSULTA (no las filas): sacar un chip u ordenar
+ * vuelve a consultar, y una conversación guardada la reabre al día.
+ */
+export interface ListaAbierta {
+  mensajeId: string;
+  titulo: string;
+  consulta: ConsultaRecurso;
+}
+
+/** La ficha a la vista (G9a): una venta, una compra, un cliente, un producto. */
+export interface FichaAbierta {
+  recurso: IdRecurso;
+  id: string;
+  titulo: string;
+  /** Se abrió tocando una fila de la lista: tiene "Volver a la lista". */
+  desdeLista: boolean;
+}
+
 export interface Mesa {
   abierta: TipoPanel | null;
   pestana: Pestana;
@@ -124,6 +144,13 @@ export interface Mesa {
    */
   analisis: Analisis | null;
   herramienta: HerramientaAbierta | null;
+  lista: ListaAbierta | null;
+  ficha: FichaAbierta | null;
+  /**
+   * El formulario de productos nuevos a la derecha (G9b): se ve cómo se van
+   * armando mientras se conversa. Vive en su mensaje; acá, cuál es.
+   */
+  productos: { mensajeId: string } | null;
 }
 
 export const VENTA_VACIA: BorradorVenta = {
@@ -152,6 +179,9 @@ export const MESA_INICIAL: Mesa = {
   ultima: "venta",
   analisis: null,
   herramienta: null,
+  lista: null,
+  ficha: null,
+  productos: null,
 };
 
 export type AccionMesa =
@@ -160,6 +190,12 @@ export type AccionMesa =
   | { tipo: "analizar"; analisis: Analisis }
   /** Mostrar una herramienta a medida en el panel (G6). */
   | { tipo: "usarHerramienta"; herramienta: HerramientaAbierta }
+  /** Una lista nueva del chat (G9a), o la misma con otros filtros u orden (los chips). */
+  | { tipo: "abrirLista"; lista: ListaAbierta }
+  | { tipo: "consultaLista"; consulta: ConsultaRecurso }
+  | { tipo: "abrirFicha"; ficha: FichaAbierta }
+  | { tipo: "volverALista" }
+  | { tipo: "abrirProductos"; mensajeId: string }
   /** El filtro de arriba del análisis: todas las piezas pasan al mismo período. */
   | { tipo: "periodoAnalisis"; periodo: Periodo }
   /** Abrir una conversación guardada (G5): la mesa vuelve entera, ya saneada. */
@@ -204,6 +240,9 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
     case "abrir":
       if (a.mesa === "analisis") return m.analisis ? { ...m, abierta: "analisis" } : m;
       if (a.mesa === "herramienta") return m.herramienta ? { ...m, abierta: "herramienta" } : m;
+      if (a.mesa === "lista") return m.lista ? { ...m, abierta: "lista" } : m;
+      if (a.mesa === "ficha") return m.ficha ? { ...m, abierta: "ficha" } : m;
+      if (a.mesa === "productos") return m.productos ? { ...m, abierta: "productos" } : m;
       return {
         ...m,
         abierta: a.mesa,
@@ -227,6 +266,21 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
 
     case "usarHerramienta":
       return { ...m, abierta: "herramienta", herramienta: a.herramienta };
+
+    case "abrirLista":
+      return { ...m, abierta: "lista", lista: a.lista };
+
+    case "consultaLista":
+      return m.lista ? { ...m, lista: { ...m.lista, consulta: a.consulta } } : m;
+
+    case "abrirFicha":
+      return { ...m, abierta: "ficha", ficha: a.ficha };
+
+    case "volverALista":
+      return m.lista ? { ...m, abierta: "lista" } : m;
+
+    case "abrirProductos":
+      return { ...m, abierta: "productos", productos: { mensajeId: a.mensajeId } };
 
     case "restaurar":
       return a.mesa;

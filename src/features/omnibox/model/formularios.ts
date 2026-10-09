@@ -48,10 +48,42 @@ export interface Formulario {
   creado?: { id: string; nombre: string };
   /** Los productos que se crearon (con lo que se compró, para cargar la compra). */
   creados?: (ProductoOpcion & { compra: BorradorProducto["compra"]; venta?: BorradorProducto["venta"] })[];
+  /**
+   * Lo que la tienda suele ganarle al costo (precio / costo), del servidor
+   * (G9b). Con esto, escribir el costo a mano ya sugiere el precio.
+   */
+  margen?: number | null;
 }
 
-export function nuevoFormularioProductos(productos: BorradorProducto[]): Formulario {
-  return { tipo: "productos", campos: {}, productos: productos.map((p) => ({ ...p })), estado: "abierto" };
+export function nuevoFormularioProductos(productos: BorradorProducto[], margen: number | null = null): Formulario {
+  return { tipo: "productos", campos: {}, productos: productos.map((p) => ({ ...p })), estado: "abierto", ...(margen ? { margen } : {}) };
+}
+
+/**
+ * El precio sugerido (G9b), con el mismo redondeo que el servidor: de a 50
+ * centavos lo barato, en Bs enteros hasta 100, de a 5 después.
+ */
+export function precioSugerido(costo: number, factor: number): number {
+  const v = costo * factor;
+  if (v < 10) return Math.max(0.5, Math.round(v * 2) / 2);
+  if (v < 100) return Math.round(v);
+  return Math.round(v / 5) * 5;
+}
+
+/**
+ * Un cambio a mano en la tarjeta de un producto nuevo: el precio que se
+ * escribe deja de ser sugerido; el costo que se escribe, con el margen de la
+ * tienda, vuelve a sugerir el precio (si el precio no lo había puesto la persona).
+ */
+export function cambiarBorrador(b: BorradorProducto, cambios: Partial<BorradorProducto>, margen: number | null | undefined): BorradorProducto {
+  const nuevo: BorradorProducto = { ...b, ...cambios, ...(cambios.nombre !== undefined ? { existente: null } : {}) };
+  if (cambios.precio !== undefined) return { ...nuevo, sugerido: null };
+  const costo = nuevo.compra?.costo ?? null;
+  const elPrecioEsNuestro = !b.precio || Boolean(b.sugerido);
+  if (cambios.compra !== undefined && costo && margen && margen > 1 && elPrecioEsNuestro) {
+    return { ...nuevo, precio: precioSugerido(costo, margen), sugerido: { margen: Math.round((margen - 1) * 100) } };
+  }
+  return nuevo;
 }
 
 /** Qué le falta a cada producto para poder crearse: "precio", "nombre", o que ya existe. */
@@ -62,6 +94,9 @@ export function faltanProducto(b: BorradorProducto): string[] {
   if (b.existente) f.push("ya existe");
   return f;
 }
+
+/** De lo comprado se pregunta primero el costo (con él se sugiere el precio). */
+const sinCosto = (b: BorradorProducto) => Boolean(b.compra) && !(typeof b.compra?.costo === "number" && b.compra.costo > 0);
 
 export function nuevoFormulario(tipo: TipoFormulario, campos: Record<string, string> = {}): Formulario {
   return { tipo, campos: { ...campos }, estado: "abierto" };
@@ -151,7 +186,7 @@ const normalizar = (t: string) =>
 
 /** "Sí", "crealo", "créalos", "listo": con el formulario completo, es crear. */
 export function esConfirmacion(frase: string): boolean {
-  return /^(si|dale|listo|ok|crealo|crealos|creala|crealas|crea|crear|guardalo|guardalos|guarda|confirmo|confirmar)[.! ]*$/.test(normalizar(frase));
+  return /^(si|sí|dale|listo|ok|okey|perfecto|de una|va|asi esta bien|asi|esta bien|crealo|crealos|creala|crealas|crea|crear|guardalo|guardalos|guarda|confirmo|confirmar)[.! ]*$/.test(normalizar(frase));
 }
 
 /** El formulario activo: el más reciente que sigue abierto (uno solo a la vez). */
@@ -188,10 +223,13 @@ const enLista = (cosas: string[]) => (cosas.length <= 1 ? (cosas[0] ?? "") : `${
 export function textoFaltaProductos(f: Formulario): string | null {
   const lista = f.productos ?? [];
   if (!lista.length) return "Falta algún producto.";
-  const sinPrecio = lista.filter((b) => faltanProducto(b).includes("precio")).map((b) => b.nombre || "uno sin nombre");
+  // Lo comprado sin costo pide el costo (el precio sale de ahí); lo demás, el precio.
+  const costo = lista.filter((b) => faltanProducto(b).includes("precio") && sinCosto(b)).map((b) => b.nombre || "uno sin nombre");
+  const sinPrecio = lista.filter((b) => faltanProducto(b).includes("precio") && !sinCosto(b)).map((b) => b.nombre || "uno sin nombre");
   const sinNombre = lista.filter((b) => faltanProducto(b).includes("nombre")).length;
   const repetidos = lista.filter((b) => b.existente).map((b) => b.nombre);
   const partes: string[] = [];
+  if (costo.length) partes.push(lista.length === 1 ? "lo que te costó" : `lo que te costó ${enLista(costo)}`);
   if (sinPrecio.length) partes.push(lista.length === 1 ? "el precio de venta" : `el precio de ${enLista(sinPrecio)}`);
   if (sinNombre) partes.push(sinNombre === 1 ? "el nombre de un producto" : `el nombre de ${sinNombre} productos`);
   const falta = partes.length ? `Falta ${enLista(partes)}.` : "";

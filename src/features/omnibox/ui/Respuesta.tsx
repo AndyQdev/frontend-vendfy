@@ -40,9 +40,10 @@ import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import { TarjetaVista } from "./vista/TarjetaVista";
 import { ChipsAlcance } from "./vista/Alcance";
 import { TarjetaHerramienta } from "./herramienta/TarjetaHerramienta";
-import { TarjetaProductosNuevos } from "./formularios/FormularioProductos";
+import { ResumenProductosNuevos, TarjetaProductosNuevos } from "./formularios/FormularioProductos";
 import { FormularioCliente } from "./formularios/FormularioCliente";
 import { TarjetaBajaProducto, TarjetaCambioProducto, TarjetaEstadoPedido, TarjetaPedidos, TextoAgente } from "./agente/TarjetasAgente";
+import { TarjetaFicha, TarjetaLista } from "./recursos/TarjetasRecursos";
 import { nuevoFormularioProductos } from "../model/formularios";
 import {
   BloqueProducto,
@@ -120,6 +121,13 @@ export interface AccionesRespuesta {
   onMoverPedido: (pedido: PedidoResumen, estado: string) => void;
   /** "No está en tu catálogo" → crearlo acá mismo (G7a): nada manda a otra pantalla. */
   onCrearProductoEnChat: (nombre: string) => void;
+  /** Una lista o una ficha (G9a): abrirla a la derecha, y si es la que está a la vista. */
+  onAbrirRecurso: () => void;
+  recursoAbierto: boolean;
+  /** El formulario de productos nuevos de ESTE mensaje va en el panel (G9b), y si se está viendo. */
+  productosEnPanel: boolean;
+  productosAbiertos: boolean;
+  onAbrirProductos: () => void;
 }
 
 export function Respuesta({
@@ -188,7 +196,20 @@ export function Respuesta({
   switch (estadoDe(p)) {
     case "agente":
       return <TextoAgente texto={p.agente!.texto} hora={cuando} />;
-    case "productos-nuevos":
+    case "productos-nuevos": {
+      const f = m.formulario ?? nuevoFormularioProductos(((p.entidades as any).productos ?? []) as BorradorProducto[]);
+      // A la derecha (G9b): en el chat, el resumen; abierto o creado, se ve como siempre.
+      if (acciones.productosEnPanel && (f.estado === "abierto" || f.estado === "creando")) {
+        return (
+          <ResumenProductosNuevos
+            formulario={f}
+            hora={cuando}
+            abierto={acciones.productosAbiertos}
+            onAbrir={acciones.onAbrirProductos}
+            onCrear={acciones.onCrearProductos}
+          />
+        );
+      }
       return (
         <TarjetaProductosNuevos
           formulario={m.formulario ?? nuevoFormularioProductos(((p.entidades as any).productos ?? []) as BorradorProducto[])}
@@ -200,6 +221,7 @@ export function Respuesta({
           onDescartar={acciones.onDescartarProductos}
         />
       );
+    }
     case "cambio-producto":
       return <TarjetaCambioProducto propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
     case "baja-producto":
@@ -208,6 +230,10 @@ export function Respuesta({
       return <TarjetaEstadoPedido propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
     case "lista-pedidos":
       return <TarjetaPedidos propuesta={p} hora={cuando} onMover={acciones.onMoverPedido} />;
+    case "lista":
+      return <TarjetaLista lista={(p.entidades as any).lista} hora={cuando} abierta={acciones.recursoAbierto} onAbrir={acciones.onAbrirRecurso} />;
+    case "ficha":
+      return <TarjetaFicha ficha={(p.entidades as any).ficha} hora={cuando} abierta={acciones.recursoAbierto} onAbrir={acciones.onAbrirRecurso} />;
     case "nuevo-cliente":
       return (
         <Tarjeta estado="nuevo-cliente" hora={cuando} className="p-0 sm:p-0">

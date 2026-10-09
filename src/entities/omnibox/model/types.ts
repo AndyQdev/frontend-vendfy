@@ -70,7 +70,61 @@ export interface BorradorProducto {
   compra: { cantidad: number | null; costo: number | null } | null;
   /** "Vendé un mouse" y no existía: al crearlo, se agrega a la venta. */
   venta?: { cantidad: number } | null;
+  /**
+   * El precio no lo dijo la persona: lo sugirió el sistema con lo que la
+   * tienda suele ganarle al costo (G9b). Si lo cambia a mano, deja de serlo.
+   */
+  sugerido?: { margen: number } | null;
   existente: { productId: string; nombre: string } | null;
+}
+
+// ------------------------------------------------------------ listas y fichas (G9a)
+// Espejo de `ventas-service/src/omnibox/model/recursos.ts`.
+
+export type IdRecurso = "ventas" | "compras" | "productos" | "clientes" | "movimientos" | "categorias" | "marcas";
+export type FormatoColumna = "texto" | "dinero" | "numero" | "fecha" | "estado" | "porcentaje";
+export type ValorFiltro = string | number | boolean;
+
+export interface ConsultaRecurso {
+  recurso: IdRecurso;
+  filtros: Record<string, ValorFiltro>;
+  orden: { campo: string; sentido: "asc" | "desc" };
+  limite: number;
+  desde: number;
+}
+
+export interface ColumnaRecurso {
+  clave: string;
+  etiqueta: string;
+  formato: FormatoColumna;
+}
+
+export interface ListaRecurso {
+  recurso: IdRecurso;
+  titulo: string;
+  singular: string;
+  consulta: ConsultaRecurso;
+  chips: { clave: string; texto: string }[];
+  columnas: ColumnaRecurso[];
+  ordenes: Record<string, string>;
+  conFicha: boolean;
+  /** Cada fila: sus columnas y lo oculto ("_id" para abrir la ficha). */
+  filas: Record<string, unknown>[];
+  resumen: { total: number; suma: number | null };
+  texto: string;
+  ignorados?: string[];
+}
+
+export interface FichaRecurso {
+  recurso: IdRecurso;
+  id: string;
+  titulo: string;
+  subtitulo: string | null;
+  datos: { etiqueta: string; valor: string }[];
+  tabla: { titulo: string; columnas: ColumnaRecurso[]; filas: Record<string, unknown>[] } | null;
+  acciones: { operacion: string; etiqueta: string; seria: boolean; datos: Record<string, unknown> }[];
+  estado: string | null;
+  enlaces: { recurso: IdRecurso; id: string; etiqueta: string }[];
 }
 
 /** Un pedido, como lo lista el chat (G7d). */
@@ -307,6 +361,8 @@ export type EstadoTarjeta =
   | "estado-pedido"
   | "lista-pedidos"
   | "nuevo-cliente"
+  | "lista"
+  | "ficha"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
@@ -319,6 +375,9 @@ export function estadoDe(p: Propuesta): EstadoTarjeta {
   if (p.intencion === "estado_pedido" && (p.entidades as any).orderId) return "estado-pedido";
   if (p.intencion === "ver_pedidos") return "lista-pedidos";
   if (p.intencion === "crear_cliente") return "nuevo-cliente";
+  // Una lista o una ficha (G9a): se abre a la derecha; en el chat, su resumen.
+  if (p.intencion === "lista" && (p.entidades as any).lista) return "lista";
+  if (p.intencion === "ficha" && (p.entidades as any).ficha) return "ficha";
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";
