@@ -20,8 +20,8 @@ export interface Propuesta {
   intencion: string | null;
   titulo: string | null;
   confianza: number;
-  /** En qué capa se resolvió. C0 = sin gastar un solo token. */
-  capa: "C0" | "C1" | "C2" | "C3";
+  /** En qué capa se resolvió. C0 = sin gastar un solo token; C4 = el agente (G7b). */
+  capa: "C0" | "C1" | "C2" | "C3" | "C4";
   entidades: Record<string, unknown>;
   faltan: { slot: string; pregunta: string }[];
   opciones: ProductoOpcion[];
@@ -49,7 +49,41 @@ export interface Propuesta {
   costos?: Record<string, CostoProducto>;
   /** Una pregunta de análisis: la vista que armó la IA (G3). Se dibuja en el panel. */
   vista?: VistaSpec;
+  /**
+   * La respuesta del agente (G7b): un texto, y las tarjetas que preparó. Cada
+   * tarjeta es una propuesta como cualquier otra (una compra, un cambio de
+   * precio, un análisis, un formulario): se dibuja y se confirma igual.
+   */
+  agente?: { texto: string; acciones: Propuesta[]; motivo: string };
   ms: number;
+}
+
+/** Un producto para crear desde el chat (G7a). Espejo de `ventas-service/src/omnibox/model/productos.ts`. */
+export interface BorradorProducto {
+  nombre: string;
+  precio: number | null;
+  stock: number | null;
+  categoria: { id: string | null; nombre: string } | null;
+  codigo: string | null;
+  marca: string | null;
+  /** Dijo que los compró: al crearlos, queda la compra cargada (cantidad null = no dijo cuántos). */
+  compra: { cantidad: number | null; costo: number | null } | null;
+  /** "Vendé un mouse" y no existía: al crearlo, se agrega a la venta. */
+  venta?: { cantidad: number } | null;
+  existente: { productId: string; nombre: string } | null;
+}
+
+/** Un pedido, como lo lista el chat (G7d). */
+export interface PedidoResumen {
+  orderId: string;
+  numero: number | null;
+  estado: string;
+  cliente: string | null;
+  total: number;
+  productos: string;
+  fecha: string;
+  tipo: string;
+  origen: string;
 }
 
 // ------------------------------------------------------------ vistas (G3)
@@ -266,9 +300,25 @@ export type EstadoTarjeta =
   | "aviso"
   | "vista"
   | "herramienta"
+  | "agente"
+  | "productos-nuevos"
+  | "cambio-producto"
+  | "baja-producto"
+  | "estado-pedido"
+  | "lista-pedidos"
+  | "nuevo-cliente"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
+  // El agente (G7b): su texto; las tarjetas que preparó van como mensajes aparte.
+  if (p.agente) return "agente";
+  // Lo que arma el chat de productos y pedidos (G7): cada uno con su tarjeta.
+  if (p.intencion === "crear_producto" && Array.isArray((p.entidades as any).productos)) return "productos-nuevos";
+  if (p.intencion === "editar_producto") return "cambio-producto";
+  if (p.intencion === "baja_producto") return "baja-producto";
+  if (p.intencion === "estado_pedido" && (p.entidades as any).orderId) return "estado-pedido";
+  if (p.intencion === "ver_pedidos") return "lista-pedidos";
+  if (p.intencion === "crear_cliente") return "nuevo-cliente";
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";

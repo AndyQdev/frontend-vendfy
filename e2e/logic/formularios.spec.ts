@@ -7,8 +7,12 @@ import {
   faltan,
   formularioActivo,
   nuevoFormulario,
+  nuevoFormularioProductos,
+  precioDeFrase,
   resumenCompletado,
+  textoFaltaProductos,
 } from "../../src/features/omnibox/model/formularios";
+import type { BorradorProducto } from "../../src/entities/omnibox/model/types";
 
 /**
  * Formularios que se llenan conversando (G6b): "es para Edwin" y después
@@ -60,5 +64,59 @@ test.describe("el formulario", () => {
     expect(esConfirmacion("crealo")).toBe(true);
     expect(esConfirmacion("Sí!")).toBe(true);
     expect(esConfirmacion("sí, pero cambiale el nombre")).toBe(false);
+  });
+});
+
+// ------------------------------------------------------------ productos nuevos (G7a)
+
+
+const prod = (nombre: string, precio: number | null = null, extra: Partial<BorradorProducto> = {}): BorradorProducto => ({
+  nombre,
+  precio,
+  stock: null,
+  categoria: null,
+  codigo: null,
+  marca: null,
+  compra: null,
+  existente: null,
+  ...extra,
+});
+
+test.describe("el formulario de productos nuevos", () => {
+  test("le falta el precio a cada uno, y se dice agrupado", () => {
+    const f = nuevoFormularioProductos([prod("Alcohol"), prod("Vacunas"), prod("Mouse", 60)]);
+    expect(completo(f)).toBe(false);
+    expect(faltan(f).map((c) => c.etiqueta)).toEqual(["el precio de Alcohol", "el precio de Vacunas"]);
+    expect(textoFaltaProductos(f)).toBe("Falta el precio de Alcohol y Vacunas.");
+  });
+
+  test("uno solo: «falta el precio de venta»", () => {
+    expect(textoFaltaProductos(nuevoFormularioProductos([prod("Mouse")]))).toBe("Falta el precio de venta.");
+  });
+
+  test("uno que ya existe no se puede crear", () => {
+    const f = nuevoFormularioProductos([prod("Sauvage", 100, { existente: { productId: "x", nombre: "Sauvage" } })]);
+    expect(completo(f)).toBe(false);
+    expect(textoFaltaProductos(f)).toBe("Sauvage ya existe.");
+  });
+
+  test("completo: se puede crear", () => {
+    expect(completo(nuevoFormularioProductos([prod("Alcohol", 15), prod("Mouse", 60)]))).toBe(true);
+  });
+
+  test("un precio dicho solo, sin servidor", () => {
+    expect(precioDeFrase("a 15")).toBe(15);
+    expect(precioDeFrase("15 bs")).toBe(15);
+    expect(precioDeFrase("Bs 15,50")).toBe(15.5);
+    expect(precioDeFrase("precio 20")).toBe(20);
+    expect(precioDeFrase("lo vendo a 35")).toBe(35);
+    // Una frase con más cosas va al agente.
+    expect(precioDeFrase("el alcohol a 15 y el mouse a 60")).toBeNull();
+    expect(precioDeFrase("compré 10")).toBeNull();
+  });
+
+  test("«créalos» también es crear", () => {
+    expect(esConfirmacion("créalos")).toBe(true);
+    expect(esConfirmacion("Crealas!")).toBe(true);
   });
 });

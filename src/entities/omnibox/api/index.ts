@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { apiFetch } from "@/shared/api/client";
 import type {
+  BorradorProducto,
   ConversacionGuardada,
   ConversacionResumen,
   ClienteOpcion,
@@ -10,6 +11,7 @@ import type {
   HerramientaGenerada,
   IntencionDisponible,
   LineaContexto,
+  ProductoOpcion,
   Propuesta,
   TablaVista,
   VentaCobrada,
@@ -459,3 +461,80 @@ export function useFiltrarVista() {
   });
 }
 
+// ------------------------------------------------------------ productos y pedidos desde el chat (G7)
+
+/** Lo que se creó: con la forma de un producto del catálogo, para cargarlo a la compra. */
+export type ProductoCreado = ProductoOpcion & { compra: BorradorProducto["compra"]; venta?: BorradorProducto["venta"] };
+
+function invalidarProductos(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "productos"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "categorias"] });
+  qc.invalidateQueries({ queryKey: ["products"] });
+}
+
+/** Crear los productos del formulario del chat (G7a). El servidor vuelve a validar todo. */
+export function useCrearProductos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productos: BorradorProducto[] }) =>
+      (await apiFetch<{ resumen: string; creados: ProductoCreado[] }>("/api/omnibox/productos", { method: "POST", body: vars })).data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Las categorías de la tienda, para elegir en el formulario de productos. */
+export function useCategoriasAsistente(storeId: string | null) {
+  return useQuery({
+    queryKey: ["omnibox", "categorias", storeId],
+    enabled: Boolean(storeId),
+    staleTime: 60_000,
+    queryFn: async () =>
+      (await apiFetch<{ id: string; nombre: string; productos: number }[]>(`/api/omnibox/categorias?storeId=${storeId}`)).data ?? [],
+  });
+}
+
+/** Cambiar un producto (ya confirmado en la tarjeta): solo los campos que cambian. */
+export function useCambiarProducto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productId: string; cambios: Record<string, unknown> }) =>
+      (
+        await apiFetch<{ resumen: string }>(`/api/omnibox/producto/${vars.productId}/cambiar`, {
+          method: "POST",
+          body: { storeId: vars.storeId, cambios: vars.cambios },
+        })
+      ).data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Dar de baja un producto (ya confirmado). */
+export function useBajaProducto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productId: string }) =>
+      (await apiFetch<{ resumen: string }>(`/api/omnibox/producto/${vars.productId}/baja`, { method: "POST", body: { storeId: vars.storeId } }))
+        .data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Pasar un pedido a otro estado (ya confirmado): el mismo camino que la pantalla de Pedidos. */
+export function useEstadoPedido() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; orderId: string; estado: string }) =>
+      (
+        await apiFetch<{ resumen: string }>(`/api/omnibox/pedido/${vars.orderId}/estado`, {
+          method: "POST",
+          body: { storeId: vars.storeId, estado: vars.estado },
+        })
+      ).data!,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
+    },
+  });
+}

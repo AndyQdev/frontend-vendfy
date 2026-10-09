@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   Check,
@@ -22,7 +22,9 @@ import {
   estadoDe,
   textoAccion,
   tituloCorto,
+  type BorradorProducto,
   type LineaContexto,
+  type PedidoResumen,
   type ProductoOpcion,
   type Propuesta,
   type VistaSpec,
@@ -38,6 +40,10 @@ import { TarjetaFactura } from "./mesa/TarjetaFactura";
 import { TarjetaVista } from "./vista/TarjetaVista";
 import { ChipsAlcance } from "./vista/Alcance";
 import { TarjetaHerramienta } from "./herramienta/TarjetaHerramienta";
+import { TarjetaProductosNuevos } from "./formularios/FormularioProductos";
+import { FormularioCliente } from "./formularios/FormularioCliente";
+import { TarjetaBajaProducto, TarjetaCambioProducto, TarjetaEstadoPedido, TarjetaPedidos, TextoAgente } from "./agente/TarjetasAgente";
+import { nuevoFormularioProductos } from "../model/formularios";
 import {
   BloqueProducto,
   BotonCta,
@@ -104,6 +110,16 @@ export interface AccionesRespuesta {
   herramientaAbierta: boolean;
   onReintentarHerramienta: () => void;
   onVerDatosHerramienta: (vista: VistaSpec) => void;
+  /** Productos nuevos (G7a): lo que se cambia en el formulario, crearlos, descartarlos. */
+  onCambiarProductos: (productos: BorradorProducto[]) => void;
+  onCrearProductos: () => void;
+  onDescartarProductos: () => void;
+  /** Confirmar la tarjeta que preparó el agente: cambiar o dar de baja un producto, mover un pedido. */
+  onConfirmarAccion: () => void;
+  /** "Mover" un pedido de la lista: arma la tarjeta para confirmar (G7d). */
+  onMoverPedido: (pedido: PedidoResumen, estado: string) => void;
+  /** "No está en tu catálogo" → crearlo acá mismo (G7a): nada manda a otra pantalla. */
+  onCrearProductoEnChat: (nombre: string) => void;
 }
 
 export function Respuesta({
@@ -170,6 +186,38 @@ export function Respuesta({
   }
 
   switch (estadoDe(p)) {
+    case "agente":
+      return <TextoAgente texto={p.agente!.texto} hora={cuando} />;
+    case "productos-nuevos":
+      return (
+        <TarjetaProductosNuevos
+          formulario={m.formulario ?? nuevoFormularioProductos(((p.entidades as any).productos ?? []) as BorradorProducto[])}
+          storeId={storeId}
+          hora={cuando}
+          aviso={p.aviso}
+          onCambiar={acciones.onCambiarProductos}
+          onCrear={acciones.onCrearProductos}
+          onDescartar={acciones.onDescartarProductos}
+        />
+      );
+    case "cambio-producto":
+      return <TarjetaCambioProducto propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
+    case "baja-producto":
+      return <TarjetaBajaProducto propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
+    case "estado-pedido":
+      return <TarjetaEstadoPedido propuesta={p} hora={cuando} ejecutando={ejecutando} onConfirmar={acciones.onConfirmarAccion} onCancelar={acciones.onCancelar} />;
+    case "lista-pedidos":
+      return <TarjetaPedidos propuesta={p} hora={cuando} onMover={acciones.onMoverPedido} />;
+    case "nuevo-cliente":
+      return (
+        <Tarjeta estado="nuevo-cliente" hora={cuando} className="p-0 sm:p-0">
+          {m.formulario?.estado === "descartado" ? (
+            <p className="px-4 py-3 text-[13px] text-muted-foreground">Descartado</p>
+          ) : m.formulario ? (
+            <FormularioCliente formulario={m.formulario} onCampo={acciones.onCampoFormulario} onCrear={acciones.onCrearFormulario} />
+          ) : null}
+        </Tarjeta>
+      );
     case "confirmar-compra":
       return (
         <TarjetaConfirmarCompra
@@ -262,7 +310,9 @@ export function Respuesta({
     case "ambiguedad":
       return <Ambiguedad propuesta={p} hora={cuando} onElegir={acciones.onElegirProducto} />;
     case "sin-producto":
-      return <SinProducto propuesta={p} storeId={storeId} hora={cuando} onElegir={acciones.onElegirProducto} />;
+      return (
+        <SinProducto propuesta={p} storeId={storeId} hora={cuando} onElegir={acciones.onElegirProducto} onCrear={acciones.onCrearProductoEnChat} />
+      );
     case "falta-dato":
       return (
         <FaltaDato
@@ -681,14 +731,15 @@ function SinProducto({
   storeId,
   hora: cuando,
   onElegir,
+  onCrear,
 }: {
   propuesta: Propuesta;
   storeId: string;
   hora: string;
   onElegir: (o: ProductoOpcion) => void;
+  onCrear: (nombre: string) => void;
 }) {
   const [buscando, setBuscando] = useState(false);
-  const navigate = useNavigate();
   const nombre = p.noEncontrado ?? "";
 
   return (
@@ -702,7 +753,7 @@ function SinProducto({
           <ElegirProducto storeId={storeId} textoInicial="" onElegir={onElegir} />
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row">
-            <BotonCta onClick={() => navigate(`/products/create?nombre=${encodeURIComponent(nombre)}`)}>
+            <BotonCta data-testid="sin-producto-crear" onClick={() => onCrear(nombre)}>
               <PackagePlus />
               Crear ahora
             </BotonCta>
@@ -847,32 +898,17 @@ function SinPermiso({ propuesta: p, tienda, hora: cuando }: { propuesta: Propues
   );
 }
 
-/** Dónde se hace hoy lo que el asistente todavía no sabe hacer. */
-const DONDE: Record<string, [string, string]> = {
-  crear_producto: ["/products/create", "Crear producto"],
-  venta_mostrador: ["/caja", "Ir a Caja"],
-  cancelar_pedido: ["/orders", "Ir a Pedidos"],
-  estado_pedido: ["/orders", "Ir a Pedidos"],
-  ocultar_de_web: ["/products", "Ir a Productos"],
-  buscar_cliente: ["/customers", "Ir a Clientes"],
-};
-
+/**
+ * Entendió pero no hay con qué hacerlo. Con el agente (G7b) casi no pasa: lo
+ * que no tiene un ejecutor fijo lo resuelve él. Y si pasa, no se manda a otra
+ * pantalla (antes había un botón "Ir a Productos"): se dice y se sigue acá.
+ */
 function SinEjecutor({ propuesta: p, hora: cuando }: { propuesta: Propuesta; hora: string }) {
-  const navigate = useNavigate();
-  const destino = p.intencion ? DONDE[p.intencion] : undefined;
   return (
     <Tarjeta estado="sin-ejecutor" hora={cuando}>
       <Estado icono={Construction} tono="neutro" titulo={`Entendí: ${p.titulo?.toLowerCase() ?? "eso"}`}>
-        Todavía no lo hago desde acá.
+        No pude prepararlo esta vez. Contámelo con un poco más de detalle y lo armo acá.
       </Estado>
-      {destino && (
-        <div className="mt-3 sm:pl-11">
-          <BotonSecundario onClick={() => navigate(destino[0])} className="w-full sm:w-auto">
-            {destino[1]}
-            <ChevronRight />
-          </BotonSecundario>
-        </div>
-      )}
     </Tarjeta>
   );
 }

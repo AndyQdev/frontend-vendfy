@@ -40,6 +40,15 @@ export function respuestaDe(m: Mensaje): string | null {
   if (m.evento?.tipo === "compra") return "Compra registrada";
   const p = m.propuesta;
   if (!p) return null;
+  // El agente (G7b): lo que dijo, y qué tarjetas dejó (la frase siguiente puede ser sobre ellas).
+  if (p.agente) {
+    const tarjetas = p.agente.acciones.map((a) => a.titulo ?? a.intencion).filter(Boolean);
+    return `${p.agente.texto}${tarjetas.length ? ` [preparé: ${tarjetas.join(", ")}]` : ""}`;
+  }
+  if (m.formulario?.tipo === "productos") {
+    const nombres = (m.formulario.productos ?? []).map((b) => b.nombre).join(", ");
+    return m.formulario.estado === "creado" ? `Creé: ${nombres}` : `Formulario de productos nuevos: ${nombres}`;
+  }
   if (m.herramienta?.fase === "lista") return `Herramienta "${m.herramienta.generada.titulo}"`;
   if (p.vista) return `Análisis "${p.vista.titulo}" (${textoAlcance(p.vista.filtros, p.vista.condiciones)})`;
   if (p.clientes?.length && !p.ejecutable) return `Preguntó cuál cliente: ${p.clientes.map((c) => c.nombre).join(" o ")}`;
