@@ -144,28 +144,39 @@ function textoDe(p: any): string {
 }
 
 const SALIDA = path.join("e2e", "experimentos", "salida");
+/**
+ * Cada conversación escribe su parte en su propio archivo y el informe se
+ * vuelve a armar después de cada una: Playwright reinicia el proceso cuando
+ * una prueba falla, y un informe en memoria perdía todo lo anterior.
+ */
+const PARTES = path.join(SALIDA, "conversaciones");
 let token = "";
-const informe: string[] = [];
-let ok = 0;
+
+function armarInforme() {
+  const partes = fs
+    .readdirSync(PARTES)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .map((f) => fs.readFileSync(path.join(PARTES, f), "utf8"));
+  const ok = partes.filter((p) => !p.includes("❌")).length;
+  fs.writeFileSync(
+    path.join(SALIDA, "conversaciones.md"),
+    [`# Banco de conversaciones — ${new Date().toISOString()} — ${API}`, "", `**${ok}/${partes.length} conversaciones sin problemas**`, "", ...partes].join("\n"),
+  );
+}
 
 test.describe.configure({ mode: "default" });
 
 test.beforeAll(async ({ request }) => {
-  fs.mkdirSync(SALIDA, { recursive: true });
+  fs.mkdirSync(PARTES, { recursive: true });
   const r = await request.post(`${API}/api/auth/login`, { data: { email: "test@gmail.com", password: "12345678" } });
   token = (await r.json()).data.accessToken;
 });
 
-test.afterAll(() => {
-  fs.writeFileSync(
-    path.join(SALIDA, "conversaciones.md"),
-    [`# Banco de conversaciones — ${new Date().toISOString()} — ${API}`, "", `**${ok}/${ESCENARIOS.length} conversaciones sin problemas**`, "", ...informe].join("\n"),
-  );
-});
-
-for (const esc of ESCENARIOS) {
+ESCENARIOS.forEach((esc, indice) => {
   test(esc.nombre, async ({ request }) => {
     test.setTimeout(240_000);
+    const informe: string[] = [];
     let historial: { dijo: string; respuesta: string }[] = [];
     let formulario: any[] | null = null;
     let vista: any = null;
@@ -215,8 +226,9 @@ for (const esc of ESCENARIOS) {
         ...(aqui.length ? [`  - ❌ ${aqui.join("; ")}`] : []),
       );
     }
-    if (!problemas.length) ok++;
     informe.push("");
+    fs.writeFileSync(path.join(PARTES, `${String(indice).padStart(2, "0")}.md`), informe.join("\n"));
+    armarInforme();
     expect.soft(problemas, esc.nombre).toEqual([]);
   });
-}
+});
