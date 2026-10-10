@@ -114,6 +114,29 @@ export function PrecioAnimado({ valor, className }: { valor: number; className?:
   return <span className={cn("font-display tabular-nums", className)}>{formatMoney(mostrado)}</span>;
 }
 
+/** Cuatro barritas que bailan mientras la voz habla; quietas, un ícono de parlante. */
+export function BarrasVoz({ activa, className }: { activa: boolean; className?: string }) {
+  const reducido = useReducedMotion();
+  const alturas = [0.45, 0.9, 0.6, 0.8];
+  return (
+    <span aria-hidden className={cn("flex h-4 items-center gap-[3px]", className)}>
+      {alturas.map((h, i) => (
+        <motion.span
+          key={i}
+          className="w-[3px] origin-center rounded-full bg-current"
+          style={{ height: "100%" }}
+          initial={false}
+          animate={
+            activa && !reducido
+              ? { scaleY: [0.3, h, 0.4, 1, 0.3], transition: { duration: 0.9, repeat: Infinity, delay: i * 0.12 } }
+              : { scaleY: [0.35, 0.6, 0.85, 0.6][i] }
+          }
+        />
+      ))}
+    </span>
+  );
+}
+
 /** Contenedor que hace entrar a sus hijos uno detrás de otro. */
 export const escalonado = {
   oculto: {},

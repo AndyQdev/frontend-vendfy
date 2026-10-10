@@ -16,6 +16,8 @@ export interface TiendaDelProducto {
   /** Fila de stock en esa tienda: es el id que usa el carrito de Caja. */
   inventoryId: string | null;
   price: number;
+  /** Código de la moneda de la tienda (BOB, USD…): la voz dice "bolivianos" o "dólares". */
+  currency?: string;
   stock: number;
   reserved: number;
   sellWithoutStock: boolean;

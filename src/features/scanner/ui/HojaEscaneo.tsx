@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import confetti from "canvas-confetti";
-import { RotateCw, Volume2, VolumeX, WifiOff } from "lucide-react";
+import { RotateCw, WifiOff } from "lucide-react";
+import { toast } from "sonner";
 
+import { useVentaEnCurso } from "@/entities/order";
 import { buscarPorCodigo, claveEscaneo, useCreateProduct } from "@/entities/product/api";
-import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { ApiError } from "@/shared/api/client";
+import { formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
+import { decirFrases } from "@/shared/voz";
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -18,8 +21,10 @@ import {
   ResponsiveDialogTitle,
 } from "@/shared/ui/responsive-dialog";
 import { useEscaner } from "../model/ScannerProvider";
-import { setSonidoActivo, sonar, sonidoActivo } from "../model/sonido";
+import { sonar } from "../model/sonido";
 import { useTiendaActiva } from "../model/useTiendaActiva";
+import { agregarAVenta, frasesAlAgregar, frasesDeFicha, tiendaParaVender } from "../model/venta";
+import { AjustesVoz } from "./AjustesVoz";
 import { CodigoDeBarras } from "./piezas";
 import { cn } from "@/shared/lib/cn";
 import { VistaAlta, type DatosAlta } from "./VistaAlta";
@@ -53,8 +58,9 @@ export function HojaEscaneo() {
   const { tiendas, tiendaId } = useTiendaActiva();
   const [recienCreado, setRecienCreado] = useState(false);
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
-  const [conSonido, setConSonido] = useState(sonidoActivo);
+  const [venta] = useVentaEnCurso();
   const sonoParaClave = useRef(0);
+  const dijoParaClave = useRef(0);
 
   const consulta = useQuery({
     queryKey: claveEscaneo(hoja.codigo),
@@ -81,6 +87,14 @@ export function HojaEscaneo() {
   useEffect(() => {
     if (consulta.isError && hoja.abierta) sonar("error");
   }, [consulta.isError, hoja.abierta]);
+
+  // Y la voz dice el precio: quien escanea mira el producto, no la pantalla.
+  // También al terminar de registrarlo, como confirmación.
+  useEffect(() => {
+    if (!hoja.abierta || !resultado?.producto || dijoParaClave.current === hoja.clave) return;
+    dijoParaClave.current = hoja.clave;
+    decirFrases(frasesDeFicha(resultado, tiendaId));
+  }, [hoja.abierta, hoja.clave, resultado, tiendaId]);
 
   const registrar = async (datos: DatosAlta) => {
     if (!resultado) return;
@@ -143,15 +157,46 @@ export function HojaEscaneo() {
     });
   };
 
-  const vender = (r: ResultadoEscaneo) => {
+  const irACobrar = useCallback(() => {
     cerrar();
-    navigate("/caja", { state: { agregarCodigo: r.codigo } });
-  };
+    navigate("/caja");
+  }, [cerrar, navigate]);
 
-  const alternarSonido = () => {
-    setSonidoActivo(!conSonido);
-    setConSonido(!conSonido);
-  };
+  // Suma una unidad a la venta en curso sin salir de la pantalla.
+  const agregar = useCallback((): boolean => {
+    if (!resultado?.producto) return false;
+    const r = agregarAVenta(resultado, tiendaId);
+    if (r.ok === false) {
+      sonar("error");
+      decirFrases(frasesAlAgregar(r));
+      toast.error(
+        r.motivo === "sin_tienda"
+          ? "No se vende en esta tienda"
+          : r.motivo === "agotado"
+            ? "Está agotado"
+            : `Ya están los ${r.tienda?.stock ?? 0} en la venta`,
+        { description: resultado.producto.name },
+      );
+      return false;
+    }
+    sonar("encontrado");
+    // El precio ya lo dijo al abrir: ahora solo cuántos van.
+    if (r.cantidad >= 2 && r.cantidad <= 20) decirFrases([{ tipo: "aviso", aviso: "van", n: r.cantidad }]);
+    toast.success(r.cantidad > 1 ? `${r.cantidad} en la venta` : "Agregado a la venta", {
+      description: `${resultado.producto.name} · ${formatMoney(r.tienda.price)}`,
+      duration: 2200,
+      action: { label: "Cobrar", onClick: irACobrar },
+    });
+    return true;
+  }, [resultado, tiendaId, irACobrar]);
+
+  // "Cobrar ahora": lo agrega (si no estaba) y va a Caja.
+  const cobrarAhora = useCallback(() => {
+    if (!resultado?.producto) return;
+    const tienda = tiendaParaVender(resultado, tiendaId);
+    const yaEsta = venta.some((i) => i.id === tienda?.inventoryId);
+    if (yaEsta || agregar()) irACobrar();
+  }, [resultado, tiendaId, venta, agregar, irACobrar]);
 
   return (
     <ResponsiveDialog open={hoja.abierta} onOpenChange={(abierta) => !abierta && cerrar()}>
@@ -166,15 +211,7 @@ export function HojaEscaneo() {
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <MotionConfig reducedMotion="user">
-          <button
-            type="button"
-            onClick={alternarSonido}
-            aria-label={conSonido ? "Silenciar el escáner" : "Activar el sonido del escáner"}
-            title={conSonido ? "Silenciar" : "Activar sonido"}
-            className="absolute right-12 top-3.5 z-10 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:right-3"
-          >
-            {conSonido ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-          </button>
+          <AjustesVoz className="absolute right-12 top-3.5 z-10 max-md:right-3" />
 
           <AnimatePresence mode="wait" initial={false}>
             {consulta.isPending || (!resultado && consulta.isFetching) ? (
@@ -223,7 +260,12 @@ export function HojaEscaneo() {
                 resultado={resultado}
                 tiendaId={tiendaId}
                 recienCreado={recienCreado}
-                onVender={() => vender(resultado)}
+                venta={venta}
+                inventarioParaVender={tiendaParaVender(resultado, tiendaId)?.inventoryId ?? null}
+                onAgregar={agregar}
+                onCobrar={cobrarAhora}
+                onIrACobrar={irACobrar}
+                onRepetirPrecio={() => decirFrases(frasesDeFicha(resultado, tiendaId), { forzar: true })}
                 onEditar={() => {
                   cerrar();
                   navigate(`/products/${resultado.producto!.id}`);

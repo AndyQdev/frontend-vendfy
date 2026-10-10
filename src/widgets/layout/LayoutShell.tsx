@@ -3,7 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { AppHeader } from "@/widgets/app-header";
 import { AvisoInstalar } from "@/features/pwa";
 import { OnboardingChecklist } from "@/widgets/onboarding";
-import { HojaEscaneo, LaserEscaneo, ScannerProvider } from "@/features/scanner";
+import { HojaEscaneo, LaserEscaneo, ScannerProvider, VentaFlotante } from "@/features/scanner";
 
 /**
  * El marco de todas las pantallas del panel: header arriba, contenido abajo.
@@ -36,6 +36,7 @@ export default function LayoutShell() {
       </div>
       <LaserEscaneo />
       <HojaEscaneo />
+      <VentaFlotante />
     </ScannerProvider>
   );
 }

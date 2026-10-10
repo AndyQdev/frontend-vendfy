@@ -1,7 +1,9 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { AjustesVoz, agregarAVenta, frasesAlAgregar, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { useVentaEnCurso } from "@/entities/order";
+import { decirFrases } from "@/shared/voz";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
@@ -92,16 +94,6 @@ const PAYMENT_METHODS = [
   { id: 'card', name: 'Tarjeta', icon: CreditCard },
 ];
 
-interface CartItem {
-  id: string;
-  storeProductId: string; // ID del StoreProduct desde inventory
-  name: string;
-  price: number;
-  quantity: number;
-  stock: number;
-  imageUrl?: string;
-}
-
 export default function Caja() {
   // Ref para el observador de intersección
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -137,7 +129,9 @@ export default function Caja() {
     }));
     return [allCategory, ...mappedCategories];
   }, [backendCategories]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // La venta en curso vive fuera de la pantalla: se puede cargar escaneando
+  // desde cualquier lado y no se pierde al navegar.
+  const [cart, setCart] = useVentaEnCurso();
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   const categoriesRef = useRef<HTMLDivElement>(null);
@@ -343,59 +337,39 @@ export default function Caja() {
   // registrarlo también entra a la venta.
   const { buscar, abrir: abrirHojaEscaneo, pulso } = useEscaner();
   const buscadorRef = useRef<HTMLInputElement>(null);
-  const cartRef = useRef(cart);
-  cartRef.current = cart;
   const [resaltado, setResaltado] = useState<{ id: string; vez: number } | null>(null);
 
   const agregarEscaneado = useCallback(
     (r: ResultadoEscaneo) => {
       const p = r.producto;
       if (!p) return;
-      const tienda =
-        storeId !== "all"
-          ? p.tiendas.find((t) => t.storeId === storeId)
-          : p.tiendas.find((t) => t.stock > 0) ?? p.tiendas[0];
+      const resultado = agregarAVenta(r, storeId === "all" ? null : storeId);
+      // Quien escanea mira el producto, no la pantalla: la voz dice el
+      // precio ("Doce bolivianos con cincuenta. Van dos.") o por qué no entró.
+      decirFrases(frasesAlAgregar(resultado));
 
-      if (!tienda?.inventoryId) {
+      if (resultado.ok === false) {
         sonar("error");
-        toast.error(`«${p.name}» no se vende en esta tienda`, {
-          description: "Agregalo a la tienda desde Productos.",
-        });
-        return;
-      }
-      const enCarrito = cartRef.current.find((i) => i.id === tienda.inventoryId)?.quantity ?? 0;
-      if (tienda.stock <= enCarrito) {
-        sonar("error");
-        toast.error(tienda.stock <= 0 ? `«${p.name}» está agotado` : `No quedan más «${p.name}»`, {
-          description: tienda.stock <= 0 ? "Cargá stock desde Inventario o Compras." : `Hay ${tienda.stock} y ya están todos en la venta.`,
-        });
-        return;
-      }
-
-      setCart((prev) => {
-        const ya = prev.find((i) => i.id === tienda.inventoryId);
-        if (ya) {
-          return prev.map((i) =>
-            i.id === tienda.inventoryId ? { ...i, quantity: i.quantity + 1, stock: tienda.stock } : i,
-          );
+        if (resultado.motivo === "sin_tienda") {
+          toast.error(`«${p.name}» no se vende en esta tienda`, {
+            description: "Agregalo a la tienda desde Productos.",
+          });
+        } else {
+          const stock = resultado.tienda?.stock ?? 0;
+          toast.error(resultado.motivo === "agotado" ? `«${p.name}» está agotado` : `No quedan más «${p.name}»`, {
+            description:
+              resultado.motivo === "agotado"
+                ? "Cargá stock desde Inventario o Compras."
+                : `Hay ${stock} y ya están todos en la venta.`,
+          });
         }
-        return [
-          ...prev,
-          {
-            id: tienda.inventoryId!,
-            storeProductId: tienda.storeProductId,
-            name: p.name,
-            price: tienda.price,
-            quantity: 1,
-            stock: tienda.stock,
-            imageUrl: p.imageUrls[0],
-          },
-        ];
-      });
+        return;
+      }
+
       sonar("encontrado");
-      setResaltado({ id: tienda.inventoryId, vez: Date.now() });
+      setResaltado({ id: resultado.item.id, vez: Date.now() });
       toast.success(p.name, {
-        description: `${enCarrito > 0 ? `${enCarrito + 1} en la venta` : "Agregado a la venta"} · Bs. ${tienda.price.toFixed(2)}`,
+        description: `${resultado.cantidad > 1 ? `${resultado.cantidad} en la venta` : "Agregado a la venta"} · Bs. ${resultado.tienda.price.toFixed(2)}`,
         duration: 1600,
       });
     },
@@ -778,6 +752,9 @@ export default function Caja() {
                           />
                         )}
                         </Button>
+
+                        {/* Decir el precio, bips y quién habla: en Caja la hoja no se abre. */}
+                        <AjustesVoz className="size-10 shrink-0 rounded-lg bg-secondary text-secondary-foreground sm:size-12" />
                     </div>
 
                     {/* Categorías con scroll horizontal */}

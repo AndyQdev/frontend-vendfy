@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { buscarPorCodigo, claveEscaneo } from "@/entities/product/api";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
+import { precalentarVoz, prepararAudio, usePreferenciasVoz } from "@/shared/voz";
 import { crearDetector, type Lectura } from "./detector";
 
 /**
@@ -124,6 +125,19 @@ export function ScannerProvider({ children }: PropsWithChildren) {
       delete document.documentElement.dataset.escaner;
     };
   }, [abrir]);
+
+  // La voz que dice los precios: el audio se despierta con el primer gesto, y
+  // los precios del comercio se generan de antemano para que suenen al
+  // instante (sin apurar la carga del panel).
+  const { voz, precios } = usePreferenciasVoz();
+  useEffect(() => {
+    prepararAudio();
+  }, []);
+  useEffect(() => {
+    if (!precios) return;
+    const reloj = window.setTimeout(() => void precalentarVoz(), 3000);
+    return () => window.clearTimeout(reloj);
+  }, [voz, precios]);
 
   const valor = useMemo(
     () => ({ hoja, abrir, cerrar, buscar, pulso, registrarManejador }),

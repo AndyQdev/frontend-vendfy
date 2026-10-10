@@ -3,5 +3,8 @@ export type { AbrirHojaOpciones, ManejadorEscaneo } from "./model/ScannerProvide
 export type { Lectura } from "./model/detector";
 export { sonar } from "./model/sonido";
 export { useTiendaActiva } from "./model/useTiendaActiva";
+export { agregarAVenta, frasesAlAgregar, frasesDeFicha, tiendaParaVender, type ResultadoAgregar } from "./model/venta";
+export { AjustesVoz } from "./ui/AjustesVoz";
 export { HojaEscaneo } from "./ui/HojaEscaneo";
 export { LaserEscaneo } from "./ui/LaserEscaneo";
+export { VentaFlotante } from "./ui/VentaFlotante";

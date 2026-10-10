@@ -14,6 +14,8 @@
  * Se puede apagar desde la hoja (queda guardado en el navegador).
  */
 
+import { contextoAudio } from "@/shared/voz";
+
 const CLAVE = "vendfy.escaner.sonido";
 
 export type Sonido = "encontrado" | "sugerido" | "nuevo" | "creado" | "error";
@@ -36,8 +38,6 @@ const NOTAS: Record<Sonido, Array<[frecuencia: number, duracion: number, forma?:
   error: [[196, 0.22, "sawtooth"]],
 };
 
-let contexto: AudioContext | null = null;
-
 export function sonidoActivo(): boolean {
   try {
     return localStorage.getItem(CLAVE) !== "off";
@@ -57,10 +57,10 @@ export function setSonidoActivo(activo: boolean) {
 export function sonar(tipo: Sonido) {
   if (!sonidoActivo()) return;
   try {
-    contexto ??= new AudioContext();
-    // El navegador lo suspende hasta un gesto del usuario; la tecla de la
-    // pistola cuenta como gesto.
-    if (contexto.state === "suspended") void contexto.resume();
+    // El mismo contexto que la voz: se despierta con el primer gesto (la
+    // tecla de la pistola cuenta).
+    const contexto = contextoAudio();
+    if (!contexto) return;
     let t = contexto.currentTime;
     for (const [frecuencia, duracion, forma = "sine"] of NOTAS[tipo]) {
       const osc = contexto.createOscillator();
