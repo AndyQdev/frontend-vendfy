@@ -41,6 +41,8 @@ export interface Product {
   description?: string;
   imageUrls?: string[];
   sku?: string;
+  /** Código de barras normalizado (GTIN-14 o etiqueta propia). */
+  barcode?: string | null;
   metadata?: ProductMetadata;
   brand?: Brand;
   category?: Category;

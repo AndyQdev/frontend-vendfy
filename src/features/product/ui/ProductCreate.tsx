@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info, ScanBarcode } from "lucide-react";
+import { ApiError } from "@/shared/api/client";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { AiModelPicker } from "@/shared/ui/ai-model-picker";
 import { Button } from "@/shared/ui/button";
@@ -29,27 +30,36 @@ export default function CreateProduct() {
   // El asistente manda acá lo que no encontró en el catálogo ("coca 2
   // litros"): hacérselo escribir otra vez sería pedirle lo mismo dos veces.
   const [params] = useSearchParams();
+  // El escáner manda acá lo que ya sabe de un código ("Completar más datos"):
+  // nombre, marca, foto y contenido del catálogo, más el precio si lo puso.
+  const estadoNavegacion = useLocation().state as { prefill?: Partial<ProductInput> } | null;
+  const prefill = productId ? undefined : estadoNavegacion?.prefill;
   const { selectedStore } = useStore();
   const isEditMode = Boolean(productId);
   // Vuelve a la lista tal como estaba -con su búsqueda y sus filtros- y no al
   // catálogo entero.
   const volverALista = useRegreso("/products");
+  // Marca que vino del catálogo y el comercio todavía no tiene: se crea al guardar.
+  const [marcaSugerida, setMarcaSugerida] = useState(prefill?.brandName ?? "");
+  // Ídem la categoría que propuso la IA.
+  const [categoriaSugerida, setCategoriaSugerida] = useState(prefill?.categoryName ?? "");
 
   // State for form data
   const [formData, setFormData] = useState<ProductInput>({
-    name: productId ? "" : (params.get("nombre") ?? ""),
-    description: "",
-    imageUrls: [],
+    name: prefill?.name ?? (productId ? "" : (params.get("nombre") ?? "")),
+    description: prefill?.description ?? "",
+    imageUrls: prefill?.imageUrls ?? [],
     sku: "",
-    categoryId: "",
-    brandId: "",
+    barcode: prefill?.barcode ?? "",
+    categoryId: prefill?.categoryId ?? "",
+    brandId: prefill?.brandId ?? "",
     storeId: typeof selectedStore === "object" ? selectedStore?.id || "" : "",
-    price: 0,
-    initialStock: 0,
+    price: prefill?.price ?? 0,
+    initialStock: prefill?.initialStock ?? 0,
     metadata: {
       isFeatured: false,
-      tags: [],
-      specifications: {}
+      tags: prefill?.metadata?.tags ?? [],
+      specifications: prefill?.metadata?.specifications ?? {}
     }
   });
 
@@ -117,6 +127,7 @@ export default function CreateProduct() {
         description: existingProduct.description || "",
         imageUrls: existingProduct.imageUrls || [],
         sku: existingProduct.sku || "",
+        barcode: codigoLegible(existingProduct.barcode),
         categoryId: existingProduct.category?.id || "",
         brandId: existingProduct.brand?.id || "",
         storeId: storeProduct?.store?.id || currentStoreId,
@@ -140,6 +151,16 @@ export default function CreateProduct() {
 
   const categories = categoriesData || [];
   const brands = brandsData || [];
+
+  // Si la marca sugerida ya existe en el comercio, se elige esa en vez de crear otra.
+  useEffect(() => {
+    if (!marcaSugerida || formData.brandId) return;
+    const existente = brands.find((b) => b.name.trim().toLowerCase() === marcaSugerida.trim().toLowerCase());
+    if (existente) {
+      setFormData((prev) => ({ ...prev, brandId: existente.id }));
+      setMarcaSugerida("");
+    }
+  }, [brands, marcaSugerida, formData.brandId]);
 
   // Context for AI buttons - always up to date with form state
   const aiContext = useMemo(() => ({
@@ -334,6 +355,10 @@ export default function CreateProduct() {
         brandId: formData.brandId || undefined,
         categoryId: formData.categoryId || undefined,
         sku: formData.sku || undefined,
+        // Al editar, vacío significa "sacale el código"; al crear, simplemente no se manda.
+        barcode: isEditMode ? (formData.barcode ?? "").trim() : formData.barcode?.trim() || undefined,
+        brandName: !formData.brandId && marcaSugerida ? marcaSugerida : undefined,
+        categoryName: !formData.categoryId && categoriaSugerida ? categoriaSugerida : undefined,
         // En edición el stock se gestiona desde Inventario/Compras
         initialStock: isEditMode ? undefined : formData.initialStock,
         // La medida SOLO viaja si el usuario la activó. Un producto normal no
@@ -367,7 +392,10 @@ export default function CreateProduct() {
       volverALista();
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto");
+      // El backend explica lo que importa (p. ej. "Ese código de barras ya es de «X»").
+      toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto", {
+        description: error instanceof ApiError ? error.message : undefined,
+      });
     }
   };
 
@@ -433,21 +461,74 @@ export default function CreateProduct() {
               {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Label htmlFor="sku">SKU (Opcional)</Label>
-                <HintIcon>
-                  Es el código único del producto. Si tienes lector de códigos de barras, escanéalo aquí. Si no, puedes inventarlo (ej: CAMI-001). Te servirá para encontrarlo rápido en caja.
-                </HintIcon>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="barcode">Código de barras</Label>
+                  <HintIcon>
+                    El que viene impreso en el envase. Hacé clic acá y escanealo con la pistola. Con esto, al escanear el producto en cualquier pantalla aparece solo, y en Caja va directo a la venta.
+                  </HintIcon>
+                </div>
+                <div className="relative">
+                  <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input
+                    id="barcode"
+                    name="barcode"
+                    // La pistola escribe acá en vez de abrir la ficha del producto.
+                    data-scanner="input"
+                    value={formData.barcode ?? ""}
+                    onChange={handleInputChange}
+                    placeholder="Escaneá o escribí el código"
+                    className="pl-9 font-mono"
+                    autoComplete="off"
+                  />
+                </div>
               </div>
-              <Input
-                id="sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleInputChange}
-                placeholder="Ej: IPH15PM-256-BLK"
-              />
+
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="sku">SKU (Opcional)</Label>
+                  <HintIcon>
+                    Tu código interno del producto. Si no tiene código de barras, puedes inventarlo (ej: CAMI-001). Te servirá para encontrarlo rápido en caja.
+                  </HintIcon>
+                </div>
+                <Input
+                  id="sku"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  placeholder="Ej: IPH15PM-256-BLK"
+                />
+              </div>
             </div>
+
+            {categoriaSugerida && !formData.categoryId && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
+                <Tag className="h-4 w-4 shrink-0" aria-hidden />
+                Categoría sugerida: <span className="font-semibold">{categoriaSugerida}</span> — se crea al guardar.
+                <button
+                  type="button"
+                  className="ml-auto text-xs underline underline-offset-2"
+                  onClick={() => setCategoriaSugerida("")}
+                >
+                  No usar
+                </button>
+              </p>
+            )}
+
+            {marcaSugerida && !formData.brandId && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
+                <Tag className="h-4 w-4 shrink-0" aria-hidden />
+                Marca del catálogo: <span className="font-semibold">{marcaSugerida}</span> — se crea al guardar.
+                <button
+                  type="button"
+                  className="ml-auto text-xs underline underline-offset-2"
+                  onClick={() => setMarcaSugerida("")}
+                >
+                  No usar
+                </button>
+              </p>
+            )}
 
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -998,6 +1079,13 @@ export default function CreateProduct() {
     </div>
     </TooltipProvider>
   );
+}
+
+/** El código como viene impreso: el GTIN-14 guardado sin su relleno de ceros. */
+function codigoLegible(codigo?: string | null): string {
+  if (!codigo) return "";
+  if (!/^\d{14}$/.test(codigo)) return codigo;
+  return codigo.startsWith("000000") ? codigo.slice(6) : codigo.replace(/^0/, "");
 }
 
 function HintIcon({ children }: { children: React.ReactNode }) {

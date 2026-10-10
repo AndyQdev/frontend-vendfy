@@ -45,6 +45,7 @@ interface CartItem {
   price: number;
   quantity: number;
   stock: number;
+  imageUrl?: string;
 }
 
 interface SheetMovileCartProps {
@@ -200,9 +201,10 @@ export function SheetMovileCart({
                       <div className="flex gap-3">
                         {/* Imagen */}
                         <div className="w-16 h-16 rounded-md overflow-hidden bg-muted shrink-0">
-                          {product?.imageUrl && (
+                          {/* Lo escaneado puede no estar en la página visible: la foto viaja con el renglón. */}
+                          {(item.imageUrl || product?.imageUrl) && (
                             <img
-                              src={product.imageUrl}
+                              src={item.imageUrl || product?.imageUrl}
                               alt={item.name}
                               className="w-full h-full object-cover"
                             />
