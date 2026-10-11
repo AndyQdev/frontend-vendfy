@@ -417,10 +417,7 @@ function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
 
 // ─── Lo que usan las pantallas ─────────────────────────────────────────────
 
-/**
- * El precio de lo escaneado, y si hace falta un aviso ("Agotado", "Van
- * dos"). Corta lo que se estuviera diciendo.
- */
+/** El precio de lo escaneado. Corta lo que se estuviera diciendo. */
 export function decirFrases(frases: FraseVoz[], { forzar = false }: { forzar?: boolean } = {}) {
   const { precios, voz } = preferenciasVoz();
   // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.

@@ -344,8 +344,8 @@ export default function Caja() {
       const p = r.producto;
       if (!p) return;
       const resultado = agregarAVenta(r, storeId === "all" ? null : storeId);
-      // Quien escanea mira el producto, no la pantalla: la voz dice el
-      // precio ("Doce bolivianos con cincuenta. Van dos.") o por qué no entró.
+      // Quien escanea mira el producto, no la pantalla: la voz dice solo el
+      // precio ("Doce bolivianos con cincuenta."); si no entró, avisa el bip.
       decirFrases(frasesAlAgregar(resultado));
 
       if (resultado.ok === false) {

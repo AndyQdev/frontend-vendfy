@@ -48,31 +48,21 @@ export function agregarAVenta(r: ResultadoEscaneo, tiendaId: string | null): Res
 }
 
 /**
- * Lo que dice la voz al abrir la ficha: el precio y, si importa, el stock.
- * "Doce bolivianos con cincuenta. Quedan dos."
+ * Lo que dice la voz al abrir la ficha: solo el precio ("Doce bolivianos con
+ * cincuenta."). El stock no se dice: se ve en la ficha.
  */
 export function frasesDeFicha(r: ResultadoEscaneo, tiendaId: string | null): FraseVoz[] {
   const producto = r.producto;
   if (!producto) return [];
   const tienda = producto.tiendas.find((t) => t.storeId === tiendaId) ?? producto.tiendas[0];
-  if (!tienda) return [{ tipo: "aviso", aviso: "sin_tienda" }];
-
-  const frases: FraseVoz[] = [{ tipo: "precio", monto: tienda.price, moneda: tienda.currency }];
-  const disponible = tienda.stock - tienda.reserved;
-  if (disponible <= 0) {
-    frases.push({ tipo: "aviso", aviso: tienda.sellWithoutStock ? "a_pedido" : "agotado" });
-  } else if (disponible <= 5 && Number.isInteger(disponible) && producto.inventoryType !== "fractional") {
-    frases.push({ tipo: "aviso", aviso: "quedan", n: disponible });
-  }
-  return frases;
+  return tienda ? [{ tipo: "precio", monto: tienda.price, moneda: tienda.currency }] : [];
 }
 
-/** Lo que dice la voz al cargarlo en la venta (Caja): el precio y cuántos van. */
+/**
+ * Lo que dice la voz al cargarlo en la venta (Caja): solo el precio, entre o no.
+ * Si no entró (agotado, ya están todos), lo avisan el bip de error y el toast.
+ */
 export function frasesAlAgregar(resultado: ResultadoAgregar): FraseVoz[] {
-  if (resultado.ok === false) {
-    return [{ tipo: "aviso", aviso: resultado.motivo }];
-  }
-  const frases: FraseVoz[] = [{ tipo: "precio", monto: resultado.tienda.price, moneda: resultado.tienda.currency }];
-  if (resultado.cantidad >= 2 && resultado.cantidad <= 20) frases.push({ tipo: "aviso", aviso: "van", n: resultado.cantidad });
-  return frases;
+  const tienda = resultado.tienda;
+  return tienda ? [{ tipo: "precio", monto: tienda.price, moneda: tienda.currency }] : [];
 }

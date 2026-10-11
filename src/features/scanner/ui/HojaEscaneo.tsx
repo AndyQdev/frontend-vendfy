@@ -23,7 +23,7 @@ import {
 import { useEscaner } from "../model/ScannerProvider";
 import { sonar } from "../model/sonido";
 import { useTiendaActiva } from "../model/useTiendaActiva";
-import { agregarAVenta, frasesAlAgregar, frasesDeFicha, tiendaParaVender } from "../model/venta";
+import { agregarAVenta, frasesDeFicha, tiendaParaVender } from "../model/venta";
 import { AjustesVoz } from "./AjustesVoz";
 import { CodigoDeBarras } from "./piezas";
 import { cn } from "@/shared/lib/cn";
@@ -166,9 +166,9 @@ export function HojaEscaneo() {
   const agregar = useCallback((): boolean => {
     if (!resultado?.producto) return false;
     const r = agregarAVenta(resultado, tiendaId);
+    // El precio ya lo dijo al abrir la ficha: aquí solo suenan los bips.
     if (r.ok === false) {
       sonar("error");
-      decirFrases(frasesAlAgregar(r));
       toast.error(
         r.motivo === "sin_tienda"
           ? "No se vende en esta tienda"
@@ -180,8 +180,6 @@ export function HojaEscaneo() {
       return false;
     }
     sonar("encontrado");
-    // El precio ya lo dijo al abrir: ahora solo cuántos van.
-    if (r.cantidad >= 2 && r.cantidad <= 20) decirFrases([{ tipo: "aviso", aviso: "van", n: r.cantidad }]);
     toast.success(r.cantidad > 1 ? `${r.cantidad} en la venta` : "Agregado a la venta", {
       description: `${resultado.producto.name} · ${formatMoney(r.tienda.price)}`,
       duration: 2200,
