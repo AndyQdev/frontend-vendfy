@@ -2,6 +2,7 @@ import { Globe } from "lucide-react";
 
 import { useStore } from "@/app/providers/auth";
 import { useStore as useStoreQuery } from "@/entities/store/api";
+import { ModoEscaner } from "@/features/scanner";
 import { cn } from "@/shared/lib/cn";
 
 import { NotificationsBell } from "./NotificationsBell";
@@ -48,6 +49,9 @@ export function HeaderActions({ className }: { className?: string }) {
         className
       )}
     >
+      {/* Qué hace la pistola en esta pantalla (solo si ya se usó una). */}
+      <ModoEscaner />
+
       <NotificationsBell />
 
       {storeUrl ? (

@@ -31,6 +31,7 @@ import { CompartirLive } from "@/features/live/ui/CompartirLive";
 import { ConfigurarSubastaModal } from "@/features/live/ui/ConfigurarSubastaModal";
 import { ColaPostores } from "@/features/live/ui/ColaPostores";
 import { EditarPrendaModal } from "@/features/live/ui/EditarPrendaModal";
+import { useEscanerLive } from "@/features/live/model/useEscanerLive";
 import type { LiveItem } from "@/entities/live/model/types";
 
 /** Cada cuánto se vuelve a preguntar mientras el Live está en el aire. */
@@ -71,6 +72,8 @@ export default function SesionLivePage() {
   const [viendoCola, setViendoCola] = useState<LiveItem | null>(null);
   const [editando, setEditando] = useState<LiveItem | null>(null);
   const [confirmandoFin, setConfirmandoFin] = useState(false);
+  // La pistola suma la prenda escaneada (o resalta la que ya estaba).
+  const resaltada = useEscanerLive(live);
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando...</p>;
   if (!live) return <p className="text-sm text-muted-foreground">Live no encontrado.</p>;
@@ -258,6 +261,7 @@ export default function SesionLivePage() {
         <GrillaItemsLive
           live={live}
           estado={estadoGrilla}
+          resaltada={resaltada}
           onSubastar={setSubastando}
           onVerCola={setViendoCola}
           onEditar={setEditando}

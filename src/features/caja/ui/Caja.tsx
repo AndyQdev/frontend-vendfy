@@ -389,7 +389,7 @@ export default function Caja() {
     [buscar, agregarEscaneado, abrirHojaEscaneo],
   );
 
-  useManejadorEscaneo((lectura) => procesarCodigo(lectura.codigo));
+  useManejadorEscaneo((lectura) => procesarCodigo(lectura.codigo), true, "Lo agrega al carrito");
 
   // "Vender ahora" desde la ficha de cualquier pantalla trae el código acá.
   const location = useLocation();

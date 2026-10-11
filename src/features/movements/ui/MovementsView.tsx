@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useOrders } from "@/entities/order/api";
 import { useMovements, useMovementKpis } from "@/entities/inventory/api";
+import type { Inventory } from "@/entities/inventory/model/types";
 import { useStore } from "@/app/providers/auth";
+import { inventariosDeEscaneo } from "@/features/inventory/model/escaneo";
+import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { MovimientosDeProducto } from "./MovimientosDeProducto";
 import {
   Table,
   TableBody,
@@ -82,6 +87,29 @@ export default function MovementsView() {
   const totalMovements = movementsResponse?.countData || 0;
   const comprasTotalPages = Math.ceil(totalMovements / comprasPageSize);
 
+  // ─── Escáner ───────────────────────────────────────────────────────────
+  // Escanear un producto deja solo sus movimientos (compras, ventas, ajustes),
+  // con un chip para volver a todos. Si no está registrado, la hoja de alta.
+  const { buscar } = useEscaner();
+  const [porProducto, setPorProducto] = useState<{ productId: string; inventarios: Inventory[] } | null>(null);
+  useManejadorEscaneo(
+    async (lectura) => {
+      const r = await buscar(lectura.codigo);
+      if (!r.producto) return false;
+      const inventarios = inventariosDeEscaneo(r, storeId ?? "all");
+      if (inventarios.length === 0) {
+        sonar("error");
+        toast.error(`«${r.producto.name}» no tiene stock cargado en esta tienda`);
+        return true;
+      }
+      sonar("encontrado");
+      setPorProducto({ productId: r.producto.id, inventarios });
+      return true;
+    },
+    true,
+    "Muestra solo los movimientos de ese producto",
+  );
+
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("es-BO", {
       day: "2-digit",
@@ -97,10 +125,18 @@ export default function MovementsView() {
       <div>
         <h1 className="titulo-pagina">Movimientos</h1>
         <p className="mt-1.5 text-[13px] text-muted-foreground">
-          Registro de ventas y compras de mercadería
+          Registro de ventas y compras de mercadería. Escaneá un producto para ver solo lo suyo.
         </p>
       </div>
 
+      {porProducto ? (
+        <MovimientosDeProducto
+          key={porProducto.productId}
+          inventarios={porProducto.inventarios}
+          onQuitar={() => setPorProducto(null)}
+        />
+      ) : (
+      <>
       {/* KPI Cards */}
       {isLoadingKpis ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -527,6 +563,8 @@ export default function MovementsView() {
           )}
         </TabsContent>
       </Tabs>
+      </>
+      )}
     </div>
   );
 }

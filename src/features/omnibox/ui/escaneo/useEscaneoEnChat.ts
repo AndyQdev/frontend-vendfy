@@ -148,7 +148,7 @@ export function useEscaneoEnChat({
     setMensajes((prev) => [...prev, m]);
     void resolver(m.id, lectura.codigo);
     return true;
-  }, Boolean(storeId));
+  }, Boolean(storeId), "Lo trae al chat: vender, comprar o crearlo");
 
   return {
     vender: (id: string) => vender(id),

@@ -272,7 +272,7 @@ export function PurchaseOrderCreate() {
       });
     }
     return true;
-  });
+  }, true, "Lo agrega a la compra");
 
   // El renglón recién escaneado se trae a la vista y brilla un momento.
   useEffect(() => {

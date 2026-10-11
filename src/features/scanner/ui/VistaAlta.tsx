@@ -82,6 +82,8 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
   const enCaja = contexto === "caja";
   // En una compra la cantidad es lo comprado: entra a la compra, no como stock.
   const enCompra = contexto === "compra";
+  // En un Live se registra para mostrarlo: arranca con uno, como el alta rápida.
+  const enLive = contexto === "live";
   const { ia, generando: iaGenerando } = useEnriquecimientoIa(resultado);
   const ficha = ia?.ficha ?? null;
 
@@ -93,7 +95,7 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
   const [marca, setMarca] = useState(ficha?.marca ?? s?.marca ?? "");
   const [categoria, setCategoria] = useState(ficha?.categoria ?? "");
   const [precio, setPrecio] = useState("");
-  const [stock, setStock] = useState(enCaja || enCompra ? 1 : 0);
+  const [stock, setStock] = useState(enCaja || enCompra || enLive ? 1 : 0);
   const [tienda, setTienda] = useState(tiendaId ?? "");
   const [descripcion, setDescripcion] = useState(ficha?.descripcion ?? "");
   const [etiquetas, setEtiquetas] = useState<string[]>(ficha?.etiquetas ?? []);
@@ -498,7 +500,13 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
         </Button>
         <Button type="submit" size="lg" loading={guardando} className="md:min-w-60">
           {!guardando && <PackagePlus aria-hidden />}
-          {enCaja ? "Registrar y agregar a la venta" : enCompra ? "Registrar y agregar a la compra" : "Registrar producto"}
+          {enCaja
+            ? "Registrar y agregar a la venta"
+            : enCompra
+              ? "Registrar y agregar a la compra"
+              : enLive
+                ? "Registrar y agregar al Live"
+                : "Registrar producto"}
         </Button>
       </ResponsiveDialogFooter>
     </motion.form>

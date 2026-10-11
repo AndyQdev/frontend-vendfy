@@ -225,7 +225,7 @@ export default function InventoryTable() {
       escaneo: { lecturas: 1, tiendas },
     });
     return true;
-  });
+  }, true, "Abre su stock: agregar, quitar o contar");
 
 
   const getStatusBadge = (status: string) => {
