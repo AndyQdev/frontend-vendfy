@@ -1,9 +1,12 @@
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useNavigate } from "react-router-dom";
 import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
 import { useCategories, useBrands } from "@/entities/product/api";
+import { frasesDeFicha, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { decirFrases } from "@/shared/voz";
+import { inventariosDeEscaneo } from "../model/escaneo";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { Truck as TruckIcon, Package as PackageIcon } from "lucide-react";
 import { useStore } from "@/app/providers/auth";
@@ -188,6 +191,42 @@ export default function InventoryTable() {
     setHistoryDialogOpen(true);
   };
 
+  // ─── Escáner ───────────────────────────────────────────────────────────
+  // Acá una lectura abre el ajuste de stock de ese producto, con el producto
+  // arriba: agregar, quitar o contar. Escanear el mismo otra vez suma uno.
+  // Si no está registrado, la hoja de siempre para darlo de alta (con lo que
+  // hay como stock inicial).
+  const { buscar, abrir: abrirHojaEscaneo } = useEscaner();
+  const aperturaRef = useRef(apertura);
+  aperturaRef.current = apertura;
+
+  useManejadorEscaneo(async (lectura) => {
+    const r = await buscar(lectura.codigo);
+    if (!r.producto) {
+      abrirHojaEscaneo(lectura.codigo, { resultado: r, contexto: "inventario" });
+      return true;
+    }
+    const tiendas = inventariosDeEscaneo(r, storeId);
+    // Registrado, pero no en esta tienda: la hoja de siempre lo explica.
+    if (tiendas.length === 0) return false;
+    sonar("encontrado");
+    const actual = aperturaRef.current;
+    if (actual?.escaneo && tiendas.some((t) => t.id === actual.inventory.id)) {
+      setApertura({ ...actual, escaneo: { ...actual.escaneo, lecturas: actual.escaneo.lecturas + 1 } });
+      return true;
+    }
+    setHistoryDialogOpen(false);
+    // Como en todo el panel, la voz dice el precio (solo al abrirlo, no en cada +1).
+    decirFrases(frasesDeFicha(r, storeId === "all" ? null : storeId));
+    setApertura({
+      inventory: tiendas[0],
+      alcance: "envase",
+      direccion: "in",
+      escaneo: { lecturas: 1, tiendas },
+    });
+    return true;
+  });
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -297,7 +336,7 @@ export default function InventoryTable() {
           <div className="relative lg:min-w-[220px] lg:flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar producto..."
+              placeholder="Buscar o escanear un producto..."
               value={searchTerm}
               onChange={(e) => setFiltro("q", e.target.value)}
               className="pl-10 pr-9"
@@ -813,6 +852,15 @@ export default function InventoryTable() {
       <AjusteStockDialog
         apertura={apertura}
         onClose={() => setApertura(null)}
+        onHistorial={(inv) => {
+          setApertura(null);
+          openHistoryDialog(inv.id);
+        }}
+        onEditar={(inv) => {
+          setApertura(null);
+          navigate(`/products/${inv.product.id}`);
+        }}
+        onCambiarTienda={(inv) => setApertura((a) => (a ? { ...a, inventory: inv } : a))}
       />
     </div>
   );

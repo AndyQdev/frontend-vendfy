@@ -22,14 +22,15 @@ import { crearDetector, type Lectura } from "./detector";
  * ahí escucha la pistola en cualquier ruta. Por defecto, cada lectura abre la
  * hoja del producto. Una pantalla puede quedarse con las lecturas mientras
  * está abierta —Caja las carga directo al carrito, Nueva compra a su tabla, el
- * asistente al chat— con `useManejadorEscaneo`.
+ * asistente al chat, Inventario abre el ajuste de stock— con
+ * `useManejadorEscaneo`.
  */
 
 /**
  * Desde dónde se abrió la hoja para dar de alta. Fuera de "general", al
  * registrar se cierra sola: la pantalla que la abrió sigue con el producto.
  */
-export type ContextoHoja = "general" | "caja" | "compra" | "asistente";
+export type ContextoHoja = "general" | "caja" | "compra" | "asistente" | "inventario";
 
 export interface AbrirHojaOpciones {
   /** Si la pantalla ya lo buscó, para no pedirlo dos veces. */

@@ -90,6 +90,9 @@ export function useCreateMovement() {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["movements"] });
+      // Lo que devolvió el escáner trae el stock: escanear de nuevo justo
+      // después de ajustar no debe mostrar el número viejo.
+      queryClient.invalidateQueries({ queryKey: ["product-scan"] });
     },
   });
 }
