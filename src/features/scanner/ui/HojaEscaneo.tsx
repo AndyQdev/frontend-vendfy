@@ -48,7 +48,7 @@ function festejar() {
 /**
  * La hoja del producto escaneado. Una sola para todo el panel: la abre el
  * escáner desde cualquier ruta, o una pantalla que quiere mostrar algo que no
- * supo resolver sola (Caja con un código desconocido).
+ * supo resolver sola (Caja o Nueva compra con un código desconocido).
  */
 export function HojaEscaneo() {
   const { hoja, cerrar } = useEscaner();
@@ -99,11 +99,14 @@ export function HojaEscaneo() {
   const registrar = async (datos: DatosAlta) => {
     if (!resultado) return;
     setErrorAlta(null);
+    // En una compra lo comprado entra por la compra (con su costo): como
+    // stock inicial se contaría dos veces.
+    const enCompra = hoja.contexto === "compra";
     try {
       await crear.mutateAsync({
         name: datos.name,
         price: datos.price,
-        initialStock: datos.initialStock,
+        initialStock: enCompra ? 0 : datos.initialStock,
         storeId: datos.storeId,
         barcode: resultado.codigo,
         brandId: datos.brandId,
@@ -125,9 +128,9 @@ export function HojaEscaneo() {
       setRecienCreado(true);
       sonar("creado");
       festejar();
-      hoja.alRegistrar?.(nuevo);
-      // En Caja ya se agregó a la venta: la hoja se va sola para seguir cobrando.
-      if (hoja.contexto === "caja") setTimeout(cerrar, 1100);
+      hoja.alRegistrar?.(nuevo, { cantidad: Math.max(1, datos.initialStock) });
+      // En Caja, la compra o el asistente ya se agregó: la hoja se va sola para seguir escaneando.
+      if (hoja.contexto && hoja.contexto !== "general") setTimeout(cerrar, 1100);
     } catch (error) {
       sonar("error");
       setErrorAlta(error instanceof ApiError ? error.message : "No se pudo registrar. Probá de nuevo.");

@@ -126,13 +126,20 @@ export function useDictar() {
  * entre dos productos no debe pedir lo mismo cada vez, pero el stock cambia.
  */
 export function useFichaProducto(productId: string | undefined, storeId: string) {
-  return useQuery({
+  return useQuery({ ...fichaProductoConsulta(productId ?? "", storeId), enabled: Boolean(productId) });
+}
+
+/**
+ * La misma consulta, para pedirla fuera de un componente (con `fetchQuery`):
+ * el escáner de Nueva compra la usa para precargar el último costo.
+ */
+export function fichaProductoConsulta(productId: string, storeId: string) {
+  return {
     queryKey: ["omnibox", "ficha", storeId, productId],
     queryFn: async () =>
       (await apiFetch<FichaProducto>(`/api/omnibox/producto/${productId}?storeId=${storeId}`)).data!,
-    enabled: Boolean(productId),
     staleTime: 60_000,
-  });
+  };
 }
 
 /** Clientes parecidos a lo escrito. Sin texto: los que compraron hace menos. */

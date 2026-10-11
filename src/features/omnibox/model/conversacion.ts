@@ -1,3 +1,4 @@
+import { escaneoGuardable } from "./escaneo";
 import type { Mensaje } from "./mensaje";
 import { COMPRA_VACIA, MESA_INICIAL, VENTA_VACIA, type Mesa } from "./mesa";
 
@@ -29,6 +30,7 @@ function sinLoQueEstabaEnCamino(m: Record<string, any>): Record<string, unknown>
   const fuera: Record<string, unknown> = {};
   if (m.herramienta?.fase === "armando") fuera.herramienta = { fase: "error", error: HERRAMIENTA_CORTADA };
   if (m.precios?.estado === "aplicando") fuera.precios = { ...m.precios, estado: "pendiente" };
+  if (m.escaneo && typeof m.escaneo === "object") fuera.escaneo = escaneoGuardable(m.escaneo);
   return fuera;
 }
 

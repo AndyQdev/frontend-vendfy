@@ -21,17 +21,24 @@ import { crearDetector, type Lectura } from "./detector";
  * Se monta una sola vez, en el marco de las pantallas (LayoutShell), y desde
  * ahí escucha la pistola en cualquier ruta. Por defecto, cada lectura abre la
  * hoja del producto. Una pantalla puede quedarse con las lecturas mientras
- * está abierta —Caja las carga directo al carrito— con
- * `useManejadorEscaneo`.
+ * está abierta —Caja las carga directo al carrito, Nueva compra a su tabla, el
+ * asistente al chat— con `useManejadorEscaneo`.
  */
 
-export type ContextoHoja = "general" | "caja";
+/**
+ * Desde dónde se abrió la hoja para dar de alta. Fuera de "general", al
+ * registrar se cierra sola: la pantalla que la abrió sigue con el producto.
+ */
+export type ContextoHoja = "general" | "caja" | "compra" | "asistente";
 
 export interface AbrirHojaOpciones {
   /** Si la pantalla ya lo buscó, para no pedirlo dos veces. */
   resultado?: ResultadoEscaneo;
-  /** Se llama cuando el producto quedó registrado desde la hoja. */
-  alRegistrar?: (resultado: ResultadoEscaneo) => void;
+  /**
+   * Se llama cuando el producto quedó registrado desde la hoja. En una compra
+   * trae cuántos se compraron: entran por la compra, no como stock inicial.
+   */
+  alRegistrar?: (resultado: ResultadoEscaneo, alta: { cantidad: number }) => void;
   /** Cambia los textos y el botón principal ("Registrar y agregar a la venta"). */
   contexto?: ContextoHoja;
 }

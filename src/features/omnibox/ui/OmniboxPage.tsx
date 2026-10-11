@@ -122,6 +122,8 @@ import { TarjetaVenta } from "./mesa/TarjetaVenta";
 import { TarjetaCompra } from "./mesa/TarjetaCompra";
 import { PanelHerramienta } from "./herramienta/PanelHerramienta";
 import { TarjetaPrecios } from "./herramienta/TarjetaPrecios";
+import { TarjetaEscaneo } from "./escaneo/TarjetaEscaneo";
+import { useEscaneoEnChat } from "./escaneo/useEscaneoEnChat";
 
 /**
  * El asistente: un chat donde las respuestas son tarjetas, no párrafos.
@@ -372,6 +374,24 @@ export function OmniboxPage() {
     const nueva = nuevasAdvertencias(revisar(antes), revisar(despues))[0];
     if (nueva) avisar(nueva, { senalar: false });
   }
+
+  // ------------------------------------------------------------ la pistola
+  // Cada código escaneado es un mensaje: con la venta o la compra abierta
+  // entra ahí; si no, la tarjeta ofrece Vender o Comprar, o crearlo si la
+  // tienda no lo tiene. Lo que toca la mesa va por el mismo camino que una frase.
+  const escaneo = useEscaneoEnChat({
+    storeId,
+    mensajesRef,
+    mesaRef,
+    setMensajes,
+    ultimoCosto,
+    aplicarEnMesa: (acciones, destino) => {
+      anunciarAdvertencias(mesaRef.current, acciones);
+      origenCambio.current = "chat";
+      acciones.forEach(despachar);
+      if (ancho) despachar({ tipo: "abrir", mesa: destino, pestana: "borrador" });
+    },
+  });
 
   const { data: intenciones } = useIntenciones();
   const { data: estadoVoz, isLoading: consultandoVoz } = useEstadoVoz();
@@ -1897,6 +1917,23 @@ export function OmniboxPage() {
                         onAnular={() => anularVenta(m)}
                       />
                     )}
+                  </FilaAsistente>
+                </Fragment>
+              ) : m.escaneo ? (
+                <Fragment key={m.id}>
+                  <Burbuja mensaje={m} />
+                  <FilaAsistente>
+                    <TarjetaEscaneo
+                      escaneo={m.escaneo}
+                      storeId={storeId}
+                      hora={horaDe(m.hora)}
+                      onVender={() => escaneo.vender(m.id)}
+                      onComprar={() => escaneo.comprar(m.id)}
+                      onCrear={(datos) => escaneo.crear(m.id, datos)}
+                      onMasDatos={() => escaneo.masDatos(m.id)}
+                      onDescartar={() => escaneo.descartar(m.id)}
+                      onReintentar={() => escaneo.reintentar(m.id)}
+                    />
                   </FilaAsistente>
                 </Fragment>
               ) : (

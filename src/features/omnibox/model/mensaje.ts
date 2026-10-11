@@ -7,6 +7,7 @@ import type {
   VistaFijada,
 } from "@/entities/omnibox/model/types";
 
+import type { EscaneoChat } from "./escaneo";
 import type { Formulario } from "./formularios";
 import type { PropuestaPrecios } from "./herramienta";
 
@@ -49,6 +50,23 @@ export interface Mensaje {
    * Como un evento, no nace de una frase: no lleva burbuja del usuario.
    */
   precios?: PreciosPropuestos;
+  /**
+   * Un código que pasó por la pistola: el producto y qué se hizo con él
+   * (vender, comprar o crearlo). Se resuelve en la pantalla, sin IA.
+   */
+  escaneo?: EscaneoChat;
+}
+
+/** Lo que leyó la pistola, como mensaje: el código como burbuja y la tarjeta buscando. */
+export function mensajeDeEscaneo(codigo: string): Mensaje {
+  return {
+    id: crypto.randomUUID(),
+    texto: codigo,
+    porVoz: false,
+    hora: new Date(),
+    fase: "listo",
+    escaneo: { codigo, resultado: null, producto: null, estado: "buscando" },
+  };
 }
 
 /**

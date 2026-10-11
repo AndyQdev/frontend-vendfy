@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckCheck, Clock, FileText, Mic } from "lucide-react";
+import { CheckCheck, Clock, FileText, Mic, ScanBarcode } from "lucide-react";
 
 import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { cn } from "@/shared/lib/cn";
@@ -12,7 +12,7 @@ import { hora, type Mensaje } from "../model/mensaje";
  * El doble check dice "esto ya tiene respuesta", como en WhatsApp, que es el
  * chat que este público usa todos los días: no hay que explicarlo. El
  * micrófono dice que fue dictado, para que si la transcripción salió mal se
- * entienda por qué.
+ * entienda por qué; el código de barras, que lo leyó la pistola.
  */
 export function Burbuja({ mensaje: m }: { mensaje: Mensaje }) {
   const respondido = m.fase !== "pensando";
@@ -27,6 +27,7 @@ export function Burbuja({ mensaje: m }: { mensaje: Mensaje }) {
         )}
       >
         {m.porVoz && <Mic className="mb-0.5 h-4 w-4 shrink-0 text-primary" aria-label="Dictado" />}
+        {m.escaneo && <ScanBarcode className="mb-0.5 h-4 w-4 shrink-0 text-primary" aria-label="Escaneado" />}
 
         {/* La factura que se mandó: la foto misma, que es lo que se reconoce. */}
         {m.adjunto &&

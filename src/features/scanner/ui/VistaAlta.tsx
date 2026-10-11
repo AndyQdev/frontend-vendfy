@@ -80,6 +80,8 @@ function especificacionesIniciales(ficha: FichaIa | null | undefined, cantidad: 
 export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, error, onRegistrar, onCompletar }: Props) {
   const s = resultado.sugerencia;
   const enCaja = contexto === "caja";
+  // En una compra la cantidad es lo comprado: entra a la compra, no como stock.
+  const enCompra = contexto === "compra";
   const { ia, generando: iaGenerando } = useEnriquecimientoIa(resultado);
   const ficha = ia?.ficha ?? null;
 
@@ -91,7 +93,7 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
   const [marca, setMarca] = useState(ficha?.marca ?? s?.marca ?? "");
   const [categoria, setCategoria] = useState(ficha?.categoria ?? "");
   const [precio, setPrecio] = useState("");
-  const [stock, setStock] = useState(enCaja ? 1 : 0);
+  const [stock, setStock] = useState(enCaja || enCompra ? 1 : 0);
   const [tienda, setTienda] = useState(tiendaId ?? "");
   const [descripcion, setDescripcion] = useState(ficha?.descripcion ?? "");
   const [etiquetas, setEtiquetas] = useState<string[]>(ficha?.etiquetas ?? []);
@@ -398,9 +400,9 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="escaner-stock">¿Cuántos tenés?</Label>
+                <Label htmlFor="escaner-stock">{enCompra ? "¿Cuántos compraste?" : "¿Cuántos tenés?"}</Label>
                 <div className="flex h-12 items-center gap-1 rounded-lg border border-input bg-card p-1">
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Uno menos" onClick={() => setStock((n) => Math.max(0, n - 1))}>
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Uno menos" onClick={() => setStock((n) => Math.max(enCompra ? 1 : 0, n - 1))}>
                     <Minus aria-hidden />
                   </Button>
                   <input
@@ -496,7 +498,7 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
         </Button>
         <Button type="submit" size="lg" loading={guardando} className="md:min-w-60">
           {!guardando && <PackagePlus aria-hidden />}
-          {enCaja ? "Registrar y agregar a la venta" : "Registrar producto"}
+          {enCaja ? "Registrar y agregar a la venta" : enCompra ? "Registrar y agregar a la compra" : "Registrar producto"}
         </Button>
       </ResponsiveDialogFooter>
     </motion.form>

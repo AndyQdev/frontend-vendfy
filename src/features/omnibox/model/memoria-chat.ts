@@ -1,5 +1,6 @@
 import type { Filtros } from "@/entities/omnibox/model/types";
 
+import { respuestaDeEscaneo } from "./escaneo";
 import type { Mensaje } from "./mensaje";
 import { textoAlcance } from "./vistas";
 
@@ -38,6 +39,7 @@ export function respuestaDe(m: Mensaje): string | null {
   if (m.fase === "error") return m.error ? `Error: ${m.error}` : null;
   if (m.evento?.tipo === "venta") return `Venta #${m.evento.venta.numero} cobrada`;
   if (m.evento?.tipo === "compra") return "Compra registrada";
+  if (m.escaneo) return respuestaDeEscaneo(m.escaneo);
   const p = m.propuesta;
   if (!p) return null;
   // El agente (G7b): lo que dijo, y qué tarjetas dejó (la frase siguiente puede ser sobre ellas).
