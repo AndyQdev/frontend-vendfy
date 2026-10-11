@@ -1,5 +1,7 @@
 import type { Dispatch, ReactNode } from "react";
-import { BarChart3, Maximize2, Minimize2, Package, ShoppingCart, SlidersHorizontal, Truck, X } from "lucide-react";
+import { BarChart3, FileText, List, Maximize2, Minimize2, Package, PackagePlus, ShoppingCart, SlidersHorizontal, Truck, X } from "lucide-react";
+
+import type { FichaRecurso, ListaRecurso } from "@/entities/omnibox/model/types";
 
 import { cn } from "@/shared/lib/cn";
 
@@ -12,6 +14,9 @@ import type { AccionesVista } from "../vista/acciones";
 import { FichaProducto } from "./FichaProducto";
 import { VentaBorrador } from "./VentaBorrador";
 import { CompraBorrador } from "./CompraBorrador";
+import { PanelFicha } from "../recursos/PanelFicha";
+import { PanelLista } from "../recursos/PanelLista";
+import { ICONO_RECURSO } from "../recursos/TarjetasRecursos";
 
 /**
  * La mesa de trabajo: el panel de la derecha.
@@ -35,6 +40,10 @@ export function PanelMesa({
   tienda = "",
   acciones = null,
   herramienta: cuerpoHerramienta = null,
+  listaInicial,
+  fichaInicial,
+  onAccionFicha,
+  productos: cuerpoProductos = null,
 }: {
   mesa: Mesa;
   despachar: Dispatch<AccionMesa>;
@@ -53,6 +62,12 @@ export function PanelMesa({
   acciones?: AccionesVista | null;
   /** La herramienta a medida abierta (G6), ya armada: vive en su mensaje, no en la mesa. */
   herramienta?: ReactNode;
+  /** La lista y la ficha (G9a) como las trajo el agente: se ven sin esperar. */
+  listaInicial?: ListaRecurso;
+  fichaInicial?: FichaRecurso;
+  onAccionFicha?: (accion: FichaRecurso["acciones"][number], ficha: FichaRecurso) => void;
+  /** El formulario de productos nuevos (G9b), ya armado: vive en su mensaje. */
+  productos?: ReactNode;
 }) {
   if (!mesa.abierta) return null;
   // El análisis (G3) y la herramienta (G6) se muestran en el mismo panel, con su propia pestaña.
@@ -60,7 +75,14 @@ export function PanelMesa({
   if (mesa.abierta === "analisis" && !analisis) return null;
   const herramienta = mesa.abierta === "herramienta" ? mesa.herramienta : null;
   if (mesa.abierta === "herramienta" && (!herramienta || !cuerpoHerramienta)) return null;
-  const mirando = Boolean(analisis || herramienta);
+  // La lista y la ficha (G9a) tampoco son mesas: se miran y se abren.
+  const lista = mesa.abierta === "lista" ? mesa.lista : null;
+  const ficha = mesa.abierta === "ficha" ? mesa.ficha : null;
+  if ((mesa.abierta === "lista" && !lista) || (mesa.abierta === "ficha" && !ficha)) return null;
+  // Los productos nuevos (G9b): el formulario que se llena conversando.
+  const nuevos = mesa.abierta === "productos" && mesa.productos && cuerpoProductos ? mesa.productos : null;
+  if (mesa.abierta === "productos" && !nuevos) return null;
+  const mirando = Boolean(analisis || herramienta || lista || ficha || nuevos);
 
   const esVenta = mesa.abierta === "venta";
   const lineas = esVenta ? mesa.venta.lineas : mesa.compra.lineas;
@@ -70,7 +92,7 @@ export function PanelMesa({
     <aside
       data-testid="omnibox-mesa"
       data-mesa={mesa.abierta}
-      aria-label={analisis ? "Análisis" : herramienta ? "Herramienta" : esVenta ? "Venta" : "Compra"}
+      aria-label={analisis ? "Análisis" : herramienta ? "Herramienta" : lista ? lista.titulo : ficha ? ficha.titulo : esVenta ? "Venta" : "Compra"}
       className={cn(
         "flex h-full min-h-0 flex-col overflow-hidden bg-card",
         !enHoja && "rounded-xl border border-border shadow-card",
@@ -90,6 +112,31 @@ export function PanelMesa({
               <p className="truncate text-xs text-muted-foreground">
                 Análisis · {resumenPiezas(analisis.vista).length} piezas
               </p>
+            </div>
+          </>
+        ) : nuevos ? (
+          <>
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+              <PackagePlus className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold leading-tight">Productos nuevos</p>
+              <p className="truncate text-xs text-muted-foreground">Se completan acá o diciéndomelo</p>
+            </div>
+          </>
+        ) : lista || ficha ? (
+          <>
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+              {(() => {
+                const Icono = ICONO_RECURSO[(lista ? lista.consulta.recurso : ficha!.recurso)] ?? FileText;
+                return <Icono className="size-5" />;
+              })()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p data-testid="recurso-titulo" className="truncate font-semibold leading-tight">
+                {lista ? lista.titulo : ficha!.titulo}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{lista ? "Lista" : "Ficha"}</p>
             </div>
           </>
         ) : herramienta ? (
@@ -197,11 +244,46 @@ export function PanelMesa({
             Herramienta
           </Pestana>
         ) : null}
+        {mesa.productos && cuerpoProductos ? (
+          <Pestana activa={Boolean(nuevos)} onClick={() => despachar({ tipo: "abrir", mesa: "productos" })} icono={<PackagePlus className="size-4" />}>
+            Nuevos
+          </Pestana>
+        ) : null}
+        {mesa.lista ? (
+          <Pestana activa={Boolean(lista)} onClick={() => despachar({ tipo: "abrir", mesa: "lista" })} icono={<List className="size-4" />}>
+            {mesa.lista.titulo || "Lista"}
+          </Pestana>
+        ) : null}
+        {mesa.ficha ? (
+          <Pestana activa={Boolean(ficha)} onClick={() => despachar({ tipo: "abrir", mesa: "ficha" })} icono={<FileText className="size-4" />}>
+            Ficha
+          </Pestana>
+        ) : null}
       </div>
 
       {/* ---- cuerpo */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {herramienta ? (
+        {nuevos ? (
+          cuerpoProductos
+        ) : lista ? (
+          <PanelLista
+            key={lista.mensajeId}
+            lista={lista}
+            inicial={listaInicial}
+            storeId={storeId}
+            despachar={despachar}
+            tienda={tienda}
+          />
+        ) : ficha ? (
+          <PanelFicha
+            key={`${ficha.recurso}:${ficha.id}`}
+            ficha={ficha}
+            inicial={fichaInicial}
+            storeId={storeId}
+            despachar={despachar}
+            onAccion={onAccionFicha}
+          />
+        ) : herramienta ? (
           cuerpoHerramienta
         ) : analisis ? (
           <PanelVista

@@ -15,6 +15,8 @@ import {
   unidades,
   type AccionMesa,
   type Mesa,
+  faltaParaCobrar,
+  totalConEnvio,
 } from "../../src/features/omnibox/model/mesa";
 
 /**
@@ -300,3 +302,49 @@ test.describe("la compra desde una foto (Fase 5)", () => {
     expect(facturaDe("m1", { entidades: {}, items: [] })).toBeNull();
   });
 });
+
+test.describe("vender con delivery o a cuotas (G9f)", () => {
+  const conCoca = () => mesaReducer(MESA_INICIAL, { tipo: "agregarVenta", producto: producto("coca", 12), cantidad: 2 });
+
+  test("con delivery: la dirección, el envío suma al total, y hace falta el cliente", () => {
+    let m = mesaReducer(conCoca(), { tipo: "tipoVenta", tipoVenta: "delivery" });
+    expect(faltaParaCobrar(m.venta)).toEqual(["la dirección de entrega", "el cliente (para avisarle del envío)"]);
+    m = mesaReducer(m, { tipo: "entrega", entrega: { direccion: "Av. Banzer 123", costo: 10 } });
+    m = mesaReducer(m, { tipo: "cliente", clienteId: "c1", nombre: "Marta" });
+    expect(faltaParaCobrar(m.venta)).toEqual([]);
+    expect(totalConEnvio(m.venta)).toBe(34);
+  });
+
+  test("a cuotas: el cliente, cuánto paga hoy (sin pasarse del total) y la fecha", () => {
+    let m = mesaReducer(conCoca(), { tipo: "cuotas", cuotas: { cantidad: 3 } });
+    expect(m.venta.entrega).toBeNull();
+    expect(faltaParaCobrar(m.venta)).toEqual(["el cliente (a cuotas necesita uno)", "cuánto paga hoy", "la fecha del próximo pago"]);
+    m = mesaReducer(m, { tipo: "cliente", clienteId: "c1", nombre: "Marta" });
+    m = mesaReducer(m, { tipo: "cuotas", cuotas: { inicial: 99, proxima: "2026-10-20" } });
+    expect(faltaParaCobrar(m.venta)).toEqual(["un pago de hoy que no supere el total"]);
+    m = mesaReducer(m, { tipo: "cuotas", cuotas: { inicial: 10 } });
+    expect(faltaParaCobrar(m.venta)).toEqual([]);
+  });
+
+  test("volver a «en el momento» saca el delivery y las cuotas; limpiar también", () => {
+    let m = mesaReducer(conCoca(), { tipo: "entrega", entrega: { direccion: "x" } });
+    m = mesaReducer(m, { tipo: "tipoVenta", tipoVenta: "rapida" });
+    expect(m.venta.entrega).toBeNull();
+    expect(m.venta.cuotas).toBeNull();
+    m = mesaReducer(mesaReducer(m, { tipo: "cuotas", cuotas: { cantidad: 2 } }), { tipo: "limpiarVenta" });
+    expect(m.venta.cuotas).toBeNull();
+  });
+
+  test("lo que trae el agente: «es con delivery a…» sobre la venta abierta", () => {
+    const efecto = efectoDeVenta({
+      intencion: "agregar_a_venta",
+      ejecutable: true,
+      producto: null,
+      items: [],
+      entidades: { entrega: { direccion: "Av. Banzer 123", costo: 10 } },
+    });
+    expect(efecto?.acciones).toEqual([{ tipo: "entrega", entrega: { direccion: "Av. Banzer 123", costo: 10, notas: "" } }]);
+    expect(efecto?.resumen).toBe("La venta · con delivery a Av. Banzer 123");
+  });
+});
+

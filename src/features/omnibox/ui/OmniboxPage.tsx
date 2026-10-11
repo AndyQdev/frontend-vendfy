@@ -6,6 +6,10 @@ import { toast } from "sonner";
 
 import {
   useAnularVenta,
+  useBajaProducto,
+  useCambiarProducto,
+  useCrearProductos,
+  useEstadoPedido,
   useCambiarPrecios,
   useCobrar,
   useGenerarHerramienta,
@@ -20,10 +24,17 @@ import {
   useVistasFijadas,
   guardarConversacion,
   traerConversacion,
+  useEjecutarOperacion,
+  usePrepararOperacion,
 } from "@/entities/omnibox/api";
 import {
   esDeVenta,
   estadoDe,
+  type BorradorProducto,
+  type FichaRecurso,
+  type ListaRecurso,
+  type VistaOperacion,
+  type PedidoResumen,
   type CostoProducto,
   type HerramientaGenerada,
   type LineaContexto,
@@ -37,28 +48,25 @@ import { VendfyMark } from "@/shared/ui/VendfyLogo";
 import { Drawer, DrawerContent, DrawerTitle } from "@/shared/ui/drawer";
 import { cn } from "@/shared/lib/cn";
 
-import {
-  completar,
-  mensajeDeEvento,
-  mensajeDePrecios,
-  mensajeDeVistaFijada,
-  mensajeRespuestaGuia,
-  nuevoMensaje,
-  hora as horaDe,
-  type Mensaje,
-} from "../model/mensaje";
+import { completar, mensajeDeEvento, mensajeDePrecios, mensajeDeVistaFijada, mensajeRespuestaGuia, nuevoMensaje, propuestaLocal, hora as horaDe, type Mensaje } from "../model/mensaje";
+import type { CambioPrecio } from "../model/herramienta";
 import { validarPropuesta } from "../model/herramienta";
 import { memoriaDe } from "../model/memoria-chat";
 import {
   camposDeFrase,
   completo,
   esConfirmacion,
+  faltanProducto,
   formularioActivo,
   nuevoFormulario,
+  nuevoFormularioProductos,
+  precioDeFrase,
   resumenCompletado,
   titular,
   type Formulario,
 } from "../model/formularios";
+import { CrearEnChatContext } from "./formularios/crear-en-chat";
+import { TarjetaProductosNuevos } from "./formularios/FormularioProductos";
 import { useCreateCustomer } from "@/entities/customer";
 import { respuestaAGuia, resumenRespuesta } from "../model/respuesta-guia";
 import { fraseDeGuia, paraHablar } from "../model/voz";
@@ -85,6 +93,7 @@ import {
   totalCompra,
   type MetodoPago,
   type TipoMesa,
+  faltaParaCobrar,
 } from "../model/mesa";
 import { useDictado } from "../model/use-dictado";
 import { crearCoreografia, efectosDeCambio } from "../model/coreografia";
@@ -113,6 +122,8 @@ import { TarjetaVenta } from "./mesa/TarjetaVenta";
 import { TarjetaCompra } from "./mesa/TarjetaCompra";
 import { PanelHerramienta } from "./herramienta/PanelHerramienta";
 import { TarjetaPrecios } from "./herramienta/TarjetaPrecios";
+import { TarjetaEscaneo } from "./escaneo/TarjetaEscaneo";
+import { useEscaneoEnChat } from "./escaneo/useEscaneoEnChat";
 
 /**
  * El asistente: un chat donde las respuestas son tarjetas, no párrafos.
@@ -126,6 +137,9 @@ import { TarjetaPrecios } from "./herramienta/TarjetaPrecios";
  * contestó, qué quedó hecho. La versión anterior era un buscador con un
  * historial abajo y no se entendía qué respondía a qué.
  */
+/** Las listas de precios que el servidor sabe leer además de fotos y PDF. */
+const DOCUMENTOS = /\.(xlsx|xls|csv|docx|txt)$/i;
+
 export function OmniboxPage() {
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
@@ -164,8 +178,22 @@ export function OmniboxPage() {
       ...(analizando ? { enPantalla: "analisis", vista: m.analisis!.vista } : {}),
       // La memoria corta (G6b): los últimos turnos y de quién se venía hablando.
       ...memoriaDe(mensajesRef.current),
+      // El formulario de productos nuevos abierto (G7a): "el alcohol a 15" es para él.
+      ...formularioProductosAbierto(),
+      // La lista a la derecha (G9a): "solo las de QR" la refina. En el teléfono,
+      // con el panel cerrado, la última que se abrió sigue siendo "esa".
+      ...(m.lista && (m.abierta === "lista" || m.abierta === null)
+        ? { enPantalla: "lista", lista: { recurso: m.lista.consulta.recurso, filtros: m.lista.consulta.filtros } }
+        : {}),
+      // La ficha a la derecha (G9c): "cancelá esta compra" es sobre ella.
+      ...(m.ficha && m.abierta === "ficha" ? { enPantalla: "ficha", ficha: { recurso: m.ficha.recurso, id: m.ficha.id, titulo: m.ficha.titulo } } : {}),
     };
   };
+
+  function formularioProductosAbierto() {
+    const f = formularioActivo(mensajesRef.current)?.formulario;
+    return f?.tipo === "productos" && f.estado === "abierto" ? { formulario: { tipo: "productos", productos: f.productos ?? [] } } : {};
+  }
   // Con el panel al costado, chat y panel son dos columnas de alto fijo con
   // su propio scroll, como Claude o ChatGPT. Sin panel, la conversación usa el
   // scroll de la página (en el teléfono, un scroll dentro de otro se siente mal).
@@ -347,6 +375,24 @@ export function OmniboxPage() {
     if (nueva) avisar(nueva, { senalar: false });
   }
 
+  // ------------------------------------------------------------ la pistola
+  // Cada código escaneado es un mensaje: con la venta o la compra abierta
+  // entra ahí; si no, la tarjeta ofrece Vender o Comprar, o crearlo si la
+  // tienda no lo tiene. Lo que toca la mesa va por el mismo camino que una frase.
+  const escaneo = useEscaneoEnChat({
+    storeId,
+    mensajesRef,
+    mesaRef,
+    setMensajes,
+    ultimoCosto,
+    aplicarEnMesa: (acciones, destino) => {
+      anunciarAdvertencias(mesaRef.current, acciones);
+      origenCambio.current = "chat";
+      acciones.forEach(despachar);
+      if (ancho) despachar({ tipo: "abrir", mesa: destino, pestana: "borrador" });
+    },
+  });
+
   const { data: intenciones } = useIntenciones();
   const { data: estadoVoz, isLoading: consultandoVoz } = useEstadoVoz();
   const interpretar = useInterpretar();
@@ -400,6 +446,7 @@ export function OmniboxPage() {
     try {
       const propuesta = await interpretar.mutateAsync({ texto: consulta, storeId, contexto: contextoMesa() });
       actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
+      if (propuesta?.agente) return desplegarAgente(id, propuesta);
       if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
       if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
       if (propuesta?.intencion === "simular") armarHerramienta(id, consulta);
@@ -484,6 +531,11 @@ export function OmniboxPage() {
           : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué querés hacer." },
       );
       const p = r!.propuesta;
+      if (p?.agente) {
+        desplegarAgente(m.id, p);
+        vozGuia.hablar(paraHablar(p.agente.texto));
+        return;
+      }
       if (p && esDeVenta(p)) aplicarVenta(m.id, p);
       if (p?.vista) mostrarAnalisis(m.id, dicho, p);
       if (p?.intencion === "simular") armarHerramienta(m.id, dicho);
@@ -559,6 +611,11 @@ export function OmniboxPage() {
     if (estadoDe(p) === "elegir-cliente" && (p.clientes?.length ?? 0) === 0) {
       abrirFormulario(id, nuevoFormulario("cliente", { nombre: titular(String(p.entidades.nombre ?? "")) }));
     }
+    // Un código de barras que la tienda no tiene (G7c): el formulario, lleno con lo que dijo el catálogo.
+    if (estadoDe(p) === "productos-nuevos") {
+      abrirFormulario(id, nuevoFormularioProductos(((p.entidades as any).productos ?? []) as BorradorProducto[]));
+      abrirProductosEnPanel(id);
+    }
   }
 
   function campoFormulario(id: string, campos: Record<string, string>) {
@@ -578,7 +635,10 @@ export function OmniboxPage() {
         ...(f.campos.email ? { email: f.campos.email } : {}),
       } as any);
       actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creado", creado: { id: c!.id, nombre: c!.name } } }));
-      elegirCliente(mensajesRef.current.find((x) => x.id === id) ?? m, { id: c!.id, nombre: c!.name });
+      // "Creá el cliente Marta" (G7b) es solo crearlo; "es para Edwin" además lo pone en la venta.
+      if (m.propuesta?.intencion !== "crear_cliente") {
+        elegirCliente(mensajesRef.current.find((x) => x.id === id) ?? m, { id: c!.id, nombre: c!.name });
+      }
     } catch (error: any) {
       actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "abierto", error: error?.message ?? "No se pudo crear el cliente" } }));
     }
@@ -588,7 +648,19 @@ export function OmniboxPage() {
   function camposOConfirmacion(frase: string): boolean {
     const f = formularioActivo(mensajesRef.current)?.formulario;
     if (!f || f.estado !== "abierto") return false;
+    if (f.tipo === "productos") return (completo(f) && esConfirmacion(frase)) || precioLocal(f, frase) != null;
     return Object.keys(camposDeFrase(f.tipo, frase)).length > 0 || (completo(f) && esConfirmacion(frase));
+  }
+
+  /** "A 15" con UN solo producto sin precio: se anota sin ir al servidor (lo demás lo entiende el agente). */
+  function precioLocal(f: Formulario, frase: string): { indice: number; precio: number } | null {
+    const lista = f.productos ?? [];
+    const sinPrecio = lista.map((b, i) => ({ b, i })).filter(({ b }) => faltanProducto(b).includes("precio"));
+    const precio = precioDeFrase(frase);
+    // De lo comprado sin costo, el número suelto es lo que costó (G9b): lo
+    // resuelve el servidor, que con el costo sugiere el precio.
+    if (sinPrecio.length === 1 && sinPrecio[0].b.compra && !sinPrecio[0].b.compra.costo) return null;
+    return precio != null && sinPrecio.length === 1 ? { indice: sinPrecio[0].i, precio } : null;
   }
 
   /**
@@ -599,6 +671,24 @@ export function OmniboxPage() {
     const activo = formularioActivo(mensajesRef.current);
     const f = activo?.formulario;
     if (!activo || !f || f.estado !== "abierto") return false;
+    if (f.tipo === "productos") {
+      const lista = f.productos ?? [];
+      if (completo(f) && esConfirmacion(frase)) {
+        const aviso = lista.length === 1 ? `Creando ${lista[0].nombre}…` : `Creando ${lista.length} productos…`;
+        setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, aviso)]);
+        void crearProductos(activo.id);
+        return true;
+      }
+      const local = precioLocal(f, frase);
+      // Varios productos, nombres, categorías: lo entiende el agente, con el formulario a la vista.
+      if (!local) return false;
+      const productos = lista.map((b, i) => (i === local.indice ? { ...b, precio: local.precio } : b));
+      cambiarProductos(activo.id, productos);
+      const resumen = resumenCompletado({ ...f, productos }, {});
+      setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, resumen)]);
+      if (dictada) vozGuia.hablar(paraHablar(resumen));
+      return true;
+    }
     if (completo(f) && esConfirmacion(frase)) {
       setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, `Creando el cliente ${f.campos.nombre}…`)]);
       void crearDesdeFormulario(activo.id);
@@ -611,6 +701,249 @@ export function OmniboxPage() {
     setMensajes((prev) => [...prev, mensajeRespuestaGuia(frase, dictada, resumen)]);
     if (dictada) vozGuia.hablar(paraHablar(resumen));
     return true;
+  }
+
+  // ------------------------------------------------------------ el agente y los productos (G7)
+
+  /**
+   * La respuesta del agente (G7b): su texto queda en el mensaje de la frase y
+   * cada tarjeta que preparó entra como un mensaje más del hilo (sin burbuja),
+   * con todo lo que ya sabe hacer cualquier tarjeta: la compra se carga, el
+   * análisis se abre, el formulario espera. Completar el formulario abierto no
+   * es una tarjeta: cambia el que está.
+   */
+  function desplegarAgente(id: string, p: Propuesta) {
+    const nuevos: Mensaje[] = [];
+    for (const a of p.agente?.acciones ?? []) {
+      const e = a.entidades as Record<string, any>;
+      if (a.intencion === "completar_formulario") {
+        const activo = formularioActivo(mensajesRef.current);
+        if (activo?.formulario?.tipo === "productos") {
+          cambiarProductos(activo.id, (e.productos ?? []) as BorradorProducto[], e.margen ?? undefined);
+          continue;
+        }
+        // Sin formulario abierto (se descartó), es uno nuevo.
+        nuevos.push({ ...mensajeDeAccion({ ...a, intencion: "crear_producto" }), formulario: nuevoFormularioProductos(e.productos ?? [], e.margen ?? null) });
+        continue;
+      }
+      if (a.intencion === "cambiar_precios") {
+        const precios = { tipo: "precios" as const, cambios: (e.cambios ?? []) as CambioPrecio[], motivo: String(e.motivo ?? "") };
+        nuevos.push(mensajeDePrecios(precios, { mensajeId: id, titulo: "el asistente" }));
+        continue;
+      }
+      const m = mensajeDeAccion(a);
+      if (a.intencion === "crear_producto") m.formulario = nuevoFormularioProductos((e.productos ?? []) as BorradorProducto[], e.margen ?? null);
+      if (a.intencion === "crear_cliente") {
+        m.formulario = nuevoFormulario("cliente", { nombre: titular(String(e.nombre ?? "")), telefono: String(e.telefono ?? "") });
+      }
+      nuevos.push(m);
+    }
+    if (!nuevos.length) return;
+    const traeFormulario = nuevos.some((n) => n.formulario);
+    setMensajes((prev) => {
+      // Uno solo activo: el que llega deja descartado al que estaba abierto.
+      const previos = traeFormulario
+        ? prev.map((x) => (x.formulario?.estado === "abierto" ? { ...x, formulario: { ...x.formulario, estado: "descartado" as const } } : x))
+        : prev;
+      const i = previos.findIndex((x) => x.id === id);
+      return i < 0 ? [...previos, ...nuevos] : [...previos.slice(0, i + 1), ...nuevos, ...previos.slice(i + 1)];
+    });
+    for (const n of nuevos) {
+      const a = n.propuesta;
+      if (!a) continue;
+      if (esDeVenta(a)) aplicarVenta(n.id, a);
+      if (a.vista) mostrarAnalisis(n.id, String((a.entidades as any).pregunta ?? ""), a);
+      // G9a: lo que se pidió ver, a la derecha (en el teléfono sube la hoja).
+      if (a.intencion === "lista" || a.intencion === "ficha") abrirRecurso(n);
+      // G9b: los productos nuevos se arman a la derecha.
+      if (n.formulario?.tipo === "productos") abrirProductosEnPanel(n.id);
+    }
+  }
+
+  /** Una lista o una ficha del chat (G9a), a la derecha. */
+  function abrirRecurso(m: Mensaje) {
+    const e = (m.propuesta?.entidades ?? {}) as { lista?: ListaRecurso; ficha?: FichaRecurso };
+    if (e.lista) {
+      despachar({ tipo: "abrirLista", lista: { mensajeId: m.id, titulo: e.lista.titulo, consulta: e.lista.consulta } });
+    } else if (e.ficha) {
+      despachar({ tipo: "abrirFicha", ficha: { recurso: e.ficha.recurso, id: e.ficha.id, titulo: e.ficha.titulo, desdeLista: false } });
+    }
+  }
+
+  /** Si la lista o la ficha de este mensaje es la que está a la vista. */
+  function recursoAbierto(m: Mensaje): boolean {
+    const e = (m.propuesta?.entidades ?? {}) as { lista?: ListaRecurso; ficha?: FichaRecurso };
+    if (e.lista) return mesa.abierta === "lista" && mesa.lista?.mensajeId === m.id;
+    if (e.ficha) return mesa.abierta === "ficha" && mesa.ficha?.id === e.ficha.id;
+    return false;
+  }
+
+  function mensajeDeAccion(a: Propuesta): Mensaje {
+    return { id: crypto.randomUUID(), texto: null, porVoz: false, hora: new Date(), fase: "listo", propuesta: a };
+  }
+
+  function cambiarProductos(id: string, productos: BorradorProducto[], margen?: number) {
+    actualizar(id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, productos, error: undefined, ...(margen ? { margen } : {}) } } : x));
+  }
+
+  /**
+   * El formulario de productos nuevos a la derecha (G9b), en pantalla ancha:
+   * se ve cómo se arman mientras se conversa. En el teléfono queda en el
+   * chat (una hoja encima taparía la conversación que lo está llenando).
+   */
+  function abrirProductosEnPanel(mensajeId: string) {
+    if (ancho) despachar({ tipo: "abrirProductos", mensajeId });
+  }
+
+  const crearProductosApi = useCrearProductos();
+
+  /**
+   * Crea los productos del formulario. Si se dijo que se compraron, quedan
+   * cargados en la compra (con la cantidad y el costo, o 1 para revisar):
+   * el stock y el costo entran por la compra, como siempre, no a mano.
+   */
+  async function crearProductos(id: string) {
+    const f = mensajesRef.current.find((x) => x.id === id)?.formulario;
+    if (!storeId || !f || f.tipo !== "productos" || !completo(f) || f.estado === "creando") return;
+    actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creando", error: undefined } }));
+    try {
+      const r = await crearProductosApi.mutateAsync({ storeId, productos: f.productos ?? [] });
+      actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "creado", creados: r.creados } }));
+      // Creados: el formulario ya no se arma a la derecha (G9b). Si van a la
+      // compra o a la venta, el panel pasa ahí; si no, se cierra y queda el
+      // resumen en el chat.
+      if (mesaRef.current.abierta === "productos" && mesaRef.current.productos?.mensajeId === id) despachar({ tipo: "cerrar" });
+      // "Vendé un mouse" y no existía: ya creado, va a la venta.
+      const vendidos = r.creados.filter((c) => c.venta?.cantidad);
+      if (vendidos.length) {
+        origenCambio.current = "chat";
+        for (const c of vendidos) despachar({ tipo: "agregarVenta", producto: c, cantidad: c.venta!.cantidad });
+        if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
+        const resumen = `Agregado a la venta: ${vendidos.map((c) => `${c.venta!.cantidad} × ${c.nombre}`).join(", ")}.`;
+        setMensajes((prev) => [...prev, { ...mensajeDeAccion(propuestaLocal("agregar_a_venta", { titulo: "Venta" })), desenlace: { tipo: "mesa", resumen } }]);
+      }
+      const comprados = r.creados.filter((c) => c.compra);
+      if (comprados.length) {
+        origenCambio.current = "chat";
+        for (const c of comprados) {
+          despachar({ tipo: "agregarCompra", producto: c, cantidad: c.compra!.cantidad ?? 1, costo: c.compra!.costo ?? 0, costoAnterior: null });
+        }
+        if (ancho) despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
+        const sinDatos = comprados.filter((c) => !c.compra!.cantidad || !c.compra!.costo).map((c) => c.nombre);
+        const resumen = `Cargué en la compra: ${comprados.map((c) => c.nombre).join(", ")}.${
+          sinDatos.length ? ` Revisá cuántos compraste y a cuánto de ${sinDatos.join(", ")}.` : " Revisala y registrala."
+        }`;
+        setMensajes((prev) => [...prev, { ...mensajeDeAccion(propuestaLocal("agregar_a_compra", { titulo: "Compra" })), desenlace: { tipo: "mesa", resumen } }]);
+      }
+    } catch (error: any) {
+      actualizar(id, (x) => ({ ...x, formulario: { ...x.formulario!, estado: "abierto", error: error?.message ?? "No se pudieron crear los productos" } }));
+    }
+  }
+
+  /**
+   * "Crear «mouse»" desde cualquier tarjeta (G7a): el formulario aparece en el
+   * chat con el nombre puesto. Con la compra a la vista, ya va como comprado.
+   */
+  function crearProductoEnChat(nombre: string) {
+    const borrador: BorradorProducto = {
+      nombre: titular(nombre),
+      precio: null,
+      stock: null,
+      categoria: null,
+      codigo: null,
+      marca: null,
+      compra: mesaRef.current.abierta === "compra" ? { cantidad: null, costo: null } : null,
+      existente: null,
+    };
+    const m: Mensaje = {
+      ...mensajeDeAccion(propuestaLocal("crear_producto", { titulo: "Producto nuevo", entidades: { productos: [borrador] } })),
+      formulario: nuevoFormularioProductos([borrador]),
+    };
+    setMensajes((prev) => [
+      ...prev.map((x) => (x.formulario?.estado === "abierto" ? { ...x, formulario: { ...x.formulario, estado: "descartado" as const } } : x)),
+      m,
+    ]);
+    abrirProductosEnPanel(m.id);
+  }
+
+  const cambiarProductoApi = useCambiarProducto();
+  const bajaProductoApi = useBajaProducto();
+  const estadoPedidoApi = useEstadoPedido();
+
+  /** Confirmar la tarjeta que preparó el agente: cambiar o dar de baja un producto, mover un pedido. */
+  async function confirmarAccion(m: Mensaje) {
+    const p = m.propuesta;
+    if (!storeId || !p) return;
+    const e = p.entidades as Record<string, any>;
+    setEjecutandoId(m.id);
+    try {
+      const r =
+        p.intencion === "editar_producto"
+          ? await cambiarProductoApi.mutateAsync({ storeId, productId: e.productId, cambios: e.cambios ?? {} })
+          : p.intencion === "baja_producto"
+            ? await bajaProductoApi.mutateAsync({ storeId, productId: e.productId })
+            : await estadoPedidoApi.mutateAsync({ storeId, orderId: e.orderId, estado: e.estado });
+      actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "hecho", resumen: r.resumen, despues: null, entidades: e } }));
+    } catch (error: any) {
+      toast.error(error?.message ?? "No se pudo hacer");
+    } finally {
+      setEjecutandoId(null);
+    }
+  }
+
+  const prepararOperacionApi = usePrepararOperacion();
+  const ejecutarOperacionApi = useEjecutarOperacion();
+
+  /** Confirmar una operación (G9c): la ejecuta el servidor con el servicio de la pantalla. */
+  async function confirmarOperacion(m: Mensaje, datos: Record<string, string>) {
+    const vista = (m.propuesta?.entidades as { vista?: VistaOperacion } | undefined)?.vista;
+    if (!storeId || !vista) return;
+    setEjecutandoId(m.id);
+    try {
+      const r = await ejecutarOperacionApi.mutateAsync({ storeId, operacion: vista.operacion, id: vista.id, datos });
+      actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "hecho", resumen: r.resumen, despues: null, entidades: { ...vista.datos } } }));
+      // Lo que se termina en otra página (conectar Meta): se va a darle permiso y vuelve a Integraciones.
+      if (r.enlace) window.location.assign(r.enlace);
+    } catch (error: any) {
+      toast.error(error?.message ?? "No se pudo hacer");
+    } finally {
+      setEjecutandoId(null);
+    }
+  }
+
+  /**
+   * Un botón de la ficha ("Confirmar la compra", "Anular la venta"): arma la
+   * tarjeta en el chat para confirmarla. Nada se hace con un solo toque.
+   */
+  async function accionDeFicha(accion: FichaRecurso["acciones"][number], ficha: FichaRecurso) {
+    if (!storeId) return;
+    try {
+      const vista = await prepararOperacionApi.mutateAsync({ storeId, operacion: accion.operacion, id: ficha.id, datos: (accion.datos ?? {}) as Record<string, string> });
+      const m = mensajeDeAccion(propuestaLocal("operacion", { titulo: vista.titulo, entidades: { vista }, requiereConfirmacion: true, ejecutable: !vista.bloqueo }));
+      setMensajes((prev) => [...prev, m]);
+      // En el teléfono la hoja tapa el chat: se cierra para ver la tarjeta.
+      if (!ancho) despachar({ tipo: "cerrar" });
+    } catch (error: any) {
+      toast.error(error?.message ?? "No se pudo preparar");
+    }
+  }
+
+  /** "Mover" un pedido de la lista: arma la tarjeta para confirmarlo (no lo mueve solo). */
+  function moverPedido(pedido: PedidoResumen, estado: string) {
+    const p = propuestaLocal("estado_pedido", {
+      titulo: `Pedido #${pedido.numero}`,
+      entidades: {
+        orderId: pedido.orderId,
+        numero: pedido.numero,
+        estado,
+        antes: pedido.estado,
+        cliente: pedido.cliente,
+        total: pedido.total,
+        productos: pedido.productos,
+      },
+      requiereConfirmacion: true,
+    });
+    setMensajes((prev) => [...prev, mensajeDeAccion(p)]);
   }
 
   // ------------------------------------------------------------ herramientas a medida (G6)
@@ -896,9 +1229,12 @@ export function OmniboxPage() {
    */
   function leerFactura(archivo: File) {
     if (!storeId) return;
-    const esPdf = archivo.type === "application/pdf";
-    if (!esPdf && !archivo.type.startsWith("image/")) {
-      toast.error("Mandá una foto o un PDF de la factura.");
+    const esImagen = archivo.type.startsWith("image/");
+    // Una lista de precios en Excel o Word también se lee (G9l): el servidor saca el texto.
+    const esDocumento = !esImagen && (archivo.type === "application/pdf" || DOCUMENTOS.test(archivo.name));
+    const esPdf = !esImagen;
+    if (!esImagen && !esDocumento) {
+      toast.error("Mandá una foto, un PDF, un Excel o un Word.");
       return;
     }
     if (archivo.size > 10 * 1024 * 1024) {
@@ -906,7 +1242,7 @@ export function OmniboxPage() {
       return;
     }
     const m: Mensaje = {
-      ...nuevoMensaje(esPdf ? archivo.name : "Factura del proveedor", false),
+      ...nuevoMensaje(esPdf ? archivo.name : "Foto", false),
       adjunto: { url: URL.createObjectURL(archivo), nombre: archivo.name, esPdf },
     };
     facturas.current.set(m.id, archivo);
@@ -918,11 +1254,19 @@ export function OmniboxPage() {
     if (!storeId) return;
     try {
       const p = await leer.mutateAsync({ archivo, storeId });
+      // No era una factura (G9l): la foto de un producto, la captura de un cliente o una
+      // lista de precios. Llega como la respuesta del agente: su tarjeta o el formulario.
+      if (p.agente) {
+        actualizar(id, (x) => ({ ...x, fase: "listo", propuesta: p }));
+        desplegarAgente(id, p);
+        return;
+      }
       if (!p.items?.length) {
         actualizar(id, (x) => ({
           ...x,
           fase: "error",
-          error: "No encontré productos en esa foto. Probá con otra más nítida: entera, derecha y con buena luz.",
+          error:
+            "No reconocí qué es. Mandame una factura, la foto de un producto, la captura de un cliente o una lista de precios; si es una foto, más nítida: entera, derecha y con buena luz.",
         }));
         return;
       }
@@ -1013,6 +1357,13 @@ export function OmniboxPage() {
   async function ejecutar(m: Mensaje, entidades: Record<string, unknown>, despues: number | null) {
     if (!storeId || !m.propuesta?.intencion) return;
     setEjecutandoId(m.id);
+    // "Se rompieron 2" viaja como diferencia (-2); si la persona corrigió el
+    // número que queda, manda su número y la diferencia ya no vale.
+    const original = m.propuesta.entidades;
+    if (typeof original.delta === "number" && entidades.cantidad !== original.cantidad) {
+      const { delta: _delta, ...resto } = entidades;
+      entidades = resto;
+    }
     try {
       const r = await confirmar.mutateAsync({
         intencion: m.propuesta.intencion,
@@ -1327,11 +1678,22 @@ export function OmniboxPage() {
     const lineas = venta0.lineas;
     coreografia.emitir([{ tipo: "cobrando", origen: opciones.mensajeId ? "chat" : "boton" }]);
     try {
+      // G9f: con delivery o a cuotas, lo que le falta se dice antes de mandar nada.
+      const falta = faltaParaCobrar(venta0);
+      if (falta.length) {
+        setErrorCobro(`Falta ${falta.join(", ")}.`);
+        if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
+        return;
+      }
       const venta = await cobrar.mutateAsync({
         storeId,
         clienteId: venta0.clienteId,
         pago,
         lineas: lineas.map((l) => ({ storeProductId: l.storeProductId, cantidad: l.cantidad, precio: l.precio })),
+        ...(venta0.entrega
+          ? { entrega: { direccion: venta0.entrega.direccion.trim(), costo: venta0.entrega.costo ?? 0, ...(venta0.entrega.notas.trim() ? { notas: venta0.entrega.notas.trim() } : {}) } }
+          : {}),
+        ...(venta0.cuotas ? { cuotas: { cantidad: venta0.cuotas.cantidad, inicial: venta0.cuotas.inicial ?? 0, proximaFecha: venta0.cuotas.proxima } } : {}),
       });
       const evento = {
         tipo: "venta" as const,
@@ -1465,6 +1827,32 @@ export function OmniboxPage() {
       onVerDatos={(vista) => verDatosDeHerramienta(conHerramienta, vista)}
     />
   ) : null;
+  // Los productos nuevos (G9b): el formulario de su mensaje, en el panel.
+  const conProductos = mesa.productos ? mensajes.find((x) => x.id === mesa.productos!.mensajeId) : undefined;
+  const panelProductos =
+    conProductos?.formulario?.tipo === "productos" ? (
+      <TarjetaProductosNuevos
+        enPanel
+        formulario={conProductos.formulario}
+        storeId={storeId!}
+        hora={horaDe(conProductos.hora)}
+        aviso={conProductos.propuesta?.aviso}
+        onCambiar={(productos) => cambiarProductos(conProductos.id, productos)}
+        onCrear={() => void crearProductos(conProductos.id)}
+        onDescartar={() =>
+          actualizar(conProductos.id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, estado: "descartado" } } : x))
+        }
+      />
+    ) : null;
+  // La lista y la ficha (G9a) como las trajo el agente: el panel no espera para mostrarlas.
+  const listaInicial = mesa.lista
+    ? ((mensajes.find((x) => x.id === mesa.lista!.mensajeId)?.propuesta?.entidades as { lista?: ListaRecurso } | undefined)?.lista)
+    : undefined;
+  const fichaInicial = mesa.ficha
+    ? mensajes
+        .map((x) => (x.propuesta?.entidades as { ficha?: FichaRecurso } | undefined)?.ficha)
+        .find((f) => f && f.id === mesa.ficha!.id && f.recurso === mesa.ficha!.recurso)
+    : undefined;
   // Ampliado: el panel ocupa todo y el chat se esconde (solo en pantalla ancha;
   // en el teléfono el panel ya es de pantalla completa).
   const ampliada = dividido && mesa.ampliada;
@@ -1472,6 +1860,8 @@ export function OmniboxPage() {
   const anchoChat = dividido ? "" : "max-w-[880px]";
 
   return (
+    // "Crear «mouse»" desde cualquier tarjeta abre el formulario acá (G7a).
+    <CrearEnChatContext.Provider value={crearProductoEnChat}>
     <div className="flex flex-1 flex-col">
 
       <div
@@ -1529,9 +1919,27 @@ export function OmniboxPage() {
                     )}
                   </FilaAsistente>
                 </Fragment>
+              ) : m.escaneo ? (
+                <Fragment key={m.id}>
+                  <Burbuja mensaje={m} />
+                  <FilaAsistente>
+                    <TarjetaEscaneo
+                      escaneo={m.escaneo}
+                      storeId={storeId}
+                      hora={horaDe(m.hora)}
+                      onVender={() => escaneo.vender(m.id)}
+                      onComprar={() => escaneo.comprar(m.id)}
+                      onCrear={(datos) => escaneo.crear(m.id, datos)}
+                      onMasDatos={() => escaneo.masDatos(m.id)}
+                      onDescartar={() => escaneo.descartar(m.id)}
+                      onReintentar={() => escaneo.reintentar(m.id)}
+                    />
+                  </FilaAsistente>
+                </Fragment>
               ) : (
               <Fragment key={m.id}>
-                <Burbuja mensaje={m} />
+                {/* Las tarjetas que preparó el agente (G7b) no nacen de una frase: sin burbuja. */}
+                {(m.texto || m.porVoz || m.adjunto) && <Burbuja mensaje={m} />}
                 <FilaAsistente>
                   <Respuesta
                     mensaje={m}
@@ -1570,6 +1978,20 @@ export function OmniboxPage() {
                     herramientaAbierta={mesa.abierta === "herramienta" && mesa.herramienta?.mensajeId === m.id}
                     onReintentarHerramienta={() => armarHerramienta(m.id, preguntaDe(m))}
                     onVerDatosHerramienta={(vista) => verDatosDeHerramienta(m, vista)}
+                    onCambiarProductos={(productos) => cambiarProductos(m.id, productos)}
+                    onCrearProductos={() => void crearProductos(m.id)}
+                    onDescartarProductos={() =>
+                      actualizar(m.id, (x) => (x.formulario ? { ...x, formulario: { ...x.formulario, estado: "descartado" } } : x))
+                    }
+                    onConfirmarAccion={() => void confirmarAccion(m)}
+                    onMoverPedido={moverPedido}
+                    onCrearProductoEnChat={crearProductoEnChat}
+                    onConfirmarOperacion={(datos) => void confirmarOperacion(m, datos)}
+                    onAbrirRecurso={() => abrirRecurso(m)}
+                    recursoAbierto={recursoAbierto(m)}
+                    productosEnPanel={Boolean(ancho && mesa.productos?.mensajeId === m.id)}
+                    productosAbiertos={mesa.abierta === "productos" && mesa.productos?.mensajeId === m.id}
+                    onAbrirProductos={() => despachar({ tipo: "abrirProductos", mensajeId: m.id })}
                   />
                 </FilaAsistente>
               </Fragment>
@@ -1630,6 +2052,10 @@ export function OmniboxPage() {
               tienda={tienda!.name}
               acciones={accionesVista}
               herramienta={panelHerramienta}
+              listaInicial={listaInicial}
+              fichaInicial={fichaInicial}
+              productos={panelProductos}
+              onAccionFicha={(accion, ficha) => void accionDeFicha(accion, ficha)}
             />
           </div>
         )}
@@ -1643,7 +2069,11 @@ export function OmniboxPage() {
         <Drawer open={panelAbierto} onOpenChange={(abierto) => !abierto && despachar({ tipo: "cerrar" })}>
           <DrawerContent className="h-[92dvh]">
             <DrawerTitle className="sr-only">
-              {mesa.abierta === "analisis"
+              {mesa.abierta === "lista"
+                ? (mesa.lista?.titulo ?? "Lista")
+                : mesa.abierta === "ficha"
+                  ? (mesa.ficha?.titulo ?? "Ficha")
+                  : mesa.abierta === "analisis"
                 ? "Análisis"
                 : mesa.abierta === "herramienta"
                   ? "Herramienta"
@@ -1665,11 +2095,16 @@ export function OmniboxPage() {
               tienda={tienda!.name}
               acciones={accionesVista}
               herramienta={panelHerramienta}
+              listaInicial={listaInicial}
+              fichaInicial={fichaInicial}
+              productos={panelProductos}
+              onAccionFicha={(accion, ficha) => void accionDeFicha(accion, ficha)}
             />
           </DrawerContent>
         </Drawer>
       )}
     </div>
+    </CrearEnChatContext.Provider>
   );
 }
 

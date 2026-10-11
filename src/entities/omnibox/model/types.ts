@@ -20,8 +20,8 @@ export interface Propuesta {
   intencion: string | null;
   titulo: string | null;
   confianza: number;
-  /** En qué capa se resolvió. C0 = sin gastar un solo token. */
-  capa: "C0" | "C1" | "C2" | "C3";
+  /** En qué capa se resolvió. C0 = sin gastar un solo token; C4 = el agente (G7b). */
+  capa: "C0" | "C1" | "C2" | "C3" | "C4";
   entidades: Record<string, unknown>;
   faltan: { slot: string; pregunta: string }[];
   opciones: ProductoOpcion[];
@@ -49,7 +49,125 @@ export interface Propuesta {
   costos?: Record<string, CostoProducto>;
   /** Una pregunta de análisis: la vista que armó la IA (G3). Se dibuja en el panel. */
   vista?: VistaSpec;
+  /**
+   * La respuesta del agente (G7b): un texto, y las tarjetas que preparó. Cada
+   * tarjeta es una propuesta como cualquier otra (una compra, un cambio de
+   * precio, un análisis, un formulario): se dibuja y se confirma igual.
+   */
+  agente?: { texto: string; acciones: Propuesta[]; motivo: string };
   ms: number;
+}
+
+/** Un producto para crear desde el chat (G7a). Espejo de `ventas-service/src/omnibox/model/productos.ts`. */
+export interface BorradorProducto {
+  nombre: string;
+  precio: number | null;
+  stock: number | null;
+  categoria: { id: string | null; nombre: string } | null;
+  codigo: string | null;
+  marca: string | null;
+  /** Dijo que los compró: al crearlos, queda la compra cargada (cantidad null = no dijo cuántos). */
+  compra: { cantidad: number | null; costo: number | null } | null;
+  /** "Vendé un mouse" y no existía: al crearlo, se agrega a la venta. */
+  venta?: { cantidad: number } | null;
+  /**
+   * El precio no lo dijo la persona: lo sugirió el sistema con lo que la
+   * tienda suele ganarle al costo (G9b). Si lo cambia a mano, deja de serlo.
+   */
+  sugerido?: { margen: number } | null;
+  existente: { productId: string; nombre: string } | null;
+}
+
+// ------------------------------------------------------------ listas y fichas (G9a)
+// Espejo de `ventas-service/src/omnibox/model/recursos.ts`.
+
+export type IdRecurso =
+  | "ventas"
+  | "compras"
+  | "productos"
+  | "clientes"
+  | "movimientos"
+  | "categorias"
+  | "marcas"
+  | "resenas"
+  | "tiendas"
+  | "conversaciones"
+  | "lives"
+  | "integraciones"
+  | "anuncios";
+export type FormatoColumna = "texto" | "dinero" | "numero" | "fecha" | "estado" | "porcentaje";
+export type ValorFiltro = string | number | boolean;
+
+export interface ConsultaRecurso {
+  recurso: IdRecurso;
+  filtros: Record<string, ValorFiltro>;
+  orden: { campo: string; sentido: "asc" | "desc" };
+  limite: number;
+  desde: number;
+}
+
+export interface ColumnaRecurso {
+  clave: string;
+  etiqueta: string;
+  formato: FormatoColumna;
+}
+
+export interface ListaRecurso {
+  recurso: IdRecurso;
+  titulo: string;
+  singular: string;
+  consulta: ConsultaRecurso;
+  chips: { clave: string; texto: string }[];
+  columnas: ColumnaRecurso[];
+  ordenes: Record<string, string>;
+  conFicha: boolean;
+  /** Cada fila: sus columnas y lo oculto ("_id" para abrir la ficha). */
+  filas: Record<string, unknown>[];
+  resumen: { total: number; suma: number | null };
+  texto: string;
+  ignorados?: string[];
+}
+
+/** Una operación para confirmar (G9c). Espejo de `VistaOperacion` del servidor. */
+export interface VistaOperacion {
+  operacion: string;
+  id: string | null;
+  titulo: string;
+  sujeto: string;
+  filas: { etiqueta: string; antes: string; despues: string }[];
+  detalle: string[];
+  seria: boolean;
+  datos: Record<string, string>;
+  editables: { clave: string; etiqueta: string; tipo: string; valor: string; actual: string }[];
+  bloqueo: string | null;
+  sinCambios: boolean;
+  /** La foto de la que se habla (G9l): la tarjeta la muestra. */
+  imagen?: string | null;
+}
+
+export interface FichaRecurso {
+  recurso: IdRecurso;
+  id: string;
+  titulo: string;
+  subtitulo: string | null;
+  datos: { etiqueta: string; valor: string }[];
+  tabla: { titulo: string; columnas: ColumnaRecurso[]; filas: Record<string, unknown>[] } | null;
+  acciones: { operacion: string; etiqueta: string; seria: boolean; datos: Record<string, unknown> }[];
+  estado: string | null;
+  enlaces: { recurso: IdRecurso; id: string; etiqueta: string }[];
+}
+
+/** Un pedido, como lo lista el chat (G7d). */
+export interface PedidoResumen {
+  orderId: string;
+  numero: number | null;
+  estado: string;
+  cliente: string | null;
+  total: number;
+  productos: string;
+  fecha: string;
+  tipo: string;
+  origen: string;
 }
 
 // ------------------------------------------------------------ vistas (G3)
@@ -266,9 +384,33 @@ export type EstadoTarjeta =
   | "aviso"
   | "vista"
   | "herramienta"
+  | "agente"
+  | "productos-nuevos"
+  | "cambio-producto"
+  | "baja-producto"
+  | "estado-pedido"
+  | "lista-pedidos"
+  | "nuevo-cliente"
+  | "lista"
+  | "ficha"
+  | "operacion"
   | "sin-entender";
 
 export function estadoDe(p: Propuesta): EstadoTarjeta {
+  // El agente (G7b): su texto; las tarjetas que preparó van como mensajes aparte.
+  if (p.agente) return "agente";
+  // Lo que arma el chat de productos y pedidos (G7): cada uno con su tarjeta.
+  if (p.intencion === "crear_producto" && Array.isArray((p.entidades as any).productos)) return "productos-nuevos";
+  if (p.intencion === "editar_producto") return "cambio-producto";
+  if (p.intencion === "baja_producto") return "baja-producto";
+  if (p.intencion === "estado_pedido" && (p.entidades as any).orderId) return "estado-pedido";
+  if (p.intencion === "ver_pedidos") return "lista-pedidos";
+  if (p.intencion === "crear_cliente") return "nuevo-cliente";
+  // Una lista o una ficha (G9a): se abre a la derecha; en el chat, su resumen.
+  if (p.intencion === "lista" && (p.entidades as any).lista) return "lista";
+  if (p.intencion === "ficha" && (p.entidades as any).ficha) return "ficha";
+  // Una operación para confirmar (G9c): confirmar una compra, anular una venta, editar un cliente…
+  if (p.intencion === "operacion" && (p.entidades as any).vista) return "operacion";
   if (p.resultado) return "resuelta";
   if (p.bloqueo === "sin-permiso") return "sin-permiso";
   if (!p.intencion) return "sin-entender";
@@ -390,4 +532,9 @@ export interface VentaCobrada {
   /** "por-confirmar" si algo era a pedido y faltaba: no descontó stock. */
   estado: string;
   unidades: number;
+  /** G9f: rápida, con delivery o a cuotas. */
+  tipo?: "rapida" | "delivery" | "cuotas";
+  envio?: number;
+  inicial?: number;
+  cuotas?: number;
 }

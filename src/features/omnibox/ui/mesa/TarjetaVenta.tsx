@@ -53,10 +53,14 @@ export function TarjetaVenta({
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
-            Venta <span className="cifra">#{venta.numero}</span> {anulada ? "anulada" : "cobrada"}
+            {venta.tipo === "delivery" ? "Pedido con delivery" : venta.tipo === "cuotas" ? "Venta a cuotas" : "Venta"}{" "}
+            <span className="cifra">#{venta.numero}</span>{" "}
+            {anulada ? "anulado" : venta.tipo === "delivery" ? "registrado" : venta.tipo === "cuotas" ? "registrada" : "cobrada"}
           </p>
           <p className="text-[13px] text-muted-foreground">
             {venta.cliente} · {PAGO[venta.pago]}
+            {venta.tipo === "delivery" ? ` · envío Bs ${dinero(venta.envio ?? 0)} · queda pendiente de entrega` : ""}
+            {venta.tipo === "cuotas" ? ` · pagó hoy Bs ${dinero(venta.inicial ?? 0)}, ${(venta.cuotas ?? 2) - 1} ${(venta.cuotas ?? 2) - 1 === 1 ? "cuota" : "cuotas"} más` : ""}
             {anulada && " · el stock volvió"}
           </p>
         </div>

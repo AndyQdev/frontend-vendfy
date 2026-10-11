@@ -1,5 +1,10 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
+import { AjustesVoz, agregarAVenta, frasesAlAgregar, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { useVentaEnCurso } from "@/entities/order";
+import { decirFrases } from "@/shared/voz";
+import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
@@ -89,16 +94,6 @@ const PAYMENT_METHODS = [
   { id: 'card', name: 'Tarjeta', icon: CreditCard },
 ];
 
-interface CartItem {
-  id: string;
-  storeProductId: string; // ID del StoreProduct desde inventory
-  name: string;
-  price: number;
-  quantity: number;
-  stock: number;
-  imageUrl?: string;
-}
-
 export default function Caja() {
   // Ref para el observador de intersección
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -134,7 +129,9 @@ export default function Caja() {
     }));
     return [allCategory, ...mappedCategories];
   }, [backendCategories]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // La venta en curso vive fuera de la pantalla: se puede cargar escaneando
+  // desde cualquier lado y no se pierde al navegar.
+  const [cart, setCart] = useVentaEnCurso();
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   const categoriesRef = useRef<HTMLDivElement>(null);
@@ -333,6 +330,84 @@ export default function Caja() {
       }]);
     }
   }, [cart]);
+
+  // ─── Escáner ───────────────────────────────────────────────────────────
+  // En Caja una lectura no abre la ficha: el producto va directo al carrito.
+  // Solo si no está registrado se abre la hoja para darlo de alta, y al
+  // registrarlo también entra a la venta.
+  const { buscar, abrir: abrirHojaEscaneo, pulso } = useEscaner();
+  const buscadorRef = useRef<HTMLInputElement>(null);
+  const [resaltado, setResaltado] = useState<{ id: string; vez: number } | null>(null);
+
+  const agregarEscaneado = useCallback(
+    (r: ResultadoEscaneo) => {
+      const p = r.producto;
+      if (!p) return;
+      const resultado = agregarAVenta(r, storeId === "all" ? null : storeId);
+      // Quien escanea mira el producto, no la pantalla: la voz dice solo el
+      // precio ("Doce bolivianos con cincuenta."); si no entró, avisa el bip.
+      decirFrases(frasesAlAgregar(resultado));
+
+      if (resultado.ok === false) {
+        sonar("error");
+        if (resultado.motivo === "sin_tienda") {
+          toast.error(`«${p.name}» no se vende en esta tienda`, {
+            description: "Agregalo a la tienda desde Productos.",
+          });
+        } else {
+          const stock = resultado.tienda?.stock ?? 0;
+          toast.error(resultado.motivo === "agotado" ? `«${p.name}» está agotado` : `No quedan más «${p.name}»`, {
+            description:
+              resultado.motivo === "agotado"
+                ? "Cargá stock desde Inventario o Compras."
+                : `Hay ${stock} y ya están todos en la venta.`,
+          });
+        }
+        return;
+      }
+
+      sonar("encontrado");
+      setResaltado({ id: resultado.item.id, vez: Date.now() });
+      toast.success(p.name, {
+        description: `${resultado.cantidad > 1 ? `${resultado.cantidad} en la venta` : "Agregado a la venta"} · Bs. ${resultado.tienda.price.toFixed(2)}`,
+        duration: 1600,
+      });
+    },
+    [storeId],
+  );
+
+  const procesarCodigo = useCallback(
+    async (codigo: string) => {
+      const r = await buscar(codigo);
+      if (r.producto) {
+        agregarEscaneado(r);
+      } else {
+        abrirHojaEscaneo(codigo, { resultado: r, contexto: "caja", alRegistrar: agregarEscaneado });
+      }
+      return true;
+    },
+    [buscar, agregarEscaneado, abrirHojaEscaneo],
+  );
+
+  useManejadorEscaneo((lectura) => procesarCodigo(lectura.codigo), true, "Lo agrega al carrito");
+
+  // "Vender ahora" desde la ficha de cualquier pantalla trae el código acá.
+  const location = useLocation();
+  useEffect(() => {
+    const codigo = (location.state as { agregarCodigo?: string } | null)?.agregarCodigo;
+    if (!codigo) return;
+    navigate(location.pathname, { replace: true, state: null });
+    void procesarCodigo(codigo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
+  // El renglón recién escaneado se trae a la vista.
+  useEffect(() => {
+    if (!resaltado) return;
+    document
+      .querySelector(`[data-cart-item="${resaltado.id}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [resaltado]);
 
   // Incrementar cantidad
   const incrementQuantity = (id: string) => {
@@ -631,21 +706,55 @@ export default function Caja() {
                         <div className="relative flex-1">
                         <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <Input
-                            placeholder="Buscar productos..."
+                            ref={buscadorRef}
+                            placeholder="Buscar productos o escribir un código…"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => {
+                              // Sin pistola: un código escrito a mano + Enter es un escaneo.
+                              const valor = searchTerm.trim();
+                              if (e.key === "Enter" && /^\d{8,14}$/.test(valor)) {
+                                e.preventDefault();
+                                setSearchTerm("");
+                                void procesarCodigo(valor);
+                              }
+                            }}
                             className="pl-10 sm:pl-12 pr-4 h-10 sm:h-12 sm:text-base"
                             autoFocus
                         />
                         </div>
-                        
+
+                        {/* Indicador del escáner: late con cada lectura de la pistola. */}
                         <Button
                         variant="secondary"
                         size="icon"
-                        className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 hidden sm:flex"
+                        className="relative h-10 w-10 sm:h-12 sm:w-12 shrink-0 hidden sm:flex"
+                        aria-label="Escáner listo: apuntá la pistola al código"
+                        title="Escáner listo: apuntá la pistola al código, o escribilo y presioná Enter"
+                        onClick={() => {
+                          buscadorRef.current?.focus();
+                          toast("Escáner listo", {
+                            description: "Apuntá la pistola al código de barras, o escribilo en el buscador y presioná Enter.",
+                            icon: <ScanLine className="h-4 w-4" />,
+                          });
+                        }}
                         >
                         <ScanLine className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-success" aria-hidden />
+                        {pulso > 0 && (
+                          <motion.span
+                            key={pulso}
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 rounded-[inherit] ring-2 ring-acento"
+                            initial={{ opacity: 1, scale: 1 }}
+                            animate={{ opacity: 0, scale: 1.5 }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                          />
+                        )}
                         </Button>
+
+                        {/* Decir el precio, bips y quién habla: en Caja la hoja no se abre. */}
+                        <AjustesVoz className="size-10 shrink-0 rounded-lg bg-secondary text-secondary-foreground sm:size-12" />
                     </div>
 
                     {/* Categorías con scroll horizontal */}
@@ -844,11 +953,18 @@ export default function Caja() {
                     onClick={() => addToCart(product)}
                     >
                     <div className="aspect-square bg-muted overflow-hidden relative">
+                        {product.imageUrl ? (
                         <img
                         src={product.imageUrl}
                         alt={product.name}
                         className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
+                        ) : (
+                        // Recién dado de alta desde el escáner, sin foto todavía.
+                        <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary-soft to-muted">
+                          <Package className="h-10 w-10 text-primary/50" aria-hidden />
+                        </div>
+                        )}
                         {product.stock === 0 && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                             <span className="text-white font-bold text-lg">AGOTADO</span>
@@ -1006,15 +1122,41 @@ export default function Caja() {
                 <div className="space-y-2 py-2">
                     {cart.map((item) => {
                       const product = allProducts.find(p => p.id === item.id);
+                      const recien = resaltado?.id === item.id;
                       return (
-                    <Card key={item.id} className="flex gap-3 p-3 shadow-sm hover:shadow-md transition-shadow">
+                    <motion.div
+                      key={item.id}
+                      data-cart-item={item.id}
+                      layout
+                      initial={{ opacity: 0, y: -10, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                      className="relative"
+                    >
+                    {recien && (
+                      <motion.span
+                        key={resaltado!.vez}
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 z-10 rounded-xl bg-acento/10 ring-2 ring-acento"
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 0 }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                      />
+                    )}
+                    <Card className="flex gap-3 p-3 shadow-sm hover:shadow-md transition-shadow">
                         {/* Imagen del producto */}
                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                        {item.imageUrl || product?.imageUrl ? (
                         <img
-                            src={product?.imageUrl || ''}
+                            src={item.imageUrl || product?.imageUrl}
                             alt={item.name}
                             className="w-full h-full object-cover"
                         />
+                        ) : (
+                        <div className="grid h-full w-full place-items-center">
+                          <Package className="h-6 w-6 text-muted-foreground" aria-hidden />
+                        </div>
+                        )}
                         </div>
                         
                         {/* Info del producto */}
@@ -1070,6 +1212,7 @@ export default function Caja() {
                         </p>
                         </div>
                     </Card>
+                    </motion.div>
                       );
                     })}
                 </div>

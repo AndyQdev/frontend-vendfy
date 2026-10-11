@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Save, Image as ImageIcon, Plus, X, Tag, Info, ScanBarcode, Sparkles, Loader2 } from "lucide-react";
+import { ApiError } from "@/shared/api/client";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { AiModelPicker } from "@/shared/ui/ai-model-picker";
 import { Button } from "@/shared/ui/button";
@@ -20,6 +21,8 @@ import { useUnitsOfMeasure } from "@/entities/inventory/api";
 import { useStore } from "@/app/providers/auth";
 import { useProduct, useCreateProduct, useUpdateProduct, useCategories, useBrands } from "@/entities/product/api";
 import type { ProductInput } from "@/entities/product/model/schema";
+import type { EnriquecimientoIa, ResultadoEscaneo, SugerenciaCatalogo } from "@/entities/product/model/escaneo";
+import { sonar, useEnriquecimientoIa, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
 import { useRegreso } from "@/shared/hooks/use-regreso";
 import { toast } from "sonner";
@@ -29,27 +32,36 @@ export default function CreateProduct() {
   // El asistente manda acá lo que no encontró en el catálogo ("coca 2
   // litros"): hacérselo escribir otra vez sería pedirle lo mismo dos veces.
   const [params] = useSearchParams();
+  // El escáner manda acá lo que ya sabe de un código ("Completar más datos"):
+  // nombre, marca, foto y contenido del catálogo, más el precio si lo puso.
+  const estadoNavegacion = useLocation().state as { prefill?: Partial<ProductInput> } | null;
+  const prefill = productId ? undefined : estadoNavegacion?.prefill;
   const { selectedStore } = useStore();
   const isEditMode = Boolean(productId);
   // Vuelve a la lista tal como estaba -con su búsqueda y sus filtros- y no al
   // catálogo entero.
   const volverALista = useRegreso("/products");
+  // Marca que vino del catálogo y el comercio todavía no tiene: se crea al guardar.
+  const [marcaSugerida, setMarcaSugerida] = useState(prefill?.brandName ?? "");
+  // Ídem la categoría que propuso la IA.
+  const [categoriaSugerida, setCategoriaSugerida] = useState(prefill?.categoryName ?? "");
 
   // State for form data
   const [formData, setFormData] = useState<ProductInput>({
-    name: productId ? "" : (params.get("nombre") ?? ""),
-    description: "",
-    imageUrls: [],
+    name: prefill?.name ?? (productId ? "" : (params.get("nombre") ?? "")),
+    description: prefill?.description ?? "",
+    imageUrls: prefill?.imageUrls ?? [],
     sku: "",
-    categoryId: "",
-    brandId: "",
+    barcode: prefill?.barcode ?? "",
+    categoryId: prefill?.categoryId ?? "",
+    brandId: prefill?.brandId ?? "",
     storeId: typeof selectedStore === "object" ? selectedStore?.id || "" : "",
-    price: 0,
-    initialStock: 0,
+    price: prefill?.price ?? 0,
+    initialStock: prefill?.initialStock ?? 0,
     metadata: {
       isFeatured: false,
-      tags: [],
-      specifications: {}
+      tags: prefill?.metadata?.tags ?? [],
+      specifications: prefill?.metadata?.specifications ?? {}
     }
   });
 
@@ -117,6 +129,7 @@ export default function CreateProduct() {
         description: existingProduct.description || "",
         imageUrls: existingProduct.imageUrls || [],
         sku: existingProduct.sku || "",
+        barcode: codigoLegible(existingProduct.barcode),
         categoryId: existingProduct.category?.id || "",
         brandId: existingProduct.brand?.id || "",
         storeId: storeProduct?.store?.id || currentStoreId,
@@ -140,6 +153,142 @@ export default function CreateProduct() {
 
   const categories = categoriesData || [];
   const brands = brandsData || [];
+
+  // Si la marca sugerida ya existe en el comercio, se elige esa en vez de crear otra.
+  useEffect(() => {
+    if (!marcaSugerida || formData.brandId) return;
+    const existente = brands.find((b) => b.name.trim().toLowerCase() === marcaSugerida.trim().toLowerCase());
+    if (existente) {
+      setFormData((prev) => ({ ...prev, brandId: existente.id }));
+      setMarcaSugerida("");
+    }
+  }, [brands, marcaSugerida, formData.brandId]);
+
+  // Ídem la categoría: si ya hay una igual o parecida ("Bebidas" y "bebidas
+  // gaseosas"), se elige esa en vez de crear otra.
+  useEffect(() => {
+    if (!categoriaSugerida || formData.categoryId) return;
+    const buscada = normalizar(categoriaSugerida);
+    const existente = categories.find((c) => {
+      const nombre = normalizar(c.name);
+      return nombre === buscada || nombre.includes(buscada) || buscada.includes(nombre);
+    });
+    if (existente) {
+      setFormData((prev) => ({ ...prev, categoryId: existente.id }));
+      setCategoriaSugerida("");
+    }
+  }, [categories, categoriaSugerida, formData.categoryId]);
+
+  // ─── Escáner ──────────────────────────────────────────────────────────
+  // Al crear, el código llena el formulario con lo que sabe el catálogo
+  // (nombre, marca, categoría, foto con IA, ficha) y deja el cursor en el
+  // precio, que es lo único que no se puede saber. Al editar, le asigna el
+  // código. Si el código ya es de otro producto, se avisa en vez de duplicarlo.
+  const navigate = useNavigate();
+  const { buscar } = useEscaner();
+  const [codigoAjeno, setCodigoAjeno] = useState<{ id: string; nombre: string } | null>(null);
+  const [delCatalogo, setDelCatalogo] = useState<ResultadoEscaneo | null>(null);
+  // Lo que puso el último escaneo: otro escaneo lo reemplaza, pero lo que
+  // escribió la persona no se pisa.
+  const rellenado = useRef<Partial<Record<CampoCatalogo, unknown>>>({});
+  const formRef = useRef(formData);
+  formRef.current = formData;
+
+  /**
+   * Pone lo del catálogo (o nada, si el código es nuevo) en los campos que
+   * están vacíos o que llenó el escaneo anterior; lo escrito a mano queda.
+   */
+  const llenarDesdeCatalogo = (s: SugerenciaCatalogo | null, ia?: EnriquecimientoIa) => {
+    const ficha = ia?.ficha ?? s?.ia?.ficha ?? null;
+    const foto = ia?.imagenUrl ?? s?.ia?.imagenUrl ?? s?.imagenUrl;
+    const nuevo: Record<CampoCatalogo, unknown> = {
+      name: !s ? "" : ficha?.nombre ?? (s.cantidad && !s.nombre.includes(s.cantidad) ? `${s.nombre} ${s.cantidad}` : s.nombre),
+      description: ficha?.descripcion ?? "",
+      imageUrls: foto ? [foto] : [],
+      tags: ficha?.etiquetas ?? [],
+      specifications:
+        ficha && Object.keys(ficha.especificaciones).length
+          ? ficha.especificaciones
+          : s?.cantidad
+            ? { Contenido: s.cantidad }
+            : {},
+    };
+    const antes = rellenado.current;
+    const cabe = (actual: unknown, campo: CampoCatalogo) => vacio(actual) || igual(actual, antes[campo]);
+    setFormData((prev) => ({
+      ...prev,
+      name: cabe(prev.name, "name") ? (nuevo.name as string) : prev.name,
+      description: cabe(prev.description, "description") ? (nuevo.description as string) : prev.description,
+      imageUrls: cabe(prev.imageUrls, "imageUrls") ? (nuevo.imageUrls as string[]) : prev.imageUrls,
+      metadata: {
+        ...prev.metadata,
+        tags: cabe(prev.metadata?.tags, "tags") ? (nuevo.tags as string[]) : prev.metadata?.tags,
+        specifications: cabe(prev.metadata?.specifications, "specifications")
+          ? (nuevo.specifications as Record<string, string>)
+          : prev.metadata?.specifications,
+      },
+    }));
+    rellenado.current = nuevo;
+    const marca = ficha?.marca ?? s?.marca;
+    if (marca && !formRef.current.brandId) setMarcaSugerida(marca);
+    if (ficha?.categoria && !formRef.current.categoryId) setCategoriaSugerida(ficha.categoria);
+  };
+
+  useManejadorEscaneo(
+    async (lectura) => {
+      const r = await buscar(lectura.codigo);
+      const codigo = r.codigoLegible || lectura.codigo;
+
+      // Ya es de otro producto: se avisa (el servidor tampoco lo aceptaría).
+      if (r.producto && r.producto.id !== productId) {
+        sonar("error");
+        setCodigoAjeno({ id: r.producto.id, nombre: r.producto.name });
+        return true;
+      }
+      setCodigoAjeno(null);
+
+      if (isEditMode) {
+        const anterior = (formRef.current.barcode ?? "").trim();
+        setFormData((prev) => ({ ...prev, barcode: codigo }));
+        sonar("encontrado");
+        if (r.producto) {
+          toast.success("Es este producto", { description: "Ese código ya es suyo." });
+        } else {
+          const reemplaza = anterior && anterior !== codigo;
+          toast.success(reemplaza ? "Código reemplazado" : "Código cargado", {
+            description: "Tocá Actualizar para guardarlo.",
+            ...(reemplaza
+              ? { action: { label: "Deshacer", onClick: () => setFormData((prev) => ({ ...prev, barcode: anterior })) } }
+              : {}),
+          });
+        }
+        return true;
+      }
+
+      setFormData((prev) => ({ ...prev, barcode: codigo }));
+      if (r.sugerencia) {
+        sonar("sugerido");
+        setDelCatalogo(r);
+        llenarDesdeCatalogo(r.sugerencia);
+        toast.success("Lo completamos con el catálogo", { description: "Revisá los datos y poné el precio." });
+        enfocar("price");
+      } else {
+        sonar("nuevo");
+        // Lo que había puesto un escaneo anterior era de OTRO producto.
+        if (delCatalogo) {
+          llenarDesdeCatalogo(null);
+          setMarcaSugerida("");
+          setCategoriaSugerida("");
+        }
+        setDelCatalogo(null);
+        toast.info("Código nuevo", { description: "Nadie lo cargó todavía: completá el nombre y el precio." });
+        enfocar("name");
+      }
+      return true;
+    },
+    true,
+    isEditMode ? "Le asigna el código a este producto" : "Completa el formulario con el catálogo",
+  );
 
   // Context for AI buttons - always up to date with form state
   const aiContext = useMemo(() => ({
@@ -334,6 +483,10 @@ export default function CreateProduct() {
         brandId: formData.brandId || undefined,
         categoryId: formData.categoryId || undefined,
         sku: formData.sku || undefined,
+        // Al editar, vacío significa "sacale el código"; al crear, simplemente no se manda.
+        barcode: isEditMode ? (formData.barcode ?? "").trim() : formData.barcode?.trim() || undefined,
+        brandName: !formData.brandId && marcaSugerida ? marcaSugerida : undefined,
+        categoryName: !formData.categoryId && categoriaSugerida ? categoriaSugerida : undefined,
         // En edición el stock se gestiona desde Inventario/Compras
         initialStock: isEditMode ? undefined : formData.initialStock,
         // La medida SOLO viaja si el usuario la activó. Un producto normal no
@@ -367,7 +520,10 @@ export default function CreateProduct() {
       volverALista();
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto");
+      // El backend explica lo que importa (p. ej. "Ese código de barras ya es de «X»").
+      toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto", {
+        description: error instanceof ApiError ? error.message : undefined,
+      });
     }
   };
 
@@ -406,6 +562,31 @@ export default function CreateProduct() {
         </div>
       </div>
 
+      {codigoAjeno && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground"
+        >
+          <ScanBarcode className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">
+            {isEditMode ? "Ese código ya es de " : "Ya tenés "}
+            <span className="font-semibold">«{codigoAjeno.nombre}»</span>
+            {isEditMode ? ": un código no puede ser de dos productos." : " con este código: no hace falta crearlo de nuevo."}
+          </span>
+          <Button type="button" size="sm" variant="outline" onClick={() => navigate(`/products/${codigoAjeno.id}`)}>
+            Abrir «{codigoAjeno.nombre}»
+          </Button>
+          <button
+            type="button"
+            onClick={() => setCodigoAjeno(null)}
+            aria-label="Cerrar el aviso"
+            className="rounded p-1 hover:bg-warning/10"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content - 2/3 */}
         <div className="lg:col-span-2 space-y-6">
@@ -433,21 +614,90 @@ export default function CreateProduct() {
               {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Label htmlFor="sku">SKU (Opcional)</Label>
-                <HintIcon>
-                  Es el código único del producto. Si tienes lector de códigos de barras, escanéalo aquí. Si no, puedes inventarlo (ej: CAMI-001). Te servirá para encontrarlo rápido en caja.
-                </HintIcon>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="barcode">Código de barras</Label>
+                  <HintIcon>
+                    El que viene impreso en el envase. Hacé clic acá y escanealo con la pistola. Con esto, al escanear el producto en cualquier pantalla aparece solo, y en Caja va directo a la venta.
+                  </HintIcon>
+                </div>
+                <div className="relative">
+                  <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input
+                    id="barcode"
+                    name="barcode"
+                    // La pistola escribe acá en vez de abrir la ficha del producto.
+                    data-scanner="input"
+                    value={formData.barcode ?? ""}
+                    onChange={handleInputChange}
+                    placeholder="Escaneá o escribí el código"
+                    className="pl-9 font-mono"
+                    autoComplete="off"
+                  />
+                </div>
               </div>
-              <Input
-                id="sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleInputChange}
-                placeholder="Ej: IPH15PM-256-BLK"
-              />
+
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="sku">SKU (Opcional)</Label>
+                  <HintIcon>
+                    Tu código interno del producto. Si no tiene código de barras, puedes inventarlo (ej: CAMI-001). Te servirá para encontrarlo rápido en caja.
+                  </HintIcon>
+                </div>
+                <Input
+                  id="sku"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  placeholder="Ej: IPH15PM-256-BLK"
+                />
+              </div>
             </div>
+
+            {delCatalogo?.sugerencia && !isEditMode && (
+              <div className="space-y-1">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                  Completado con el catálogo de productos. Revisalo y poné el precio.
+                </p>
+                {delCatalogo.sugerencia.ia?.estado === "generando" && (
+                  <SeguirIa
+                    key={delCatalogo.codigo}
+                    resultado={delCatalogo}
+                    onListo={(ia) => llenarDesdeCatalogo(delCatalogo.sugerencia!, ia)}
+                  />
+                )}
+              </div>
+            )}
+
+            {categoriaSugerida && !formData.categoryId && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
+                <Tag className="h-4 w-4 shrink-0" aria-hidden />
+                Categoría sugerida: <span className="font-semibold">{categoriaSugerida}</span> — se crea al guardar.
+                <button
+                  type="button"
+                  className="ml-auto text-xs underline underline-offset-2"
+                  onClick={() => setCategoriaSugerida("")}
+                >
+                  No usar
+                </button>
+              </p>
+            )}
+
+            {marcaSugerida && !formData.brandId && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-soft-foreground">
+                <Tag className="h-4 w-4 shrink-0" aria-hidden />
+                Marca del catálogo: <span className="font-semibold">{marcaSugerida}</span> — se crea al guardar.
+                <button
+                  type="button"
+                  className="ml-auto text-xs underline underline-offset-2"
+                  onClick={() => setMarcaSugerida("")}
+                >
+                  No usar
+                </button>
+              </p>
+            )}
 
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -998,6 +1248,69 @@ export default function CreateProduct() {
     </div>
     </TooltipProvider>
   );
+}
+
+/** El código como viene impreso: el GTIN-14 guardado sin su relleno de ceros. */
+/** Lo que el catálogo puede llenar del formulario. */
+type CampoCatalogo = "name" | "description" | "imageUrls" | "tags" | "specifications";
+
+/** Vacío para el formulario: texto en blanco, lista sin nada, objeto sin claves. */
+function vacio(v: unknown): boolean {
+  if (v == null) return true;
+  if (typeof v === "string") return !v.trim();
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "object") return Object.keys(v as object).length === 0;
+  return false;
+}
+
+const igual = (a: unknown, b: unknown) => b !== undefined && JSON.stringify(a) === JSON.stringify(b);
+
+/** Para comparar nombres: "Dulces y Mermeladas" = "dulces y mermeladas". */
+function normalizar(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/** El cursor al campo que falta, una vez que el formulario se redibujó. */
+function enfocar(id: string) {
+  window.setTimeout(() => {
+    const campo = document.getElementById(id) as HTMLInputElement | null;
+    campo?.focus();
+    campo?.select?.();
+  }, 60);
+}
+
+/**
+ * La IA mejora la foto y arma la ficha la primera vez que alguien escanea el
+ * código (10-30 s). Mientras tanto se avisa; al terminar, lo nuevo reemplaza
+ * lo del catálogo que la persona no tocó.
+ */
+function SeguirIa({ resultado, onListo }: { resultado: ResultadoEscaneo; onListo: (ia: EnriquecimientoIa) => void }) {
+  const { ia, generando } = useEnriquecimientoIa(resultado);
+  const avisado = useRef(false);
+  const alListo = useRef(onListo);
+  alListo.current = onListo;
+  useEffect(() => {
+    if (ia?.estado !== "listo" || avisado.current) return;
+    avisado.current = true;
+    alListo.current(ia);
+  }, [ia]);
+  if (!generando) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" aria-hidden />
+      La IA está mejorando la foto y armando la ficha…
+    </p>
+  );
+}
+
+function codigoLegible(codigo?: string | null): string {
+  if (!codigo) return "";
+  if (!/^\d{14}$/.test(codigo)) return codigo;
+  return codigo.startsWith("000000") ? codigo.slice(6) : codigo.replace(/^0/, "");
 }
 
 function HintIcon({ children }: { children: React.ReactNode }) {

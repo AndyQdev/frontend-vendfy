@@ -512,11 +512,20 @@ export function comparar(
 
 // ------------------------------------------------------------ misma vista
 
+/**
+ * Parámetros nuevos con su valor por defecto: una vista guardada antes de que
+ * existieran (sin la clave) es la MISMA que una de ahora (con el defecto).
+ * Sin esto, "sentido: mayor" (G7e) hacía que una vista fijada ya no se
+ * reconociera como fijada.
+ */
+const POR_DEFECTO_NUEVOS: Record<string, unknown> = { sentido: "mayor" };
+
 /** JSON con las claves ordenadas: dos vistas iguales dan el mismo texto aunque el orden de las claves cambie. */
 function canonico(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonico).join(",")}]`;
   if (v && typeof v === "object") {
     return `{${Object.keys(v as object)
+      .filter((k) => !(k in POR_DEFECTO_NUEVOS && (v as Record<string, unknown>)[k] === POR_DEFECTO_NUEVOS[k]))
       .sort()
       .map((k) => `${JSON.stringify(k)}:${canonico((v as Record<string, unknown>)[k])}`)
       .join(",")}}`;

@@ -1,0 +1,479 @@
+import { useSyncExternalStore } from "react";
+
+import { API_URL, apiFetch } from "@/shared/api/client";
+
+import { contextoAudio } from "./audio";
+import { callarNavegador, decirConNavegador } from "./navegador";
+import { preferenciasVoz } from "./preferencias";
+
+/**
+ * La voz del panel. Dice el precio de lo que se escanea y le pone voz al
+ * asistente, con las voces naturales que genera el servidor (Gemini).
+ *
+ * Para que el precio suene en el instante en que se escanea:
+ *
+ *   1. Lo que ya sonó en esta sesión está decodificado en memoria: cero red.
+ *   2. Las frases ya generadas (precios, avisos) son MP3 en Storage cuya URL
+ *      se recuerda en el navegador: se bajan directo, sin pasar por la API.
+ *      El precalentado trae de una vez las de todos los precios del comercio.
+ *   3. Lo que nadie dijo nunca se pide a la API, que lo transmite mientras lo
+ *      genera: se empieza a escuchar con el primer trozo.
+ *   4. Si nada de eso llega a tiempo, la voz del navegador.
+ *
+ * Un escaneo nuevo corta lo que se estaba diciendo: en un mostrador importa
+ * el último producto, no el anterior.
+ */
+
+export type AvisoVoz = "agotado" | "sin_mas" | "a_pedido" | "quedan" | "van" | "sin_tienda";
+
+export type FraseVoz =
+  | { tipo: "precio"; monto: number; moneda?: string | null }
+  | { tipo: "aviso"; aviso: AvisoVoz; n?: number };
+
+const FRECUENCIA = 24_000;
+
+/** Muestras de audio de -1 a 1 (sobre un ArrayBuffer común: lo exige copyToChannel). */
+type Muestras = Float32Array<ArrayBuffer>;
+/**
+ * Cuánto se espera a la voz natural antes de que hable la del navegador. El
+ * precio tiene que salir ya (atrás viene otro escaneo); el asistente puede
+ * esperar un poco más; la muestra de una voz, lo que haga falta: es justamente
+ * para escucharla.
+ */
+const ESPERA_MS = { precio: 3000, asistente: 5000, muestra: 8000 } as const;
+const PAUSA_ENTRE_FRASES = 0.12;
+/** Colchón para que el audio transmitido no se corte con la primera demora de red. */
+const COLCHON_FLUJO = 0.06;
+const MAX_EN_MEMORIA = 300;
+const MAX_URLS = 4000;
+const CLAVE_URLS = "vendfy.voz.urls.v1";
+
+// ─── Cómo se nombra cada frase ─────────────────────────────────────────────
+
+const MONEDAS = new Set(["BOB", "USD", "PEN", "ARS", "CLP", "COP", "MXN", "UYU", "EUR", "PYG", "BRL"]);
+
+function monedaConocida(codigo?: string | null): string {
+  const c = (codigo ?? "").replace(/[^a-z]/gi, "").toUpperCase();
+  if (c === "BS") return "BOB";
+  return MONEDAS.has(c) ? c : "BOB";
+}
+
+/** Igual que en el servidor: así las URLs del precalentado se encuentran. */
+export function idDeFrase(f: FraseVoz): string {
+  return f.tipo === "precio"
+    ? `precio:${f.monto.toFixed(2)}:${monedaConocida(f.moneda)}`
+    : `aviso:${f.aviso}:${f.n ?? ""}`;
+}
+
+const NOMBRE_MONEDA: Record<string, [string, string]> = {
+  BOB: ["boliviano", "bolivianos"],
+  USD: ["dólar", "dólares"],
+  PEN: ["sol", "soles"],
+  EUR: ["euro", "euros"],
+  PYG: ["guaraní", "guaraníes"],
+  BRL: ["real", "reales"],
+};
+
+/** Lo que dice la voz del navegador si la natural no llega. Con cifras: las lee bien. */
+function textoDeRespaldo(f: FraseVoz): string {
+  if (f.tipo === "precio") {
+    const [singular, plural] = NOMBRE_MONEDA[monedaConocida(f.moneda)] ?? ["peso", "pesos"];
+    const centavos = Math.round(f.monto * 100);
+    const entero = Math.floor(centavos / 100);
+    const resto = centavos % 100;
+    if (!centavos) return "Sin precio.";
+    if (!entero) return `${resto} centavos.`;
+    return `${entero} ${entero === 1 ? singular : plural}${resto ? ` con ${resto}` : ""}.`;
+  }
+  switch (f.aviso) {
+    case "agotado":
+      return "Agotado.";
+    case "sin_mas":
+      return "No quedan más.";
+    case "a_pedido":
+      return "Sin stock, se vende a pedido.";
+    case "sin_tienda":
+      return "No está en esta tienda.";
+    case "quedan":
+      return f.n === 1 ? "Queda uno." : `Quedan ${f.n}.`;
+    case "van":
+      return `Van ${f.n}.`;
+  }
+}
+
+// ─── Lo que ya se conoce ───────────────────────────────────────────────────
+
+const enMemoria = new Map<string, AudioBuffer>();
+
+function deMemoria(id: string): AudioBuffer | null {
+  const b = enMemoria.get(id);
+  if (!b) return null;
+  enMemoria.delete(id);
+  enMemoria.set(id, b);
+  return b;
+}
+
+function aMemoria(id: string, b: AudioBuffer) {
+  enMemoria.set(id, b);
+  while (enMemoria.size > MAX_EN_MEMORIA) enMemoria.delete(enMemoria.keys().next().value!);
+}
+
+/** id de frase → URL del MP3, guardado en el navegador (sin el prefijo común, que se repite). */
+const urls = new Map<string, string>();
+let guardado: number | undefined;
+
+(function cargarUrls() {
+  try {
+    const crudo = localStorage.getItem(CLAVE_URLS);
+    if (!crudo) return;
+    const { b, m } = JSON.parse(crudo) as { b: string; m: Record<string, string> };
+    for (const [id, resto] of Object.entries(m)) urls.set(id, resto.startsWith("http") ? resto : b + resto);
+  } catch {
+    // arranca vacío
+  }
+})();
+
+function recordarUrl(id: string, url: string) {
+  if (urls.get(id) === url) return;
+  urls.delete(id);
+  urls.set(id, url);
+  while (urls.size > MAX_URLS) urls.delete(urls.keys().next().value!);
+  window.clearTimeout(guardado);
+  guardado = window.setTimeout(() => {
+    try {
+      const muestra = urls.values().next().value ?? "";
+      const b = muestra.slice(0, muestra.lastIndexOf("/voz/") + 5);
+      const m: Record<string, string> = {};
+      for (const [k, v] of urls) m[k] = b && v.startsWith(b) ? v.slice(b.length) : v;
+      localStorage.setItem(CLAVE_URLS, JSON.stringify({ b, m }));
+    } catch {
+      // sin lugar: vale para esta sesión
+    }
+  }, 1000);
+}
+
+// ─── Reproducción ──────────────────────────────────────────────────────────
+
+/** Cambia con cada cosa nueva que se dice o con callar(): lo viejo se descarta. */
+let turno = 0;
+const sonando = new Set<AudioBufferSourceNode>();
+/** Hasta cuándo hay audio programado (en el reloj del AudioContext). */
+let finProgramado = 0;
+
+/** Si la voz está hablando: la ficha lo muestra con unas barritas que se mueven. */
+let hablando = false;
+const oyentesHablando = new Set<() => void>();
+
+function setHablando(valor: boolean) {
+  if (valor === hablando) return;
+  hablando = valor;
+  oyentesHablando.forEach((f) => f());
+}
+
+export function useHablando(): boolean {
+  return useSyncExternalStore(
+    (f) => {
+      oyentesHablando.add(f);
+      return () => oyentesHablando.delete(f);
+    },
+    () => hablando,
+    () => false,
+  );
+}
+
+export function callarVoz() {
+  turno++;
+  for (const s of sonando) {
+    try {
+      s.stop();
+    } catch {
+      // ya había terminado
+    }
+  }
+  sonando.clear();
+  finProgramado = 0;
+  callarNavegador();
+  setHablando(false);
+}
+
+function programar(ctx: AudioContext, buffer: AudioBuffer, cuando: number) {
+  const fuente = ctx.createBufferSource();
+  fuente.buffer = buffer;
+  fuente.connect(ctx.destination);
+  fuente.onended = () => {
+    sonando.delete(fuente);
+    if (!sonando.size) setHablando(false);
+  };
+  sonando.add(fuente);
+  setHablando(true);
+  fuente.start(cuando);
+}
+
+type Pieza =
+  | { tipo: "buffer"; buffer: AudioBuffer }
+  | { tipo: "flujo"; primero: Muestras; resto: AsyncGenerator<Muestras>; cancelar: () => void }
+  | { tipo: "navegador"; texto: string };
+
+interface QueDecir {
+  id: string;
+  esperaMs: number;
+  cuerpo: Record<string, unknown>;
+  respaldo: string;
+  /** Si el servidor la guarda: entonces vale la pena recordar su URL. */
+  recordar: boolean;
+}
+
+const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+function autorizacion(): Record<string, string> {
+  const token = localStorage.getItem("authToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function bajarYDecodificar(ctx: AudioContext, url: string, limite: number, externo?: AbortSignal) {
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), Math.max(0, limite - Date.now()));
+  externo?.addEventListener("abort", () => corte.abort());
+  try {
+    const r = await fetch(url, { signal: corte.signal });
+    if (!r.ok) throw new Error(`audio ${r.status}`);
+    return await ctx.decodeAudioData(await r.arrayBuffer());
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+/** PCM de 16 bits little-endian → muestras de -1 a 1, trozo a trozo. */
+async function* leerPcm(cuerpo: ReadableStream<Uint8Array>): AsyncGenerator<Muestras> {
+  const lector = cuerpo.getReader();
+  let sobra: Uint8Array | null = null;
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) return;
+    let bytes = value;
+    if (sobra) {
+      const unidos = new Uint8Array(sobra.length + bytes.length);
+      unidos.set(sobra);
+      unidos.set(bytes, sobra.length);
+      bytes = unidos;
+      sobra = null;
+    }
+    const par = bytes.length - (bytes.length % 2);
+    if (par < bytes.length) sobra = bytes.slice(par);
+    if (!par) continue;
+    const vista = new DataView(bytes.buffer, bytes.byteOffset, par);
+    const muestras = new Float32Array(par / 2);
+    for (let i = 0; i < muestras.length; i++) muestras[i] = vista.getInt16(i * 2, true) / 32768;
+    yield muestras;
+  }
+}
+
+/** Consigue el audio de una frase por el camino más rápido que haya. */
+async function obtener(q: QueDecir): Promise<Pieza> {
+  const ctx = contextoAudio();
+  if (!ctx) return { tipo: "navegador", texto: q.respaldo };
+  const yaDecodificado = deMemoria(q.id);
+  if (yaDecodificado) return { tipo: "buffer", buffer: yaDecodificado };
+  const limite = Date.now() + q.esperaMs;
+
+  const conocida = urls.get(q.id);
+  if (conocida) {
+    try {
+      const buffer = await bajarYDecodificar(ctx, conocida, limite);
+      aMemoria(q.id, buffer);
+      return { tipo: "buffer", buffer };
+    } catch {
+      // Se pide a la API, que sabe si sigue existiendo.
+    }
+  }
+
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), Math.max(0, limite - Date.now()));
+  try {
+    const r = await fetch(`${API_URL}/api/voz/hablar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...autorizacion() },
+      body: JSON.stringify(q.cuerpo),
+      signal: corte.signal,
+    });
+    if (!r.ok || !r.body) throw new Error(`voz ${r.status}`);
+    if ((r.headers.get("content-type") ?? "").includes("application/json")) {
+      const url: string | undefined = (await r.json())?.data?.url;
+      if (!url) throw new Error("la voz no devolvió el audio");
+      if (q.recordar) recordarUrl(q.id, url);
+      const buffer = await bajarYDecodificar(ctx, url, limite, corte.signal);
+      aMemoria(q.id, buffer);
+      return { tipo: "buffer", buffer };
+    }
+    // Se está generando: se escucha a medida que llega.
+    const flujo = leerPcm(r.body);
+    const primero = await flujo.next();
+    if (primero.done) throw new Error("la voz no devolvió audio");
+    clearTimeout(reloj);
+    return { tipo: "flujo", primero: primero.value, resto: flujo, cancelar: () => corte.abort() };
+  } catch {
+    // Cortar acá no pierde la frase: el servidor la termina y la guarda.
+    corte.abort();
+    return { tipo: "navegador", texto: q.respaldo };
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+/** Las piezas se piden todas a la vez y suenan en orden, una detrás de otra. */
+async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: number) {
+  const ctx = contextoAudio();
+  let t = ctx ? Math.max(ctx.currentTime + 0.02, finProgramado) : 0;
+
+  for (let i = 0; i < piezas.length; i++) {
+    const pieza = await piezas[i];
+    if (mio !== turno) {
+      if (pieza.tipo === "flujo") pieza.cancelar();
+      continue;
+    }
+
+    if (pieza.tipo === "navegador" || !ctx) {
+      // Que no se pise con lo que ya está programado.
+      const espera = ctx ? (t - ctx.currentTime) * 1000 : 0;
+      if (espera > 0) await dormir(espera);
+      if (mio !== turno || pieza.tipo !== "navegador") continue;
+      setHablando(true);
+      await decirConNavegador(pieza.texto);
+      if (mio === turno) setHablando(sonando.size > 0);
+      if (ctx) t = ctx.currentTime + PAUSA_ENTRE_FRASES;
+      continue;
+    }
+
+    if (pieza.tipo === "buffer") {
+      t = Math.max(t, ctx.currentTime + 0.01);
+      programar(ctx, pieza.buffer, t);
+      t += pieza.buffer.duration + PAUSA_ENTRE_FRASES;
+      finProgramado = t;
+      continue;
+    }
+
+    // Transmitida: cada trozo se programa pegado al anterior.
+    const trozos: Muestras[] = [];
+    let total = 0;
+    t = Math.max(t, ctx.currentTime + COLCHON_FLUJO);
+    const sumar = (muestras: Muestras) => {
+      const b = ctx.createBuffer(1, muestras.length, FRECUENCIA);
+      b.copyToChannel(muestras, 0);
+      // Si la red se atrasó, se retoma con un respiro mínimo en vez de amontonar.
+      if (t < ctx.currentTime) t = ctx.currentTime + 0.03;
+      programar(ctx, b, t);
+      t += b.duration;
+      finProgramado = t;
+      trozos.push(muestras);
+      total += muestras.length;
+    };
+    sumar(pieza.primero);
+    let completa = true;
+    try {
+      for await (const muestras of pieza.resto) {
+        if (mio !== turno) {
+          pieza.cancelar();
+          completa = false;
+          break;
+        }
+        sumar(muestras);
+      }
+    } catch {
+      completa = false;
+    }
+    // Entera, queda en memoria: repetirla es instantáneo.
+    if (completa && total) {
+      const entera = ctx.createBuffer(1, total, FRECUENCIA);
+      let desde = 0;
+      for (const m of trozos) {
+        entera.copyToChannel(m, 0, desde);
+        desde += m.length;
+      }
+      aMemoria(ids[i], entera);
+    }
+    t += PAUSA_ENTRE_FRASES;
+    finProgramado = t;
+  }
+}
+
+function paraFrase(voz: string, f: FraseVoz): QueDecir {
+  const frase =
+    f.tipo === "precio"
+      ? { tipo: "precio", monto: Math.round(f.monto * 100) / 100, ...(f.moneda ? { moneda: f.moneda } : {}) }
+      : { tipo: "aviso", aviso: f.aviso, ...(f.n !== undefined ? { n: f.n } : {}) };
+  return {
+    id: `${voz}|${idDeFrase(f)}`,
+    esperaMs: ESPERA_MS.precio,
+    cuerpo: { voz, frase },
+    respaldo: textoDeRespaldo(f),
+    recordar: true,
+  };
+}
+
+function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
+  // El servidor guarda los textos cortos: esos se repiten.
+  return { id: `${voz}|t:${texto}`, esperaMs, cuerpo: { voz, texto }, respaldo: texto, recordar: texto.length <= 160 };
+}
+
+// ─── Lo que usan las pantallas ─────────────────────────────────────────────
+
+/** El precio de lo escaneado. Corta lo que se estuviera diciendo. */
+export function decirFrases(frases: FraseVoz[], { forzar = false }: { forzar?: boolean } = {}) {
+  const { precios, voz } = preferenciasVoz();
+  // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.
+  if ((!precios && !forzar) || !frases.length) return;
+  callarVoz();
+  const mio = turno;
+  const pedidos = frases.map((f) => paraFrase(voz, f));
+  void reproducir(pedidos.map(obtener), pedidos.map((p) => p.id), mio);
+}
+
+/** Lo que contesta el asistente. Se encola: el resumen y después la pregunta. */
+let colaTextos: Promise<void> = Promise.resolve();
+
+export function decirTexto(texto: string | null | undefined) {
+  const limpio = (texto ?? "").replace(/\s+/g, " ").trim();
+  const { asistente, voz } = preferenciasVoz();
+  if (!asistente || !limpio) return;
+  const mio = turno;
+  const pedido = paraTexto(voz, limpio, ESPERA_MS.asistente);
+  // Se pide ya, en paralelo con lo que está sonando; suena cuando le toca.
+  const pieza = obtener(pedido);
+  colaTextos = colaTextos
+    .then(() => (mio === turno ? reproducir([pieza], [pedido.id], mio) : undefined))
+    .catch(() => undefined);
+}
+
+/** Para elegir voz: suena aunque la voz esté apagada. */
+export function probarVoz(voz: string, texto: string) {
+  callarVoz();
+  const mio = turno;
+  const pedido = paraTexto(voz, texto, ESPERA_MS.muestra);
+  void reproducir([obtener(pedido)], [pedido.id], mio);
+}
+
+/**
+ * Pide al servidor que genere los precios de los productos del comercio y
+ * se queda con las URLs de los que ya están. Una vez cada media hora por
+ * pestaña: el servidor los va generando de a poco.
+ */
+export async function precalentarVoz() {
+  const { voz, precios } = preferenciasVoz();
+  if (!precios || !localStorage.getItem("authToken")) return;
+  const clave = `vendfy.voz.precalentado.${voz}`;
+  try {
+    if (Date.now() - Number(sessionStorage.getItem(clave) ?? 0) < 30 * 60_000) return;
+    sessionStorage.setItem(clave, String(Date.now()));
+  } catch {
+    // sin sessionStorage: se precalienta igual
+  }
+  try {
+    const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }> }>("/api/voz/precalentar", {
+      method: "POST",
+      body: { voz },
+    });
+    for (const { id, url } of r.data?.listas ?? []) recordarUrl(`${voz}|${id}`, url);
+  } catch {
+    // Sin precalentar, cada precio se genera la primera vez que se escanea.
+  }
+}

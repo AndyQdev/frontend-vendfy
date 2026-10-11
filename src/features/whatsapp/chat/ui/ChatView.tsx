@@ -246,7 +246,7 @@ export function ChatView({
         )}
       </div>
 
-      <Composer disabled={loading} sending={sending} onSend={onSend} />
+      <Composer disabled={loading} sending={sending} onSend={onSend} storeId={storeId} />
 
       <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
         <AlertDialogContent>

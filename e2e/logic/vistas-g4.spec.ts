@@ -164,6 +164,16 @@ test.describe("qué cambió entre dos versiones de una vista", () => {
     expect(mismaVista(BASE, reordenada)).toBe(true);
     expect(mismaVista(BASE, { ...BASE, piezas: BASE.piezas.slice(0, 2) })).toBe(false);
   });
+
+  test("una fijada antes de que existiera «sentido» es la misma que la de ahora con «mayor» (G7e)", () => {
+    const conSentido = (sentido: string): VistaSpec => ({
+      ...BASE,
+      piezas: BASE.piezas.map((p) => ("params" in p && p.fuente === "top_productos" ? { ...p, params: { ...p.params, sentido } } : p)) as VistaSpec["piezas"],
+    });
+    expect(mismaVista(BASE, conSentido("mayor"))).toBe(true);
+    // "Los que MENOS se venden" sí es otra vista.
+    expect(mismaVista(BASE, conSentido("menor"))).toBe(false);
+  });
 });
 
 test.describe("exportar a Excel", () => {

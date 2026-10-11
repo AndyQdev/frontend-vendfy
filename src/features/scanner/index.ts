@@ -1,0 +1,12 @@
+export { ScannerProvider, useEscaner, useManejadorEscaneo } from "./model/ScannerProvider";
+export type { AbrirHojaOpciones, ContextoHoja, ManejadorEscaneo } from "./model/ScannerProvider";
+export type { Lectura } from "./model/detector";
+export { sonar } from "./model/sonido";
+export { useEnriquecimientoIa } from "./model/useEnriquecimientoIa";
+export { useTiendaActiva } from "./model/useTiendaActiva";
+export { agregarAVenta, frasesAlAgregar, frasesDeFicha, tiendaParaVender, type ResultadoAgregar } from "./model/venta";
+export { AjustesVoz } from "./ui/AjustesVoz";
+export { HojaEscaneo } from "./ui/HojaEscaneo";
+export { LaserEscaneo } from "./ui/LaserEscaneo";
+export { ModoEscaner } from "./ui/ModoEscaner";
+export { VentaFlotante } from "./ui/VentaFlotante";

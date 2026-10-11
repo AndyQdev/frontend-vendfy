@@ -2,7 +2,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { apiFetch } from "@/shared/api/client";
 import type {
+  BorradorProducto,
+  ConsultaRecurso,
   ConversacionGuardada,
+  FichaRecurso,
+  IdRecurso,
+  ListaRecurso,
+  VistaOperacion,
   ConversacionResumen,
   ClienteOpcion,
   CompraRegistrada,
@@ -10,6 +16,7 @@ import type {
   HerramientaGenerada,
   IntencionDisponible,
   LineaContexto,
+  ProductoOpcion,
   Propuesta,
   TablaVista,
   VentaCobrada,
@@ -119,13 +126,20 @@ export function useDictar() {
  * entre dos productos no debe pedir lo mismo cada vez, pero el stock cambia.
  */
 export function useFichaProducto(productId: string | undefined, storeId: string) {
-  return useQuery({
+  return useQuery({ ...fichaProductoConsulta(productId ?? "", storeId), enabled: Boolean(productId) });
+}
+
+/**
+ * La misma consulta, para pedirla fuera de un componente (con `fetchQuery`):
+ * el escáner de Nueva compra la usa para precargar el último costo.
+ */
+export function fichaProductoConsulta(productId: string, storeId: string) {
+  return {
     queryKey: ["omnibox", "ficha", storeId, productId],
     queryFn: async () =>
       (await apiFetch<FichaProducto>(`/api/omnibox/producto/${productId}?storeId=${storeId}`)).data!,
-    enabled: Boolean(productId),
     staleTime: 60_000,
-  });
+  };
 }
 
 /** Clientes parecidos a lo escrito. Sin texto: los que compraron hace menos. */
@@ -155,6 +169,9 @@ export function useCobrar() {
       lineas: { storeProductId: string; cantidad: number; precio: number }[];
       clienteId: string | null;
       pago: "efectivo" | "qr" | "tarjeta";
+      /** G9f: con delivery o a cuotas. */
+      entrega?: { direccion: string; costo: number; notas?: string } | null;
+      cuotas?: { cantidad: number; inicial: number; proximaFecha: string } | null;
     }) => (await apiFetch<VentaCobrada>("/api/omnibox/cobrar", { method: "POST", body: vars })).data!,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
@@ -459,3 +476,146 @@ export function useFiltrarVista() {
   });
 }
 
+// ------------------------------------------------------------ productos y pedidos desde el chat (G7)
+
+/** Lo que se creó: con la forma de un producto del catálogo, para cargarlo a la compra. */
+export type ProductoCreado = ProductoOpcion & { compra: BorradorProducto["compra"]; venta?: BorradorProducto["venta"] };
+
+function invalidarProductos(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "productos"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
+  qc.invalidateQueries({ queryKey: ["omnibox", "categorias"] });
+  qc.invalidateQueries({ queryKey: ["products"] });
+}
+
+/** Crear los productos del formulario del chat (G7a). El servidor vuelve a validar todo. */
+export function useCrearProductos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productos: BorradorProducto[] }) =>
+      (await apiFetch<{ resumen: string; creados: ProductoCreado[] }>("/api/omnibox/productos", { method: "POST", body: vars })).data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Las categorías de la tienda, para elegir en el formulario de productos. */
+export function useCategoriasAsistente(storeId: string | null) {
+  return useQuery({
+    queryKey: ["omnibox", "categorias", storeId],
+    enabled: Boolean(storeId),
+    staleTime: 60_000,
+    queryFn: async () =>
+      (await apiFetch<{ id: string; nombre: string; productos: number }[]>(`/api/omnibox/categorias?storeId=${storeId}`)).data ?? [],
+  });
+}
+
+/** Cambiar un producto (ya confirmado en la tarjeta): solo los campos que cambian. */
+export function useCambiarProducto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productId: string; cambios: Record<string, unknown> }) =>
+      (
+        await apiFetch<{ resumen: string }>(`/api/omnibox/producto/${vars.productId}/cambiar`, {
+          method: "POST",
+          body: { storeId: vars.storeId, cambios: vars.cambios },
+        })
+      ).data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Dar de baja un producto (ya confirmado). */
+export function useBajaProducto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; productId: string }) =>
+      (await apiFetch<{ resumen: string }>(`/api/omnibox/producto/${vars.productId}/baja`, { method: "POST", body: { storeId: vars.storeId } }))
+        .data!,
+    onSuccess: () => invalidarProductos(qc),
+  });
+}
+
+/** Pasar un pedido a otro estado (ya confirmado): el mismo camino que la pantalla de Pedidos. */
+export function useEstadoPedido() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; orderId: string; estado: string }) =>
+      (
+        await apiFetch<{ resumen: string }>(`/api/omnibox/pedido/${vars.orderId}/estado`, {
+          method: "POST",
+          body: { storeId: vars.storeId, estado: vars.estado },
+        })
+      ).data!,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "vista"] });
+    },
+  });
+}
+
+// ------------------------------------------------------------ listas y fichas (G9a)
+
+/**
+ * Una lista del chat, como la ve el panel: arranca con la que trajo el agente
+ * (`inicial`, sin esperar) y vuelve a consultar al sacar un chip, ordenar o
+ * pedir más filas. Los filtros se validan en el servidor contra el recurso.
+ */
+export function useListaRecurso(storeId: string | null, consulta: ConsultaRecurso | null, inicial?: ListaRecurso) {
+  const clave = consulta ? JSON.stringify([consulta.recurso, consulta.filtros, consulta.orden, consulta.limite]) : null;
+  const esLaInicial = Boolean(inicial && consulta && JSON.stringify([inicial.recurso, inicial.consulta.filtros, inicial.consulta.orden, inicial.consulta.limite]) === clave);
+  return useQuery({
+    queryKey: ["omnibox", "recurso", storeId, clave],
+    enabled: Boolean(storeId && consulta),
+    placeholderData: keepPreviousData,
+    initialData: esLaInicial ? inicial : undefined,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const q = new URLSearchParams({
+        storeId: storeId!,
+        filtros: JSON.stringify(consulta!.filtros),
+        orden: consulta!.orden.campo,
+        sentido: consulta!.orden.sentido,
+        limite: String(consulta!.limite),
+      });
+      return (await apiFetch<ListaRecurso>(`/api/omnibox/recurso/${consulta!.recurso}?${q}`)).data!;
+    },
+  });
+}
+
+/** La ficha de una venta, compra, cliente o producto (G9a). */
+export function useFichaRecurso(storeId: string | null, recurso: IdRecurso | null, id: string | null, inicial?: FichaRecurso) {
+  return useQuery({
+    queryKey: ["omnibox", "ficha", storeId, recurso, id],
+    enabled: Boolean(storeId && recurso && id),
+    initialData: inicial && inicial.id === id ? inicial : undefined,
+    staleTime: 15_000,
+    queryFn: async () => (await apiFetch<FichaRecurso>(`/api/omnibox/recurso/${recurso}/${id}?storeId=${storeId}`)).data!,
+  });
+}
+
+// ------------------------------------------------------------ operaciones (G9c)
+
+/** La tarjeta de una operación, desde un botón de la ficha: lo que va a pasar, sin hacer nada. */
+export function usePrepararOperacion() {
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; operacion: string; id?: string | null; datos?: Record<string, string> }) =>
+      (await apiFetch<VistaOperacion>("/api/omnibox/operacion/preparar", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
+  });
+}
+
+/** Confirmada: se ejecuta (el servidor valida todo de nuevo). Las listas y fichas se vuelven a pedir. */
+export function useEjecutarOperacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string; operacion: string; id?: string | null; datos?: Record<string, string> }) =>
+      (await apiFetch<{ resumen: string; enlace?: string }>("/api/omnibox/operacion", { method: "POST", body: { ...vars, id: vars.id ?? undefined } })).data!,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["omnibox", "recurso"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });
+      qc.invalidateQueries({ queryKey: ["omnibox", "categorias"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      invalidarProductos(qc);
+    },
+  });
+}

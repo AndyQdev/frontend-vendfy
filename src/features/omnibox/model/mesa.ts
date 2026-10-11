@@ -1,4 +1,4 @@
-import type { CostoProducto, ItemPedido, Periodo, ProductoOpcion, VistaSpec } from "@/entities/omnibox/model/types";
+import type { ConsultaRecurso, CostoProducto, IdRecurso, ItemPedido, Periodo, ProductoOpcion, VistaSpec } from "@/entities/omnibox/model/types";
 
 import { conPeriodo } from "./vistas";
 
@@ -25,7 +25,7 @@ export type TipoMesa = "venta" | "compra";
  * análisis (G3) o una herramienta a medida (G6). Esos dos no son mesas: no
  * se arman ni se cobran, se miran (y a lo sumo proponen algo).
  */
-export type TipoPanel = TipoMesa | "analisis" | "herramienta";
+export type TipoPanel = TipoMesa | "analisis" | "herramienta" | "lista" | "ficha" | "productos";
 
 export type Pestana = "producto" | "borrador";
 
@@ -57,6 +57,20 @@ export interface LineaCompra {
   stock: number;
 }
 
+/** Venta con delivery (G9f): a dónde, cuánto el envío (null = a coordinar) y notas. */
+export interface EntregaVenta {
+  direccion: string;
+  costo: number | null;
+  notas: string;
+}
+
+/** Venta a cuotas (G9f): en cuántas, cuánto paga hoy y cuándo el próximo pago (AAAA-MM-DD). */
+export interface CuotasVenta {
+  cantidad: number;
+  inicial: number | null;
+  proxima: string;
+}
+
 export interface BorradorVenta {
   lineas: LineaVenta[];
   /** null = consumidor final. */
@@ -68,6 +82,9 @@ export interface BorradorVenta {
    * pasar desapercibido. Al cobrar sin método, la Guía lo pide.
    */
   pago: MetodoPago | null;
+  /** G9f: con delivery o a cuotas (como en la Caja). Sin ninguno, en el momento. */
+  entrega?: EntregaVenta | null;
+  cuotas?: CuotasVenta | null;
 }
 
 export interface BorradorCompra {
@@ -104,6 +121,26 @@ export interface HerramientaAbierta {
   titulo: string;
 }
 
+/**
+ * La lista a la vista (G9a): las ventas de septiembre, las compras de un
+ * proveedor. Se guarda la CONSULTA (no las filas): sacar un chip u ordenar
+ * vuelve a consultar, y una conversación guardada la reabre al día.
+ */
+export interface ListaAbierta {
+  mensajeId: string;
+  titulo: string;
+  consulta: ConsultaRecurso;
+}
+
+/** La ficha a la vista (G9a): una venta, una compra, un cliente, un producto. */
+export interface FichaAbierta {
+  recurso: IdRecurso;
+  id: string;
+  titulo: string;
+  /** Se abrió tocando una fila de la lista: tiene "Volver a la lista". */
+  desdeLista: boolean;
+}
+
 export interface Mesa {
   abierta: TipoPanel | null;
   pestana: Pestana;
@@ -124,6 +161,13 @@ export interface Mesa {
    */
   analisis: Analisis | null;
   herramienta: HerramientaAbierta | null;
+  lista: ListaAbierta | null;
+  ficha: FichaAbierta | null;
+  /**
+   * El formulario de productos nuevos a la derecha (G9b): se ve cómo se van
+   * armando mientras se conversa. Vive en su mensaje; acá, cuál es.
+   */
+  productos: { mensajeId: string } | null;
 }
 
 export const VENTA_VACIA: BorradorVenta = {
@@ -131,6 +175,8 @@ export const VENTA_VACIA: BorradorVenta = {
   clienteId: null,
   clienteNombre: "Consumidor final",
   pago: null,
+  entrega: null,
+  cuotas: null,
 };
 
 export const COMPRA_VACIA: BorradorCompra = {
@@ -152,6 +198,9 @@ export const MESA_INICIAL: Mesa = {
   ultima: "venta",
   analisis: null,
   herramienta: null,
+  lista: null,
+  ficha: null,
+  productos: null,
 };
 
 export type AccionMesa =
@@ -160,6 +209,12 @@ export type AccionMesa =
   | { tipo: "analizar"; analisis: Analisis }
   /** Mostrar una herramienta a medida en el panel (G6). */
   | { tipo: "usarHerramienta"; herramienta: HerramientaAbierta }
+  /** Una lista nueva del chat (G9a), o la misma con otros filtros u orden (los chips). */
+  | { tipo: "abrirLista"; lista: ListaAbierta }
+  | { tipo: "consultaLista"; consulta: ConsultaRecurso }
+  | { tipo: "abrirFicha"; ficha: FichaAbierta }
+  | { tipo: "volverALista" }
+  | { tipo: "abrirProductos"; mensajeId: string }
   /** El filtro de arriba del análisis: todas las piezas pasan al mismo período. */
   | { tipo: "periodoAnalisis"; periodo: Periodo }
   /** Abrir una conversación guardada (G5): la mesa vuelve entera, ya saneada. */
@@ -180,6 +235,10 @@ export type AccionMesa =
   | { tipo: "cliente"; clienteId: string | null; nombre: string }
   | { tipo: "pago"; pago: MetodoPago }
   | { tipo: "limpiarVenta" }
+  /** G9f: la venta pasa a ser con delivery, a cuotas, o en el momento (los dos null). */
+  | { tipo: "tipoVenta"; tipoVenta: "rapida" | "delivery" | "cuotas" }
+  | { tipo: "entrega"; entrega: Partial<EntregaVenta> }
+  | { tipo: "cuotas"; cuotas: Partial<CuotasVenta> }
   // ---- compra
   | { tipo: "agregarCompra"; producto: ProductoOpcion; cantidad?: number; costo: number; costoAnterior: number | null }
   | { tipo: "quitarCompra"; productId: string }
@@ -204,6 +263,9 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
     case "abrir":
       if (a.mesa === "analisis") return m.analisis ? { ...m, abierta: "analisis" } : m;
       if (a.mesa === "herramienta") return m.herramienta ? { ...m, abierta: "herramienta" } : m;
+      if (a.mesa === "lista") return m.lista ? { ...m, abierta: "lista" } : m;
+      if (a.mesa === "ficha") return m.ficha ? { ...m, abierta: "ficha" } : m;
+      if (a.mesa === "productos") return m.productos ? { ...m, abierta: "productos" } : m;
       return {
         ...m,
         abierta: a.mesa,
@@ -227,6 +289,21 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
 
     case "usarHerramienta":
       return { ...m, abierta: "herramienta", herramienta: a.herramienta };
+
+    case "abrirLista":
+      return { ...m, abierta: "lista", lista: a.lista };
+
+    case "consultaLista":
+      return m.lista ? { ...m, lista: { ...m.lista, consulta: a.consulta } } : m;
+
+    case "abrirFicha":
+      return { ...m, abierta: "ficha", ficha: a.ficha };
+
+    case "volverALista":
+      return m.lista ? { ...m, abierta: "lista" } : m;
+
+    case "abrirProductos":
+      return { ...m, abierta: "productos", productos: { mensajeId: a.mensajeId } };
 
     case "restaurar":
       return a.mesa;
@@ -309,6 +386,22 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
 
     case "limpiarVenta":
       return { ...m, venta: VENTA_VACIA };
+
+    case "tipoVenta":
+      return {
+        ...m,
+        venta: {
+          ...m.venta,
+          entrega: a.tipoVenta === "delivery" ? (m.venta.entrega ?? { direccion: "", costo: null, notas: "" }) : null,
+          cuotas: a.tipoVenta === "cuotas" ? (m.venta.cuotas ?? { cantidad: 2, inicial: null, proxima: "" }) : null,
+        },
+      };
+
+    case "entrega":
+      return { ...m, venta: { ...m.venta, cuotas: null, entrega: { ...(m.venta.entrega ?? { direccion: "", costo: null, notas: "" }), ...a.entrega } } };
+
+    case "cuotas":
+      return { ...m, venta: { ...m.venta, entrega: null, cuotas: { ...(m.venta.cuotas ?? { cantidad: 2, inicial: null, proxima: "" }), ...a.cuotas } } };
 
     // ---------------------------------------------------------- compra
     case "agregarCompra": {
@@ -526,8 +619,17 @@ export function efectoDeVenta(p: {
       acciones.push({ tipo: "cliente", clienteId: e.clienteId, nombre: e.cliente });
       partes.push(`para ${e.cliente}`);
     }
+    // G9f: "es con delivery a…" / "a 3 cuotas".
+    if (e.entrega?.direccion) {
+      acciones.push({ tipo: "entrega", entrega: { direccion: String(e.entrega.direccion), costo: e.entrega.costo ?? null, notas: String(e.entrega.notas ?? "") } });
+      partes.push(`con delivery a ${e.entrega.direccion}`);
+    }
+    if (e.cuotas?.cantidad) {
+      acciones.push({ tipo: "cuotas", cuotas: { cantidad: Number(e.cuotas.cantidad), inicial: e.cuotas.inicial ?? null, proxima: String(e.cuotas.proximaFecha ?? "") } });
+      partes.push(`a ${e.cuotas.cantidad} cuotas`);
+    }
     if (acciones.length === 0) return null;
-    return { acciones, resumen: `Agregado a la venta · ${partes.join(", ")}` };
+    return { acciones, resumen: `${p.items.some((it) => it.producto) ? "Agregado a la venta" : "La venta"} · ${partes.join(", ")}` };
   }
 
   switch (p.intencion) {
@@ -621,4 +723,29 @@ export function marcarAplicados<P extends { items?: ItemPedido[]; entidades: Rec
     ),
     clienteAplicado: e.clienteId ? e.cliente : p.clienteAplicado,
   };
+}
+
+/**
+ * Lo que le falta a una venta con delivery o a cuotas para registrarse
+ * (G9f), como lo pide la Caja: la dirección; el cliente, cuánto paga hoy y
+ * la fecha del próximo pago. Vacío = se puede.
+ */
+export function faltaParaCobrar(v: BorradorVenta): string[] {
+  const falta: string[] = [];
+  if (v.entrega && !v.entrega.direccion.trim()) falta.push("la dirección de entrega");
+  // Como en la Caja: un envío necesita a quién avisarle.
+  if (v.entrega && !v.clienteId) falta.push("el cliente (para avisarle del envío)");
+  if (v.cuotas) {
+    if (!v.clienteId) falta.push("el cliente (a cuotas necesita uno)");
+    if (v.cuotas.inicial == null) falta.push("cuánto paga hoy");
+    else if (v.cuotas.inicial > totalVenta(v)) falta.push("un pago de hoy que no supere el total");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.cuotas.proxima)) falta.push("la fecha del próximo pago");
+    if (!(v.cuotas.cantidad >= 2)) falta.push("en cuántas cuotas (2 o más)");
+  }
+  return falta;
+}
+
+/** El total que se registra: los productos más el envío, si es con delivery. */
+export function totalConEnvio(v: BorradorVenta): number {
+  return Math.round((totalVenta(v) + (v.entrega?.costo ?? 0)) * 100) / 100;
 }

@@ -43,9 +43,12 @@ export function GrillaItemsLive({
   onSubastar,
   onVerCola,
   onEditar,
+  resaltada,
 }: {
   live: LiveSessionDetail;
   estado: EstadoGrilla;
+  /** La prenda que se acaba de escanear (su storeProductId): brilla un momento. */
+  resaltada?: string | null;
   onSubastar?: (item: LiveItem) => void;
   onVerCola?: (item: LiveItem) => void;
   onEditar?: (item: LiveItem) => void;
@@ -225,9 +228,10 @@ export function GrillaItemsLive({
           return (
             <div
               key={item.id}
-              className={`overflow-hidden rounded-lg border bg-card ${
+              data-live-item={item.storeProductId}
+              className={`overflow-hidden rounded-lg border bg-card transition-shadow duration-500 ${
                 elegida ? "border-primary ring-1 ring-primary" : ""
-              }`}
+              } ${resaltada === item.storeProductId ? "border-acento ring-2 ring-acento" : ""}`}
             >
               <button
                 type="button"

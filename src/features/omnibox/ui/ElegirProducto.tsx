@@ -8,6 +8,8 @@ import type { ProductoOpcion } from "@/entities/omnibox/model/types";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 
+import { useCrearEnChat } from "./formularios/crear-en-chat";
+
 /**
  * Elegir un producto del catálogo.
  *
@@ -37,6 +39,7 @@ export function ElegirProducto({
 }) {
   const [texto, setTexto] = useState(textoInicial ?? "");
   const [consulta, setConsulta] = useState(textoInicial ?? "");
+  const crearEnChat = useCrearEnChat();
 
   // Espera a que deje de escribir: una consulta por tecla castiga a la base y
   // hace parpadear la lista.
@@ -111,17 +114,23 @@ export function ElegirProducto({
               No tenés “{consulta}” en tu catálogo
             </p>
             <p className="text-xs text-muted-foreground">
-              Probá con otro nombre, o dalo de alta y volvé.
+              Probá con otro nombre, o crealo acá mismo.
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild className="gap-2">
-            {/* El nombre viaja en la dirección: que lo escriba de nuevo en el
-                formulario sería hacerle repetir lo que ya dijo dos veces. */}
-            <Link to={`/products/create?nombre=${encodeURIComponent(consulta)}`}>
+          {crearEnChat ? (
+            // G7a: el formulario aparece en el chat, con el nombre ya puesto.
+            <Button variant="outline" size="sm" className="gap-2" data-testid="omnibox-crear-en-chat" onClick={() => crearEnChat(consulta)}>
               <PackagePlus className="h-4 w-4" />
               Crear “{consulta}”
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild className="gap-2">
+              <Link to={`/products/create?nombre=${encodeURIComponent(consulta)}`}>
+                <PackagePlus className="h-4 w-4" />
+                Crear “{consulta}”
+              </Link>
+            </Button>
+          )}
         </div>
       )}
     </div>

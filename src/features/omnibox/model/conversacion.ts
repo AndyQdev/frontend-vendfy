@@ -1,3 +1,4 @@
+import { escaneoGuardable } from "./escaneo";
 import type { Mensaje } from "./mensaje";
 import { COMPRA_VACIA, MESA_INICIAL, VENTA_VACIA, type Mesa } from "./mesa";
 
@@ -29,6 +30,7 @@ function sinLoQueEstabaEnCamino(m: Record<string, any>): Record<string, unknown>
   const fuera: Record<string, unknown> = {};
   if (m.herramienta?.fase === "armando") fuera.herramienta = { fase: "error", error: HERRAMIENTA_CORTADA };
   if (m.precios?.estado === "aplicando") fuera.precios = { ...m.precios, estado: "pendiente" };
+  if (m.escaneo && typeof m.escaneo === "object") fuera.escaneo = escaneoGuardable(m.escaneo);
   return fuera;
 }
 
@@ -107,6 +109,15 @@ export function restaurarMesa(cruda: unknown): Mesa {
     m.herramienta && typeof m.herramienta === "object" && typeof m.herramienta.mensajeId === "string" && typeof m.herramienta.titulo === "string"
       ? { mensajeId: m.herramienta.mensajeId, titulo: m.herramienta.titulo }
       : null;
+  // G9a: la lista guarda su consulta (se vuelve a pedir al abrir); la ficha, a qué apunta.
+  const lista =
+    m.lista && typeof m.lista === "object" && typeof m.lista.mensajeId === "string" && typeof m.lista.consulta?.recurso === "string"
+      ? { mensajeId: m.lista.mensajeId, titulo: String(m.lista.titulo ?? ""), consulta: m.lista.consulta }
+      : null;
+  const ficha =
+    m.ficha && typeof m.ficha === "object" && typeof m.ficha.recurso === "string" && typeof m.ficha.id === "string"
+      ? { recurso: m.ficha.recurso, id: m.ficha.id, titulo: String(m.ficha.titulo ?? ""), desdeLista: Boolean(m.ficha.desdeLista) && Boolean(lista) }
+      : null;
   const abierta =
     m.abierta === "venta" || m.abierta === "compra"
       ? m.abierta
@@ -114,7 +125,12 @@ export function restaurarMesa(cruda: unknown): Mesa {
         ? "analisis"
         : m.abierta === "herramienta" && herramienta
           ? "herramienta"
-          : null;
+          : m.abierta === "lista" && lista
+            ? "lista"
+            : m.abierta === "ficha" && ficha
+              ? "ficha"
+              : null;
+  const productos = m.productos && typeof m.productos.mensajeId === "string" ? { mensajeId: m.productos.mensajeId } : null;
   return {
     ...MESA_INICIAL,
     abierta,
@@ -131,6 +147,10 @@ export function restaurarMesa(cruda: unknown): Mesa {
     ultima: m.ultima === "compra" ? "compra" : "venta",
     analisis,
     herramienta,
+    lista,
+    ficha,
+    // El formulario sigue en su mensaje; el panel no se reabre solo (abierta no vuelve a "productos").
+    productos,
   };
 }
 

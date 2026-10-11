@@ -12,7 +12,14 @@
  * Puro: se prueba en e2e/logic/formularios.spec.ts.
  */
 
-export type TipoFormulario = "cliente";
+import type { BorradorProducto, ProductoOpcion } from "@/entities/omnibox/model/types";
+
+/**
+ * "cliente": el "Nuevo cliente" (G6b). "productos": uno o varios productos
+ * nuevos (G7a), que se completan igual: escribiendo en la tarjeta o
+ * diciéndolo ("el alcohol a 15 y el mouse a 60").
+ */
+export type TipoFormulario = "cliente" | "productos";
 
 export interface Campo {
   clave: string;
@@ -26,16 +33,70 @@ export const CAMPOS: Record<TipoFormulario, Campo[]> = {
     { clave: "telefono", etiqueta: "teléfono", requerido: true },
     { clave: "email", etiqueta: "correo", requerido: false },
   ],
+  // Los productos van en `productos` (una lista), no en campos sueltos.
+  productos: [],
 };
 
 export interface Formulario {
   tipo: TipoFormulario;
   campos: Record<string, string>;
+  /** Los productos del formulario de productos nuevos. */
+  productos?: BorradorProducto[];
   estado: "abierto" | "creando" | "creado" | "descartado";
   error?: string;
   /** Lo que se creó (su id, para seguir con la venta). */
   creado?: { id: string; nombre: string };
+  /** Los productos que se crearon (con lo que se compró, para cargar la compra). */
+  creados?: (ProductoOpcion & { compra: BorradorProducto["compra"]; venta?: BorradorProducto["venta"] })[];
+  /**
+   * Lo que la tienda suele ganarle al costo (precio / costo), del servidor
+   * (G9b). Con esto, escribir el costo a mano ya sugiere el precio.
+   */
+  margen?: number | null;
 }
+
+export function nuevoFormularioProductos(productos: BorradorProducto[], margen: number | null = null): Formulario {
+  return { tipo: "productos", campos: {}, productos: productos.map((p) => ({ ...p })), estado: "abierto", ...(margen ? { margen } : {}) };
+}
+
+/**
+ * El precio sugerido (G9b), con el mismo redondeo que el servidor: de a 50
+ * centavos lo barato, en Bs enteros hasta 100, de a 5 después.
+ */
+export function precioSugerido(costo: number, factor: number): number {
+  const v = costo * factor;
+  if (v < 10) return Math.max(0.5, Math.round(v * 2) / 2);
+  if (v < 100) return Math.round(v);
+  return Math.round(v / 5) * 5;
+}
+
+/**
+ * Un cambio a mano en la tarjeta de un producto nuevo: el precio que se
+ * escribe deja de ser sugerido; el costo que se escribe, con el margen de la
+ * tienda, vuelve a sugerir el precio (si el precio no lo había puesto la persona).
+ */
+export function cambiarBorrador(b: BorradorProducto, cambios: Partial<BorradorProducto>, margen: number | null | undefined): BorradorProducto {
+  const nuevo: BorradorProducto = { ...b, ...cambios, ...(cambios.nombre !== undefined ? { existente: null } : {}) };
+  if (cambios.precio !== undefined) return { ...nuevo, sugerido: null };
+  const costo = nuevo.compra?.costo ?? null;
+  const elPrecioEsNuestro = !b.precio || Boolean(b.sugerido);
+  if (cambios.compra !== undefined && costo && margen && margen > 1 && elPrecioEsNuestro) {
+    return { ...nuevo, precio: precioSugerido(costo, margen), sugerido: { margen: Math.round((margen - 1) * 100) } };
+  }
+  return nuevo;
+}
+
+/** Qué le falta a cada producto para poder crearse: "precio", "nombre", o que ya existe. */
+export function faltanProducto(b: BorradorProducto): string[] {
+  const f: string[] = [];
+  if ((b.nombre ?? "").trim().length < 2) f.push("nombre");
+  if (!(typeof b.precio === "number" && b.precio > 0)) f.push("precio");
+  if (b.existente) f.push("ya existe");
+  return f;
+}
+
+/** De lo comprado se pregunta primero el costo (con él se sugiere el precio). */
+const sinCosto = (b: BorradorProducto) => Boolean(b.compra) && !(typeof b.compra?.costo === "number" && b.compra.costo > 0);
 
 export function nuevoFormulario(tipo: TipoFormulario, campos: Record<string, string> = {}): Formulario {
   return { tipo, campos: { ...campos }, estado: "abierto" };
@@ -50,12 +111,36 @@ function valido(clave: string, valor: string | undefined): boolean {
   return v.length > 0;
 }
 
-/** Lo que falta para poder crear ("teléfono"). */
+/** Lo que falta para poder crear ("teléfono"; o "precio de Alcohol" en los productos). */
 export function faltan(f: Formulario): Campo[] {
+  if (f.tipo === "productos") {
+    const lista = f.productos ?? [];
+    if (lista.length === 0) return [{ clave: "productos", etiqueta: "algún producto", requerido: true }];
+    return lista.flatMap((b, i) =>
+      faltanProducto(b).map((que) => ({
+        clave: `${i}.${que}`,
+        etiqueta: que === "ya existe" ? `${b.nombre} ya existe` : `${que === "precio" ? "el precio" : "el nombre"}${lista.length > 1 && b.nombre ? ` de ${b.nombre}` : ""}`,
+        requerido: true,
+      })),
+    );
+  }
   return CAMPOS[f.tipo].filter((c) => c.requerido && !valido(c.clave, f.campos[c.clave]));
 }
 
 export const completo = (f: Formulario) => faltan(f).length === 0;
+
+/**
+ * Un precio dicho solo: "a 15", "15 bs", "Bs 15,50", "precio 15", "lo vendo a
+ * 20". Para completar el formulario de UN producto sin ir al servidor; con
+ * varios productos ("el alcohol a 15 y el mouse a 60") lo resuelve el agente.
+ */
+export function precioDeFrase(frase: string): number | null {
+  const t = normalizar(frase).replace(/(\d),(\d)/g, "$1.$2");
+  const m =
+    t.match(/^(?:a|en|por|precio(?: de venta)?|vale|cuesta|lo vendo a|se vende a|ponele|pone(?:le)?)?\s*(?:bs\.?\s*)?(\d+(?:\.\d{1,2})?)\s*(?:bs|bolivianos|pesos)?\.?$/) ?? null;
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 /** "zacarías inexistente" → "Zacarías Inexistente". */
 export function titular(t: string): string {
@@ -99,9 +184,9 @@ const normalizar = (t: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** "Sí", "crealo", "listo": con el formulario completo, es crear. */
+/** "Sí", "crealo", "créalos", "listo": con el formulario completo, es crear. */
 export function esConfirmacion(frase: string): boolean {
-  return /^(si|dale|listo|ok|crealo|crea|crear|guardalo|guarda|confirmo|confirmar)[.! ]*$/.test(normalizar(frase));
+  return /^(si|sí|dale|listo|ok|okey|perfecto|de una|va|asi esta bien|asi|esta bien|crealo|crealos|creala|crealas|crea|crear|guardalo|guardalos|guarda|confirmo|confirmar)[.! ]*$/.test(normalizar(frase));
 }
 
 /** El formulario activo: el más reciente que sigue abierto (uno solo a la vez). */
@@ -115,6 +200,10 @@ export function formularioActivo<T extends { id: string; formulario?: Formulario
 
 /** Lo que se le contesta en el chat al completar ("Anoté el teléfono: 71890031."). */
 export function resumenCompletado(f: Formulario, nuevos: Record<string, string>): string {
+  if (f.tipo === "productos") {
+    const resto = faltan(f);
+    return resto.length ? `Anoté el precio. Falta ${resto.map((c) => c.etiqueta).join(", ")}.` : "Anoté el precio. Ya está todo: tocá Crear o decime «crealo».";
+  }
   const partes = CAMPOS[f.tipo]
     .filter((c) => nuevos[c.clave])
     .map((c) => `${c.etiqueta}: ${nuevos[c.clave]}`);
@@ -122,4 +211,28 @@ export function resumenCompletado(f: Formulario, nuevos: Record<string, string>)
   return `Anoté ${partes.join(" y ")}.${
     resto.length ? ` Falta ${resto.map((c) => c.etiqueta).join(" y ")}.` : " Ya está todo: tocá Crear o decime «crealo»."
   }`;
+}
+
+/** "a", "a y b", "a, b y c". */
+const enLista = (cosas: string[]) => (cosas.length <= 1 ? (cosas[0] ?? "") : `${cosas.slice(0, -1).join(", ")} y ${cosas[cosas.length - 1]}`);
+
+/**
+ * Lo que falta del formulario de productos, agrupado: "Falta el precio de
+ * Alcohol, Vacunas y Mouse" (y no "el precio de Alcohol, el precio de…").
+ */
+export function textoFaltaProductos(f: Formulario): string | null {
+  const lista = f.productos ?? [];
+  if (!lista.length) return "Falta algún producto.";
+  // Lo comprado sin costo pide el costo (el precio sale de ahí); lo demás, el precio.
+  const costo = lista.filter((b) => faltanProducto(b).includes("precio") && sinCosto(b)).map((b) => b.nombre || "uno sin nombre");
+  const sinPrecio = lista.filter((b) => faltanProducto(b).includes("precio") && !sinCosto(b)).map((b) => b.nombre || "uno sin nombre");
+  const sinNombre = lista.filter((b) => faltanProducto(b).includes("nombre")).length;
+  const repetidos = lista.filter((b) => b.existente).map((b) => b.nombre);
+  const partes: string[] = [];
+  if (costo.length) partes.push(lista.length === 1 ? "lo que te costó" : `lo que te costó ${enLista(costo)}`);
+  if (sinPrecio.length) partes.push(lista.length === 1 ? "el precio de venta" : `el precio de ${enLista(sinPrecio)}`);
+  if (sinNombre) partes.push(sinNombre === 1 ? "el nombre de un producto" : `el nombre de ${sinNombre} productos`);
+  const falta = partes.length ? `Falta ${enLista(partes)}.` : "";
+  const ya = repetidos.length ? ` ${enLista(repetidos)} ya ${repetidos.length === 1 ? "existe" : "existen"}.` : "";
+  return falta || ya ? `${falta}${ya}`.trim() : null;
 }

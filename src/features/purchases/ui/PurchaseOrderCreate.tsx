@@ -1,8 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProducts } from "@/entities/product/api";
+import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
+import { fichaProductoConsulta } from "@/entities/omnibox/api";
 import { useCreatePurchaseOrder, useConfirmPurchaseOrder } from "@/entities/purchase-order/api";
 import { useStore } from "@/app/providers/auth";
+import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -39,7 +44,7 @@ import {
   Save,
   CheckCircle,
   Search,
-  ShoppingBag,
+  ScanBarcode,
   Loader2,
   Package,
 } from "lucide-react";
@@ -200,6 +205,86 @@ export function PurchaseOrderCreate() {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  // ─── Escáner ───────────────────────────────────────────────────────────
+  // Una lectura no abre la ficha: el producto entra a la tabla, o suma uno si
+  // ya estaba, con el costo que se pagó la última vez. Solo si no está
+  // registrado se abre la hoja para darlo de alta, y al registrarlo entra acá.
+  const queryClient = useQueryClient();
+  const { buscar, abrir: abrirHojaEscaneo } = useEscaner();
+  const [resaltado, setResaltado] = useState<{ id: string; vez: number } | null>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const agregarEscaneado = useCallback(
+    (r: ResultadoEscaneo, cantidad = 1) => {
+      const p = r.producto;
+      if (!p) return;
+      const yaEstaba = itemsRef.current.find((i) => i.productId === p.id);
+      setItems((prev) =>
+        prev.some((i) => i.productId === p.id)
+          ? prev.map((i) => (i.productId === p.id ? { ...i, quantity: i.quantity + cantidad } : i))
+          : [
+              ...prev,
+              {
+                productId: p.id,
+                productName: p.name,
+                productImage: p.imageUrls[0],
+                productSku: p.sku ?? undefined,
+                quantity: cantidad,
+                unitCost: 0,
+              },
+            ],
+      );
+      sonar("encontrado");
+      setResaltado({ id: p.id, vez: Date.now() });
+      const total = (yaEstaba?.quantity ?? 0) + cantidad;
+      toast.success(p.name, {
+        description: total > 1 ? `${total} en la compra` : "Agregado a la compra",
+        duration: 1600,
+      });
+
+      // El costo llega después, para no frenar la pistola: casi siempre es
+      // el de la última vez. Si ya escribieron uno, no se pisa.
+      if (yaEstaba || !storeId) return;
+      void queryClient
+        .fetchQuery(fichaProductoConsulta(p.id, storeId))
+        .then((ficha) => {
+          const costo = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+          if (!costo) return;
+          setItems((prev) =>
+            prev.map((i) => (i.productId === p.id && !i.unitCost ? { ...i, unitCost: costo } : i)),
+          );
+        })
+        .catch(() => undefined);
+    },
+    [queryClient, storeId],
+  );
+
+  useManejadorEscaneo(async (lectura) => {
+    const r = await buscar(lectura.codigo);
+    if (r.producto) {
+      agregarEscaneado(r);
+    } else {
+      abrirHojaEscaneo(lectura.codigo, {
+        resultado: r,
+        contexto: "compra",
+        alRegistrar: (nuevo, alta) => agregarEscaneado(nuevo, alta.cantidad),
+      });
+    }
+    return true;
+  }, true, "Lo agrega a la compra");
+
+  // El renglón recién escaneado se trae a la vista y brilla un momento.
+  useEffect(() => {
+    if (!resaltado) return;
+    // Está dos veces (la tabla y la tarjeta del teléfono): la que se ve.
+    Array.from(document.querySelectorAll<HTMLElement>(`[data-compra-item="${resaltado.id}"]`))
+      .find((el) => el.offsetParent !== null)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const t = setTimeout(() => setResaltado(null), 1200);
+    return () => clearTimeout(t);
+  }, [resaltado]);
+
   const total = items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0);
   const isSubmitting = createMutation.isPending || confirmMutation.isPending;
 
@@ -241,7 +326,7 @@ export function PurchaseOrderCreate() {
         </Button>
         <div>
           <h1 className="titulo-pagina">Nueva compra</h1>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">Selecciona productos y registra la compra</p>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">Escaneá los productos o elegilos de la lista, y registrá la compra</p>
         </div>
       </div>
 
@@ -350,7 +435,14 @@ export function PurchaseOrderCreate() {
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => (
-                    <TableRow key={item.productId} className="align-middle">
+                    <TableRow
+                      key={item.productId}
+                      data-compra-item={item.productId}
+                      className={cn(
+                        "align-middle transition-colors duration-700",
+                        resaltado?.id === item.productId && "bg-acento/10",
+                      )}
+                    >
                       {/* Imagen */}
                       <TableCell>
                         {item.productImage ? (
@@ -426,6 +518,11 @@ export function PurchaseOrderCreate() {
                 {items.map((item, index) => (
                   <TarjetaFila
                     key={item.productId}
+                    data-compra-item={item.productId}
+                    className={cn(
+                      "transition-colors duration-700",
+                      resaltado?.id === item.productId && "border-acento bg-acento/10",
+                    )}
                     acciones={
                       <FilaAcciones>
                         <Button
@@ -508,10 +605,10 @@ export function PurchaseOrderCreate() {
             </Card>
           ) : (
             <Card className="p-12 text-center text-muted-foreground border-dashed">
-              <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Sin productos seleccionados</p>
+              <ScanBarcode className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">Sin productos todavía</p>
               <p className="text-sm mt-1">
-                Selecciona productos de la lista de la izquierda para empezar
+                Pasá los productos por el escáner: se van cargando acá. También podés elegirlos de la lista.
               </p>
             </Card>
           )}
