@@ -8,6 +8,7 @@ import {
 } from "@/entities/purchase-order/api";
 import type { PurchaseOrder } from "@/entities/purchase-order/model/types";
 import { useStore } from "@/app/providers/auth";
+import { ChipProductoEscaneado, textoCompras, useFiltroEscaneado } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -118,10 +119,15 @@ export function PurchaseOrdersTable() {
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
   const [iaAbierto, setIaAbierto] = useState(false);
 
+  // Escanear un producto deja solo las compras que lo tienen: a quién y a
+  // cuánto se le compró la última vez.
+  const filtro = useFiltroEscaneado("Muestra solo las compras de ese producto");
+
   const { data: response, isLoading } = usePurchaseOrders({
     limit: 50,
     order: "DESC",
     ...(storeId && { storeId }),
+    ...(filtro.producto && { productId: filtro.producto.id }),
   });
 
   const confirmMutation = useConfirmPurchaseOrder();
@@ -198,6 +204,17 @@ export function PurchaseOrdersTable() {
       </div>
       {storeId && <CompraConIaModal open={iaAbierto} onOpenChange={setIaAbierto} storeId={storeId} />}
 
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={textoCompras(response?.resumen)}
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todas las compras"
+        />
+      )}
+
       {/* Table */}
       {isLoading ? (
         <>
@@ -244,6 +261,11 @@ export function PurchaseOrdersTable() {
           ))}
         </ListaTarjetas>
         </>
+      ) : orders.length === 0 && filtro.producto ? (
+        <div className="rounded-lg border bg-card py-12 text-center text-muted-foreground">
+          <PackageIcon className="mx-auto mb-3 h-10 w-10 opacity-40" />
+          <p>Ninguna compra tiene este producto.</p>
+        </div>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={TruckIcon}

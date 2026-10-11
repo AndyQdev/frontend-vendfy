@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOrders } from "@/entities/order/api";
 import { useStore } from "@/app/providers/auth";
+import { ChipProductoEscaneado, textoVentas, useFiltroEscaneado } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -47,6 +48,9 @@ export default function SalesTable() {
   // Determinar el storeId basado en el store seleccionado
   const storeId = selectedStore === "all" ? undefined : selectedStore?.id;
 
+  // Escanear un producto deja solo las ventas que lo tienen, con su resumen.
+  const filtro = useFiltroEscaneado("Muestra solo las ventas de ese producto");
+
   // Query params para el backend - UNA SOLA PETICIÓN sin filtro de type
   const queryParams = {
     limit: 100, // Traemos más registros para tener todos disponibles
@@ -54,9 +58,17 @@ export default function SalesTable() {
     order: "DESC" as const,
     ...(storeId && { storeId }),
     ...(searchTerm && { attr: "customer.name", value: searchTerm }),
+    ...(filtro.producto && { productId: filtro.producto.id }),
   };
 
   const { data: ordersResponse, isLoading } = useOrders(queryParams);
+
+  // Otro producto escaneado: desde la primera página.
+  const productoFiltrado = filtro.producto?.id;
+  useEffect(() => {
+    if (productoFiltrado) setFiltro("pagina", 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productoFiltrado]);
   
   const allOrders = ordersResponse?.data || [];
 
@@ -138,6 +150,17 @@ export default function SalesTable() {
           className="pl-10"
         />
       </div>
+
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={textoVentas(ordersResponse?.stats?.producto, undefined, "venta", allOrders.length)}
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todas las ventas"
+        />
+      )}
 
       {/* Tabs */}
       <Tabs value={selectedTab} onValueChange={(value) => setFiltro("tipo", value)}>

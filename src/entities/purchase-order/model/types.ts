@@ -49,4 +49,16 @@ export interface PurchaseOrderQueryParams {
   order?: 'ASC' | 'DESC';
   storeId?: string;
   status?: PurchaseOrderStatus;
+  /** Solo las compras que tienen este producto (lo escaneado). */
+  productId?: string;
+}
+
+/** Con `productId`: cuánto se compró de ese producto y lo último que se pagó. */
+export interface ResumenComprasProducto {
+  unidades: number;
+  monto: number;
+  compras: number;
+  ultima: string | null;
+  ultimoCosto: number | null;
+  ultimoProveedor: string | null;
 }

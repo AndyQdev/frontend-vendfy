@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCustomers, useDeleteCustomer } from "@/entities/customer/api";
+import { ChipProductoEscaneado, useFiltroEscaneado } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -55,15 +56,27 @@ export default function CustomersTable() {
 
   const deleteMutation = useDeleteCustomer();
 
+  // Escanear un producto deja a los clientes que lo compraron: a quién
+  // avisarle que llegó o a quién ofrecérselo de nuevo.
+  const filtro = useFiltroEscaneado("Muestra los clientes que compraron ese producto");
+
   // Query params para el backend
   const queryParams = {
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     order: "DESC" as const,
     ...(searchTerm && { attr: "name", value: searchTerm }),
+    ...(filtro.producto && { productId: filtro.producto.id }),
   };
 
   const { data: customersResponse, isLoading } = useCustomers(queryParams);
+
+  // Otro producto escaneado: desde la primera página.
+  const productoFiltrado = filtro.producto?.id;
+  useEffect(() => {
+    if (productoFiltrado) setFiltro("pagina", 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productoFiltrado]);
   
   const customers = customersResponse?.data || [];
   const totalItems = customersResponse?.countData || 0;
@@ -143,8 +156,23 @@ export default function CustomersTable() {
         />
       </div>
 
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={
+            totalItems === 0
+              ? "Ningún cliente registrado lo compró todavía."
+              : `${totalItems} ${totalItems === 1 ? "cliente lo compró" : "clientes lo compraron"}.`
+          }
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todos los clientes"
+        />
+      )}
+
       {/* Table */}
-      {customers.length === 0 && !isLoading ? (
+      {customers.length === 0 && !isLoading && filtro.producto ? null : customers.length === 0 && !isLoading ? (
         searchTerm ? (
           <EmptyState
             icon={Users}

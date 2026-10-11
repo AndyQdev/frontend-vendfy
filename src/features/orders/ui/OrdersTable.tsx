@@ -37,8 +37,17 @@ import { OrderDetailsModal } from "./OrderDetails";
 import { DeliveryTrackingModal } from "./DeliveryTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { ChipProductoEscaneado, textoVentas, useFiltroEscaneado } from "@/features/scanner";
 
 type DateFilter = "day" | "week" | "month" | "year";
+
+/** Cómo se dice el período del tablero en el resumen del producto escaneado. */
+const PERIODO: Record<DateFilter, string> = {
+  day: "Hoy",
+  week: "Esta semana",
+  month: "Este mes",
+  year: "Este año",
+};
 
 // Configuración de columnas del Kanban
 const KANBAN_COLUMNS = [
@@ -237,14 +246,20 @@ export default function OrdersTable() {
   // Determinar el storeId
   const storeId = selectedStore === "all" ? undefined : selectedStore?.id;
 
-  // Obtener todas las órdenes
-  const { data: ordersResponse, isLoading } = useOrders({
+  // Escanear un producto deja solo los pedidos que lo tienen, con su resumen.
+  const filtro = useFiltroEscaneado("Muestra solo los pedidos con ese producto");
+
+  // Obtener todas las órdenes. Los mismos parámetros arman la clave que usa
+  // el arrastre para actualizar el tablero al instante.
+  const paramsPedidos = {
     limit: 200,
     offset: 0,
     order: sortOrder,
     ...(storeId && { storeId }),
     dateFilter,
-  });
+    ...(filtro.producto && { productId: filtro.producto.id }),
+  };
+  const { data: ordersResponse, isLoading } = useOrders(paramsPedidos);
 
   const allOrders = ordersResponse?.data || [];
 
@@ -348,7 +363,7 @@ export default function OrdersTable() {
     if (!order || order.status === newStatus) return;
 
     // Guardar el query key - DEBE coincidir con el queryKey de useOrders
-    const queryKey = ['orders', { limit: 200, offset: 0, order: sortOrder, ...(storeId && { storeId }), dateFilter }];
+    const queryKey = ['orders', paramsPedidos];
 
     // Snapshot del estado previo
     const previousData = queryClient.getQueryData(queryKey);
@@ -430,6 +445,17 @@ export default function OrdersTable() {
           </Button>
         </div>
       </div>
+
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={textoVentas(ordersResponse?.stats?.producto, PERIODO[dateFilter], "pedido", allOrders.length)}
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todos los pedidos"
+        />
+      )}
 
       {/* Tablero Kanban */}
       {isLoading ? (

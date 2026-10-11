@@ -3,6 +3,9 @@ export type { AbrirHojaOpciones, ContextoHoja, ManejadorEscaneo } from "./model/
 export type { Lectura } from "./model/detector";
 export { sonar } from "./model/sonido";
 export { useEnriquecimientoIa } from "./model/useEnriquecimientoIa";
+export { haceCuanto, useFiltroEscaneado, type ProductoFiltrado } from "./model/useFiltroEscaneado";
+export { ChipProductoEscaneado } from "./ui/ChipProductoEscaneado";
+export { textoCompras, textoVentas } from "./model/resumenes";
 export { useTiendaActiva } from "./model/useTiendaActiva";
 export { agregarAVenta, frasesAlAgregar, frasesDeFicha, tiendaParaVender, type ResultadoAgregar } from "./model/venta";
 export { AjustesVoz } from "./ui/AjustesVoz";

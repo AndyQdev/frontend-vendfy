@@ -4,6 +4,7 @@ import type {
   PurchaseOrder,
   CreatePurchaseOrderInput,
   PurchaseOrderQueryParams,
+  ResumenComprasProducto,
 } from "../model/types";
 import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
@@ -14,8 +15,9 @@ export function usePurchaseOrders(params: PurchaseOrderQueryParams = {}) {
   if (params.order) searchParams.append("order", params.order);
   if (params.storeId) searchParams.append("storeId", params.storeId);
   if (params.status) searchParams.append("status", params.status);
+  if (params.productId) searchParams.append("productId", params.productId);
 
-  return useQuery<{ data: PurchaseOrder[]; countData: number }>({
+  return useQuery<{ data: PurchaseOrder[]; countData: number; resumen?: ResumenComprasProducto }>({
     queryKey: ["purchase-orders", params],
     queryFn: async () => {
       const response = await apiFetch<PurchaseOrder[]>(
@@ -24,6 +26,7 @@ export function usePurchaseOrders(params: PurchaseOrderQueryParams = {}) {
       return {
         data: response.data || [],
         countData: response.countData || 0,
+        ...(response.stats?.producto ? { resumen: response.stats.producto as ResumenComprasProducto } : {}),
       };
     },
   });

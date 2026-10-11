@@ -126,6 +126,16 @@ export interface OrdersResponse {
   statusCode: number;
   data: Order[];
   countData: number;
+  /** Con `productId`: cuánto se vendió de ese producto, con los mismos filtros y sin paginar. */
+  stats?: { producto?: ResumenVentasProducto };
+}
+
+export interface ResumenVentasProducto {
+  unidades: number;
+  monto: number;
+  ventas: number;
+  /** ISO de la última venta, o null si nunca se vendió. */
+  ultima: string | null;
 }
 
 export interface OrderQueryParams {
@@ -137,4 +147,6 @@ export interface OrderQueryParams {
   storeId?: string;
   dateFilter?: 'day' | 'week' | 'month' | 'year';
   status?: string;
+  /** Solo las ventas que tienen este producto (lo escaneado). */
+  productId?: string;
 }
