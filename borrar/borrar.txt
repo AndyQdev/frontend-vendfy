@@ -1,1 +1,0 @@
-Archivo temporal para abrir el PR de dev a main. Se borra en el siguiente commit.
