@@ -1,8 +1,22 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePurchaseOrder, useConfirmPurchaseOrder, useCancelPurchaseOrder } from "@/entities/purchase-order/api";
+import { fichaProductoConsulta } from "@/entities/omnibox/api";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
+import { Input } from "@/shared/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -18,8 +32,27 @@ import {
   FilaTitulo,
   FilaDatos,
 } from "@/shared/ui/lista-tarjetas";
-import { ArrowLeft, CheckCircle, XCircle, Package, User, FileText, Store } from "lucide-react";
+import { cn } from "@/shared/lib/cn";
+import { formatMoney } from "@/shared/lib/money";
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle,
+  Minus,
+  Package,
+  Plus,
+  RotateCcw,
+  ScanBarcode,
+  Store,
+  User,
+  FileText,
+  X,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
+import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
+import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { useRecepcion } from "../model/recepcion";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pendiente", variant: "outline" },
@@ -30,9 +63,87 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export function PurchaseOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: po, isLoading } = usePurchaseOrder(id);
   const confirmMutation = useConfirmPurchaseOrder();
   const cancelMutation = useCancelPurchaseOrder();
+  const rec = useRecepcion(po);
+  const [revisar, setRevisar] = useState(false);
+  const [resaltado, setResaltado] = useState<{ id: string; vez: number } | null>(null);
+  const { buscar, abrir: abrirHojaEscaneo } = useEscaner();
+
+  const pendiente = po?.status === "pending";
+
+  // Lo que llegó sin estar en la compra: se suma aparte, con el último costo.
+  const sumarSinPedir = (r: ResultadoEscaneo, cantidad = 1) => {
+    const p = r.producto;
+    if (!p || !po) return;
+    const ya = rec.estado.extras.some((x) => x.productId === p.id);
+    rec.sumarExtra({ productId: p.id, nombre: p.name, imagen: p.imageUrls[0] ?? null }, cantidad);
+    sonar("sugerido");
+    setResaltado({ id: p.id, vez: Date.now() });
+    toast.warning(`${p.name} no estaba en la compra`, {
+      description: "Lo sumé aparte. Revisá su costo antes de confirmar.",
+      duration: 2500,
+    });
+    if (ya) return;
+    void queryClient
+      .fetchQuery(fichaProductoConsulta(p.id, po.store.id))
+      .then((ficha) => {
+        const costo = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+        if (costo) rec.cambiarExtra(p.id, { costo });
+      })
+      .catch(() => undefined);
+  };
+
+  useManejadorEscaneo(
+    async (lectura) => {
+      const r = await buscar(lectura.codigo);
+      const p = r.producto;
+      if (!p) {
+        abrirHojaEscaneo(lectura.codigo, {
+          resultado: r,
+          contexto: "compra",
+          alRegistrar: (nuevo, alta) => sumarSinPedir(nuevo, alta.cantidad),
+        });
+        return true;
+      }
+      const linea = rec.lineas.find((l) => l.productId === p.id);
+      if (!linea) {
+        sumarSinPedir(r);
+        return true;
+      }
+      const llego = (rec.estado.llego[p.id] ?? 0) + 1;
+      rec.sumar(p.id, 1);
+      setResaltado({ id: p.id, vez: Date.now() });
+      if (llego > linea.pedido) {
+        sonar("sugerido");
+        toast.warning(p.name, {
+          description: `Llegaron ${llego}: pediste ${linea.pedido}`,
+          duration: 2000,
+        });
+      } else {
+        sonar("encontrado");
+        toast.success(p.name, {
+          description: llego === linea.pedido ? `Completo: ${llego} de ${linea.pedido}` : `${llego} de ${linea.pedido}`,
+          duration: 1600,
+        });
+      }
+      return true;
+    },
+    pendiente,
+    "Cuenta lo que llegó de esta compra",
+  );
+
+  // El renglón recién escaneado se trae a la vista y brilla un momento.
+  useEffect(() => {
+    if (!resaltado) return;
+    Array.from(document.querySelectorAll<HTMLElement>(`[data-recepcion-item="${resaltado.id}"]`))
+      .find((el) => el.offsetParent !== null)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const t = setTimeout(() => setResaltado(null), 1200);
+    return () => clearTimeout(t);
+  }, [resaltado]);
 
   if (isLoading) {
     return (
@@ -60,10 +171,19 @@ export function PurchaseOrderDetail() {
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
+  // Contando, lo contado manda: si difiere de lo pedido, primero se muestra
+  // qué cambia. Sin contar, se recibe todo lo pedido como siempre.
+  const conConteo = rec.empezo && !rec.igualAlPedido;
+
   const handleConfirm = async () => {
     try {
-      await confirmMutation.mutateAsync(po.id);
-      toast.success("Compra confirmada - stock actualizado");
+      await confirmMutation.mutateAsync(conConteo ? { id: po.id, items: rec.items() } : po.id);
+      rec.reiniciar();
+      setRevisar(false);
+      toast.success(
+        conConteo ? "Compra recibida con lo que llegó" : "Compra confirmada - stock actualizado",
+        conConteo ? { description: "Las diferencias quedaron anotadas en la compra." } : undefined,
+      );
     } catch (e: any) {
       toast.error(e?.message || "Error al confirmar");
     }
@@ -72,10 +192,23 @@ export function PurchaseOrderDetail() {
   const handleCancel = async () => {
     try {
       await cancelMutation.mutateAsync(po.id);
+      rec.reiniciar();
       toast.success("Compra cancelada");
     } catch (e: any) {
       toast.error(e?.message || "Error al cancelar");
     }
+  };
+
+  const contador = (productId: string, pedido: number) => {
+    const llego = rec.estado.llego[productId] ?? 0;
+    return (
+      <Contador
+        valor={llego}
+        de={pedido}
+        onMenos={() => rec.sumar(productId, -1)}
+        onMas={() => rec.sumar(productId, 1)}
+      />
+    );
   };
 
   return (
@@ -95,13 +228,17 @@ export function PurchaseOrderDetail() {
           </div>
         </div>
 
-        {po.status === "pending" && (
+        {pendiente && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleCancel} disabled={cancelMutation.isPending}>
               <XCircle className="h-4 w-4 mr-2" /> Cancelar
             </Button>
-            <Button onClick={handleConfirm} disabled={confirmMutation.isPending}>
-              <CheckCircle className="h-4 w-4 mr-2" /> Confirmar Recepción
+            <Button
+              onClick={conConteo ? () => setRevisar(true) : handleConfirm}
+              disabled={confirmMutation.isPending || (rec.empezo && rec.llegaron === 0)}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {conConteo ? "Confirmar lo que llegó" : "Confirmar Recepción"}
             </Button>
           </div>
         )}
@@ -144,9 +281,12 @@ export function PurchaseOrderDetail() {
       {po.notes && (
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">Notas</p>
-          <p className="text-sm">{po.notes}</p>
+          <p className="text-sm whitespace-pre-line">{po.notes}</p>
         </Card>
       )}
+
+      {/* Recepción: escanear lo que llegó */}
+      {pendiente && <BarraRecepcion rec={rec} />}
 
       {/* Items */}
       <Card className="overflow-hidden">
@@ -166,6 +306,9 @@ export function PurchaseOrderDetail() {
               <TableHead className="w-[60px]"></TableHead>
               <TableHead>Producto</TableHead>
               <TableHead className="text-center w-[100px]">Cantidad</TableHead>
+              {pendiente && rec.empezo && (
+                <TableHead className="text-center w-[150px]">Llegó</TableHead>
+              )}
               <TableHead className="text-right w-[140px]">Costo unit.</TableHead>
               <TableHead className="text-right w-[140px]">Subtotal</TableHead>
             </TableRow>
@@ -173,8 +316,16 @@ export function PurchaseOrderDetail() {
           <TableBody>
             {po.items?.map((item) => {
               const imageUrl = item.product?.imageUrls?.[0];
+              const pid = item.product?.id;
               return (
-                <TableRow key={item.id} className="align-middle">
+                <TableRow
+                  key={item.id}
+                  data-recepcion-item={pid}
+                  className={cn(
+                    "align-middle transition-colors",
+                    resaltado?.id === pid && "bg-acento/10",
+                  )}
+                >
                   <TableCell>
                     {imageUrl ? (
                       <img
@@ -201,6 +352,11 @@ export function PurchaseOrderDetail() {
                   <TableCell className="text-center font-medium">
                     {item.quantity}
                   </TableCell>
+                  {pendiente && rec.empezo && (
+                    <TableCell className="text-center">
+                      {pid && contador(pid, rec.lineas.find((l) => l.productId === pid)?.pedido ?? item.quantity)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     Bs. {Number(item.unitCost).toFixed(2)}
                   </TableCell>
@@ -219,8 +375,13 @@ export function PurchaseOrderDetail() {
         <ListaTarjetas className="p-3">
           {po.items?.map((item) => {
             const imageUrl = item.product?.imageUrls?.[0];
+            const pid = item.product?.id;
             return (
-              <TarjetaFila key={item.id}>
+              <TarjetaFila
+                key={item.id}
+                data-recepcion-item={pid}
+                className={cn(resaltado?.id === pid && "border-acento bg-acento/10")}
+              >
                 <FilaTitulo
                   medio={
                     imageUrl ? (
@@ -253,6 +414,13 @@ export function PurchaseOrderDetail() {
                     },
                   ]}
                 />
+
+                {pendiente && rec.empezo && pid && (
+                  <div className="mt-2 flex items-center justify-between border-t pt-2">
+                    <span className="etiqueta text-[10px] text-muted-foreground">Llegó</span>
+                    {contador(pid, rec.lineas.find((l) => l.productId === pid)?.pedido ?? item.quantity)}
+                  </div>
+                )}
               </TarjetaFila>
             );
           })}
@@ -268,6 +436,259 @@ export function PurchaseOrderDetail() {
           </div>
         </div>
       </Card>
+
+      {/* Lo que llegó sin estar pedido */}
+      {pendiente && rec.estado.extras.length > 0 && (
+        <Card className="overflow-hidden" data-testid="recepcion-sin-pedir">
+          <div className="border-b p-4">
+            <h3 className="font-semibold">No estaban en la compra</h3>
+            <p className="text-[13px] text-muted-foreground">
+              Entran al confirmar. El costo es el de la última vez: corregilo si cambió.
+            </p>
+          </div>
+          <ul className="divide-y">
+            {rec.estado.extras.map((x) => (
+              <li
+                key={x.productId}
+                data-recepcion-item={x.productId}
+                className={cn(
+                  "flex flex-wrap items-center gap-3 px-4 py-3 transition-colors",
+                  resaltado?.id === x.productId && "bg-acento/10",
+                )}
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                  {x.imagen ? (
+                    <img src={x.imagen} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+                <p className="min-w-[8rem] flex-1 font-medium leading-tight">{x.nombre}</p>
+                <Contador
+                  valor={x.cantidad}
+                  onMenos={() => rec.cambiarExtra(x.productId, { cantidad: x.cantidad - 1 })}
+                  onMas={() => rec.cambiarExtra(x.productId, { cantidad: x.cantidad + 1 })}
+                />
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  Costo c/u
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={x.costo || ""}
+                    placeholder="0,00"
+                    onChange={(e) =>
+                      rec.cambiarExtra(x.productId, { costo: Math.max(0, Number(e.target.value) || 0) })
+                    }
+                    className="h-8 w-24 text-right"
+                  />
+                </label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={`Quitar ${x.nombre}`}
+                  onClick={() => rec.cambiarExtra(x.productId, { cantidad: 0 })}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Antes de confirmar con diferencias: qué cambia respecto de lo pedido */}
+      <AlertDialog open={revisar} onOpenChange={setRevisar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar lo que llegó</AlertDialogTitle>
+            <AlertDialogDescription>
+              El stock sube con lo que contaste. Las diferencias quedan anotadas en la compra.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 text-sm" data-testid="recepcion-diferencias">
+            {rec.diferencias.faltan.length > 0 && (
+              <ListaDiferencia
+                titulo="Faltaron"
+                nota="Salen de la compra."
+                filas={rec.diferencias.faltan.map((f) => `${f.faltan} de ${f.nombre} (de ${f.de})`)}
+              />
+            )}
+            {rec.diferencias.deMas.length > 0 && (
+              <ListaDiferencia
+                titulo="Llegaron de más"
+                filas={rec.diferencias.deMas.map((f) => `${f.cantidad} de ${f.nombre}`)}
+              />
+            )}
+            {rec.diferencias.sinPedir.length > 0 && (
+              <ListaDiferencia
+                titulo="No estaban en la compra"
+                filas={rec.estado.extras.map(
+                  (x) => `${x.cantidad} de ${x.nombre} · ${x.costo ? `${formatMoney(x.costo)} c/u` : "sin costo"}`,
+                )}
+              />
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRevisar(false)}>Seguir contando</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirm();
+              }}
+              disabled={confirmMutation.isPending}
+            >
+              Confirmar lo que llegó
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/** Arriba de los productos: cómo va el conteo, o cómo empezarlo. */
+function BarraRecepcion({ rec }: { rec: ReturnType<typeof useRecepcion> }) {
+  if (!rec.empezo) {
+    return (
+      <Card className="flex flex-wrap items-center gap-3 p-4" data-testid="recepcion">
+        <div className="rounded-lg bg-primary-soft p-2">
+          <ScanBarcode className="h-5 w-5 text-primary-soft-foreground" aria-hidden />
+        </div>
+        <div className="min-w-[12rem] flex-1">
+          <p className="font-medium">¿Llegó la mercadería?</p>
+          <p className="text-[13px] text-muted-foreground">
+            Escaneá cada producto para contarlo. Lo que falte o sobre se ajusta al confirmar.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={rec.empezarAMano}>
+          Contar a mano
+        </Button>
+      </Card>
+    );
+  }
+
+  // La barra avanza con lo pedido que llegó; lo que sobra no la pasa del 100 %.
+  const cubiertas = rec.lineas.reduce(
+    (s, l) => s + Math.min(l.pedido, rec.estado.llego[l.productId] ?? 0),
+    0,
+  );
+  const faltan = rec.diferencias.faltan.reduce((s, f) => s + f.faltan, 0);
+  const sinPedir = rec.diferencias.sinPedir.reduce((s, f) => s + f.cantidad, 0);
+  const pct = rec.pedidas > 0 ? Math.round((cubiertas / rec.pedidas) * 100) : 0;
+  const detalle = [
+    faltan > 0
+      ? `Faltan ${faltan} ${faltan === 1 ? "unidad" : "unidades"}`
+      : "Llegó todo lo pedido",
+    rec.diferencias.deMas.length > 0 ? "algunas de más" : null,
+    sinPedir > 0 ? `${sinPedir} que no estaban en la compra` : null,
+  ].filter(Boolean);
+
+  return (
+    <Card className="space-y-3 p-4" data-testid="recepcion">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              "rounded-lg p-2",
+              faltan === 0 ? "bg-success-soft text-success-soft-foreground" : "bg-primary-soft text-primary-soft-foreground",
+            )}
+          >
+            {faltan === 0 ? <Check className="h-5 w-5" aria-hidden /> : <ScanBarcode className="h-5 w-5" aria-hidden />}
+          </div>
+          <div>
+            <p className="font-medium">
+              Llegaron <span className="cifra">{cubiertas}</span> de <span className="cifra">{rec.pedidas}</span>
+            </p>
+            <p className="text-[13px] text-muted-foreground">{detalle.join(" · ")}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" onClick={rec.reiniciar}>
+          <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
+          Empezar de nuevo
+        </Button>
+      </div>
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Lo que llegó de la compra"
+      >
+        <div className="h-full rounded-full bg-acento transition-[width]" style={{ width: `${pct}%` }} />
+      </div>
+    </Card>
+  );
+}
+
+/** − 3/4 + : cuántos llegaron, con botones para corregir a mano. */
+function Contador({
+  valor,
+  de,
+  onMenos,
+  onMas,
+}: {
+  valor: number;
+  de?: number;
+  onMenos: () => void;
+  onMas: () => void;
+}) {
+  const completo = de != null && valor === de;
+  const deMas = de != null && valor > de;
+  return (
+    <div className="inline-flex items-center gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-7 w-7"
+        aria-label="Uno menos"
+        onClick={onMenos}
+        disabled={valor === 0}
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </Button>
+      <span
+        className={cn(
+          "cifra inline-flex min-w-[3.75rem] items-center justify-center gap-1 text-sm font-semibold",
+          completo && "text-success",
+          deMas && "text-warning",
+        )}
+        data-testid="recepcion-cuenta"
+      >
+        {completo && <Check className="h-3.5 w-3.5" aria-hidden />}
+        {valor}
+        {de != null && <span className="font-normal text-muted-foreground">/{de}</span>}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-7 w-7"
+        aria-label="Uno más"
+        onClick={onMas}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function ListaDiferencia({ titulo, nota, filas }: { titulo: string; nota?: string; filas: string[] }) {
+  return (
+    <div>
+      <p className="font-medium">
+        {titulo}
+        {nota && <span className="font-normal text-muted-foreground"> · {nota}</span>}
+      </p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
+        {filas.map((f) => (
+          <li key={f}>{f}</li>
+        ))}
+      </ul>
     </div>
   );
 }

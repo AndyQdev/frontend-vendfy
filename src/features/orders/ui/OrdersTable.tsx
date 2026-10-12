@@ -247,7 +247,9 @@ export default function OrdersTable() {
   const storeId = selectedStore === "all" ? undefined : selectedStore?.id;
 
   // Escanear un producto deja solo los pedidos que lo tienen, con su resumen.
-  const filtro = useFiltroEscaneado("Muestra solo los pedidos con ese producto");
+  // Con un pedido abierto, la lectura es suya (lo arma) o abre la hoja de
+  // siempre: no filtra el tablero que quedó detrás.
+  const filtro = useFiltroEscaneado("Muestra solo los pedidos con ese producto", !detailsModalOpen);
 
   // Obtener todas las órdenes. Los mismos parámetros arman la clave que usa
   // el arrastre para actualizar el tablero al instante.
@@ -361,6 +363,13 @@ export default function OrdersTable() {
     // Encontrar la orden
     const order = allOrders.find((o) => o.id === orderId);
     if (!order || order.status === newStatus) return;
+
+    moverPedido(order, newStatus);
+  };
+
+  // Cambiar de estado: lo usa el arrastre y el "Pasar a…" del pedido armado.
+  const moverPedido = (order: Order, newStatus: OrderStatus) => {
+    const orderId = order.id;
 
     // Guardar el query key - DEBE coincidir con el queryKey de useOrders
     const queryKey = ['orders', paramsPedidos];
@@ -529,6 +538,10 @@ export default function OrdersTable() {
         order={selectedOrder}
         open={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
+        onCambiarEstado={(order, status) => {
+          setDetailsModalOpen(false);
+          moverPedido(order, status);
+        }}
       />
 
       {/* Link del repartidor al pasar a "En camino" */}

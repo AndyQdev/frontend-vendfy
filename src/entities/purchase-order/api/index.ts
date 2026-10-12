@@ -5,6 +5,7 @@ import type {
   CreatePurchaseOrderInput,
   PurchaseOrderQueryParams,
   ResumenComprasProducto,
+  ItemRecibido,
 } from "../model/types";
 import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
@@ -63,16 +64,22 @@ export function useCreatePurchaseOrder() {
 export function useConfirmPurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    /**
+     * Con `items` (lo contado al escanear la mercadería) la compra queda como
+     * llegó: lo que faltó sale, lo que sobró o no estaba pedido entra.
+     */
+    mutationFn: async (arg: string | { id: string; items?: ItemRecibido[] }) => {
+      const { id, items } = typeof arg === "string" ? { id: arg, items: undefined } : arg;
       const response = await apiFetch<PurchaseOrder>(
         `/api/purchase-order/${id}/confirm`,
-        { method: "PATCH" }
+        { method: "PATCH", ...(items && { body: { items } }) }
       );
       return response.data as PurchaseOrder;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       qc.invalidateQueries({ queryKey: ["purchase-order"] });
+      qc.invalidateQueries({ queryKey: ["product-scan"] });
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
       qc.invalidateQueries({ queryKey: ["movement-kpis"] });

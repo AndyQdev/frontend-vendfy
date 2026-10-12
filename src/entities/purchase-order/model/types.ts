@@ -43,6 +43,15 @@ export interface CreatePurchaseOrderInput {
   }>;
 }
 
+/** Una línea de lo que llegó, al confirmar una compra contándola. */
+export interface ItemRecibido {
+  productId: string;
+  /** 0 = no llegó. */
+  quantity: number;
+  /** Solo para lo que no estaba en la compra. */
+  unitCost?: number;
+}
+
 export interface PurchaseOrderQueryParams {
   limit?: number;
   offset?: number;

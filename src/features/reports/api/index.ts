@@ -13,6 +13,7 @@ import type {
   SalesByDayAndHour,
   FinancialComparisonItem,
   SalesByDepartment,
+  ReporteProducto,
 } from "../model/types";
 
 function buildQueryString(params: ReportQueryParams): string {
@@ -131,6 +132,20 @@ export function useReportFinancialComparison(params: ReportQueryParams) {
     queryFn: async () => {
       const response = await apiFetch<FinancialComparisonItem[]>(`/api/reports/financial-comparison?${buildQueryString(params)}`);
       return response.data || [];
+    },
+  });
+}
+
+/** El reporte de lo escaneado en Estadísticas, con el mismo período y tienda. */
+export function useReportProduct(params: ReportQueryParams, productId: string | undefined) {
+  return useQuery<ReporteProducto>({
+    queryKey: ["reports", "product", productId, params],
+    enabled: !!productId,
+    queryFn: async () => {
+      const response = await apiFetch<ReporteProducto>(
+        `/api/reports/product?productId=${productId}&${buildQueryString(params)}`,
+      );
+      return response.data!;
     },
   });
 }
