@@ -277,6 +277,12 @@ export interface ResultadoAltaVoz {
   cambios: CambiosAltaVoz;
   /** Dijo lo que le costó, no a cuánto lo vende. */
   soloCosto: boolean;
+  /** Solo asintió ("sí", "claro"). */
+  afirma: boolean;
+  /** Pidió registrarlo ("regístralo", "dale de alta"). */
+  registrar: boolean;
+  /** Si preguntó algo, la respuesta corta. */
+  respuesta: string | null;
   msInterpretar: number;
 }
 

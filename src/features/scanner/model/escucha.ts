@@ -53,14 +53,15 @@ function cargar(): Promise<MicVAD> {
       onnxWASMBasePath: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${VERSION_ONNX}/dist/`,
       audioContext: contextoAudio() ?? undefined,
       startOnLoad: false,
-      positiveSpeechThreshold: 0.6,
-      negativeSpeechThreshold: 0.4,
+      positiveSpeechThreshold: 0.5,
+      negativeSpeechThreshold: 0.35,
       redemptionMs: SILENCIO_MS,
       // Lo dicho un poco antes de que el detector lo notara: sin esto se pierde
       // la primera sílaba ("…í, con cinco").
       preSpeechPadMs: 400,
-      // Una tos o un golpe sobre el mostrador no son una frase.
-      minSpeechMs: 300,
+      // Un "sí" dura ~200 ms: con 300 se descartaba y la persona sentía que
+      // no la escuchaba. Un golpe seco sobre el mostrador dura menos.
+      minSpeechMs: 160,
       // Al cortar por el tope, lo que se venía diciendo se entrega igual.
       submitUserSpeechOnPause: true,
       onSpeechStart: () => oyente?.inicio(),

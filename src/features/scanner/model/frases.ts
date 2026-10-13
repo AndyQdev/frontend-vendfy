@@ -2,6 +2,7 @@ import type { ResultadoEscaneo, TiendaDelProducto } from "@/entities/product/mod
 import type { FraseVoz } from "@/shared/voz";
 import { apocopar, haceCuantoEnLetras, mayuscula, nombreCorto, numeroALetras } from "@/shared/voz/letras";
 import type { ResultadoAgregar } from "./venta";
+import { FRASES_FIJAS_ALTA } from "./conversacion-alta";
 
 /**
  * Lo que dice la voz al escanear, según dónde se esté. Cada pantalla dice lo
@@ -43,13 +44,6 @@ export function fraseVan(cantidad: number): FraseVoz {
 
 const PREGUNTA_FICHA = "¿Lo vendes o lo compras?";
 
-/** Lo que pregunta el alta por voz cuando falta un dato. */
-export const PREGUNTAS_ALTA = {
-  precio: "¿A qué precio lo vendes?",
-  precioTrasCosto: "¿Y a qué precio lo vendes?",
-  nombre: "¿Cómo se llama el producto?",
-  repetir: "No te entendí. ¿Me lo repites?",
-} as const;
 const PREGUNTA_INVENTARIO = "¿Agregas, quitas o cuentas?";
 
 export const FRASES_FIJAS: string[] = [
@@ -71,7 +65,7 @@ export const FRASES_FIJAS: string[] = [
   "Ningún cliente lo compró todavía.",
   "No está registrado.",
   "¿Lo damos de alta?",
-  ...Object.values(PREGUNTAS_ALTA),
+  ...FRASES_FIJAS_ALTA,
   ...[1, 2, 3, 4, 5].flatMap((de) => Array.from({ length: de }, (_, i) => `${mayuscula(n(i + 1))} de ${n(de)}.`)),
 ];
 

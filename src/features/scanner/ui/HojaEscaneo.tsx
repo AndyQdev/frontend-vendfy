@@ -247,7 +247,7 @@ export function HojaEscaneo() {
       >
         <MotionConfig reducedMotion="user">
           <AjustesVoz className="absolute right-12 top-3.5 z-10 max-md:right-3" />
-          <div ref={setRanuraOrbe} className="absolute right-[5.25rem] top-3.5 z-10 max-md:right-12" />
+          <div ref={setRanuraOrbe} className="absolute right-[5.25rem] top-3 z-10 max-md:right-12" />
 
           <AnimatePresence mode="wait" initial={false}>
             {consulta.isPending || (!resultado && consulta.isFetching) ? (

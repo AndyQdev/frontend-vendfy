@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { ArrowUpRight, Globe2, Mic, Minus, PackagePlus, Plus, ScanBarcode, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, Globe2, Mic, Minus, PackagePlus, Plus, ScanBarcode, Sparkles } from "lucide-react";
 
 import {
   mejorarFotoConIa,
@@ -30,9 +30,9 @@ import { usePreferenciasVoz } from "@/shared/voz";
 import type { ContextoHoja } from "../model/ScannerProvider";
 import { sonar } from "../model/sonido";
 import { useEnriquecimientoIa } from "../model/useEnriquecimientoIa";
-import { useAltaPorVoz, type FaseVoz } from "../model/useAltaPorVoz";
+import { useAltaPorVoz } from "../model/useAltaPorVoz";
 import { FichaEditor } from "./FichaEditor";
-import { OrbeVoz } from "./OrbeVoz";
+import { IndicadorVoz } from "./IndicadorVoz";
 import { FotoHero, type FuenteFoto } from "./FotoHero";
 import { aparece, escalonado } from "./piezas";
 
@@ -84,36 +84,7 @@ function destellar(el: Element | null, clase: string) {
   el.classList.add(clase);
   const fin = () => el.classList.remove(clase);
   el.addEventListener("animationend", fin, { once: true });
-  setTimeout(fin, 1200);
-}
-
-/** La línea bajo el título que acompaña al orbe: qué está pasando y qué se oyó. */
-function textoDeVoz(fase: FaseVoz, oido: string | null, pregunta: string | null): string | null {
-  switch (fase) {
-    case "preparando":
-      return pregunta ?? (oido ? `«${oido}»` : "Preparando el micrófono…");
-    case "hablando":
-      return pregunta;
-    case "esperando":
-      if (pregunta) return pregunta;
-      return oido ? `«${oido}» · ¿Algo más?` : "Te escucho. Por ejemplo: «a 25 y tengo 10».";
-    case "escuchando":
-      return "Escuchando…";
-    case "procesando":
-      return "Entendiendo lo que dijiste…";
-    case "escribiendo":
-      return oido ? `«${oido}»` : null;
-    case "sin-voz":
-      return "No te escuché. Toca el micrófono para hablar.";
-    case "error":
-      return "No se pudo entender. Toca el micrófono para intentarlo de nuevo.";
-    case "sin-permiso":
-      return "Para dictar, permite el micrófono en el candado de la barra de direcciones.";
-    case "no-soportada":
-      return null;
-    default:
-      return oido ? `«${oido}»` : null;
-  }
+  setTimeout(fin, 1800);
 }
 
 /** Para comparar nombres: "Dulces y Mermeladas" = "dulces y mermeladas". */
@@ -299,16 +270,22 @@ export function VistaAlta({
   const enviar = (e?: React.FormEvent) => {
     e?.preventDefault();
     setIntentado(true);
-    if (faltaNombre || faltaPrecio || faltaTienda) return;
+    if (faltaNombre || faltaPrecio || faltaTienda) return false;
     onRegistrar(datos());
+    return true;
   };
+  // La voz registra con el MISMO envío (y sus validaciones), del último render.
+  const enviarRef = useRef(enviar);
+  enviarRef.current = enviar;
 
   // ─── Voz ─────────────────────────────────────────────────────────────
-  // Lo dictado se escribe en los campos de a uno, con un brillo en el que se
-  // está escribiendo, y queda marcado con un micrófono hasta que se lo cambie
-  // a mano. Nada se registra solo: el botón sigue siendo del comerciante.
+  // Lo dictado se escribe en los campos de a uno: el campo se ilumina con un
+  // borde que gira, se escribe letra por letra, destella en verde al terminar
+  // y queda marcado "dictado" hasta que se lo cambie a mano. Se registra solo
+  // si la persona lo pide ("regístralo"), con las validaciones de siempre.
   const { escuchar: escucharAlAbrir } = usePreferenciasVoz();
   const [editandoVoz, setEditandoVoz] = useState<CampoVoz | null>(null);
+  const [recienVoz, setRecienVoz] = useState<CampoVoz | null>(null);
   const [porVoz, setPorVoz] = useState<ReadonlySet<CampoVoz>>(new Set());
   const montado = useRef(true);
   useEffect(() => {
@@ -347,18 +324,23 @@ export function VistaAlta({
       if (valor === undefined || !montado.current) continue;
       tocar(campo);
       setEditandoVoz(campo);
-      await dormir(140);
+      // Que se vea: en el teléfono los campos quedan debajo de la foto.
+      document.querySelector(`[data-campo-alta="${campo}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      await dormir(260);
       if (campo === "nombre") await escribir(setNombre, String(valor));
       else if (campo === "marca") await escribir(setMarca, String(valor));
       else if (campo === "categoria") await escribir(setCategoria, String(valor));
       else if (campo === "precio") await escribir(setPrecio, precioATexto(Number(valor)));
       else setStock(Math.max(enCompra ? 1 : 0, Number(valor)));
-      await dormir(campo === "cantidad" ? 420 : 220);
+      await dormir(campo === "cantidad" ? 650 : 380);
       if (!montado.current) return;
       setEditandoVoz(null);
+      setRecienVoz(campo);
       setPorVoz((prev) => new Set(prev).add(campo));
-      destellar(document.querySelector(`[data-campo-alta="${campo}"]`), "campo-completo");
+      destellar(document.querySelector(`[data-campo-alta="${campo}"]`), "campo-hecho");
+      await dormir(180);
     }
+    setTimeout(() => montado.current && setRecienVoz(null), 1600);
   };
 
   const voz = useAltaPorVoz({
@@ -377,25 +359,42 @@ export function VistaAlta({
     categorias: categorias.map((c) => c.name),
     cantidadEs: enCompra ? "compra" : "stock",
     aplicar: aplicarVoz,
+    registrar: () => enviarRef.current() === true,
   });
-  const lineaVoz = textoDeVoz(voz.fase, voz.oido, voz.pregunta);
 
   /** Las clases del campo según la voz: el brillo mientras lo escribe. */
   const deVoz = (campo: CampoVoz) => (editandoVoz === campo ? "campo-ia" : undefined);
-  /** El micrófono junto a la etiqueta: lo está escribiendo la voz o lo dictaste. */
-  const marcaVoz = (campo: CampoVoz) =>
-    editandoVoz === campo || porVoz.has(campo) ? (
-      <span
+  /** Junto a la etiqueta: la IA lo está escribiendo, recién lo escribió o lo dictaste. */
+  const marcaVoz = (campo: CampoVoz) => {
+    const ahora = editandoVoz === campo;
+    const recien = recienVoz === campo;
+    if (!ahora && !recien && !porVoz.has(campo)) return null;
+    return (
+      <motion.span
+        key={ahora ? "a" : recien ? "r" : "d"}
+        initial={{ opacity: 0, y: 3, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         className={cn(
-          "ml-1.5 inline-flex items-center gap-1 align-middle text-[11px] font-medium",
-          editandoVoz === campo ? "text-primary" : "text-muted-foreground",
+          "ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 align-middle text-[11px] font-semibold",
+          ahora
+            ? "bg-primary text-primary-foreground"
+            : recien
+              ? "bg-success text-white"
+              : "bg-muted text-muted-foreground",
         )}
         data-testid={`por-voz-${campo}`}
       >
-        <Mic className={cn("size-3", editandoVoz === campo && "animate-pulse")} aria-hidden />
-        {editandoVoz === campo ? "escribiendo…" : "dictado"}
-      </span>
-    ) : null;
+        {ahora ? (
+          <Sparkles className="size-3 animate-pulse" aria-hidden />
+        ) : recien ? (
+          <Check className="size-3" strokeWidth={3} aria-hidden />
+        ) : (
+          <Mic className="size-3" aria-hidden />
+        )}
+        {ahora ? "La IA está escribiendo" : recien ? "Listo" : "dictado"}
+      </motion.span>
+    );
+  };
 
   return (
     <motion.form
@@ -420,7 +419,7 @@ export function VistaAlta({
           {s ? <Sparkles className="size-3.5" aria-hidden /> : <PackagePlus className="size-3.5" aria-hidden />}
           {s ? "Lo encontramos en el catálogo" : "Producto nuevo"}
         </motion.div>
-        <ResponsiveDialogTitle className="pr-24 text-xl">
+        <ResponsiveDialogTitle className="pr-16 text-xl">
           {s ? "Ya lo completamos por ti. Solo pon el precio" : "Nadie lo cargó todavía"}
         </ResponsiveDialogTitle>
         <ResponsiveDialogDescription>
@@ -428,23 +427,33 @@ export function VistaAlta({
             ? "Foto, marca, categoría y ficha salen de lo que sabemos de este código. Revisa lo que quieras y regístralo."
             : "Con nombre y precio ya se puede vender. Una foto y la ficha lo hacen lucir en tu tienda online."}
         </ResponsiveDialogDescription>
-        <p
-          aria-live="polite"
-          data-testid="linea-voz"
-          className={cn(
-            "min-h-4 truncate text-xs transition-colors",
-            voz.fase === "sin-voz" || voz.fase === "error" || voz.fase === "sin-permiso"
-              ? "text-warning-soft-foreground"
-              : voz.oido && ["apagada", "listo", "esperando", "escribiendo"].includes(voz.fase)
-                ? "italic text-foreground/80"
-                : "text-muted-foreground",
-            !lineaVoz && "hidden",
-          )}
-        >
-          {lineaVoz}
-        </p>
+        {(voz.dialogo.tu || voz.dialogo.vendfy) && (
+          <div
+            aria-live="polite"
+            data-testid="dialogo-voz"
+            className="mt-1.5 space-y-1 rounded-xl border border-border/70 bg-muted/40 px-3 py-2"
+          >
+            {voz.dialogo.tu && (
+              <p className="truncate text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground/70">Tú:</span> «{voz.dialogo.tu}»
+              </p>
+            )}
+            {voz.dialogo.vendfy && (
+              <motion.p
+                key={voz.dialogo.vendfy}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                data-testid="linea-voz"
+                className="flex items-start gap-1.5 text-sm font-medium text-foreground"
+              >
+                <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                <span>{voz.dialogo.vendfy}</span>
+              </motion.p>
+            )}
+          </div>
+        )}
       </ResponsiveDialogHeader>
-      {ranuraOrbe && createPortal(<OrbeVoz fase={voz.fase} nivel={voz.nivel} onTocar={voz.tocar} />, ranuraOrbe)}
+      {ranuraOrbe && createPortal(<IndicadorVoz fase={voz.fase} nivel={voz.nivel} onTocar={voz.tocar} />, ranuraOrbe)}
 
       <ResponsiveDialogBody className="pb-5">
         <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_minmax(0,1fr)] md:gap-6">
