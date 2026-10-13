@@ -3,6 +3,7 @@ export {
   callarVoz,
   decirFrases,
   decirTexto,
+  esperarQueCalle,
   idDeFrase,
   precalentarVoz,
   probarVoz,

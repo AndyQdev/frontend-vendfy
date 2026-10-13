@@ -5,11 +5,14 @@ import { useSyncExternalStore } from "react";
  *
  *   precios    decir el precio de lo que se escanea
  *   asistente  contestar hablando en el asistente
+ *   escuchar   al dar de alta un producto escaneado, abrir el micrófono para
+ *              dictar nombre, precio y cantidad
  *   voz        quién habla (id de Gemini: "Sulafat" es Sofía)
  */
 export interface PreferenciasVoz {
   precios: boolean;
   asistente: boolean;
+  escuchar: boolean;
   voz: string;
 }
 
@@ -20,7 +23,7 @@ const CLAVE = "vendfy.voz";
 const CLAVE_VIEJA_ASISTENTE = "vendfy.voz.respuestas";
 
 function leer(): PreferenciasVoz {
-  const base: PreferenciasVoz = { precios: true, asistente: true, voz: VOZ_POR_DEFECTO };
+  const base: PreferenciasVoz = { precios: true, asistente: true, escuchar: true, voz: VOZ_POR_DEFECTO };
   try {
     const guardado = localStorage.getItem(CLAVE);
     if (guardado) return { ...base, ...JSON.parse(guardado) };

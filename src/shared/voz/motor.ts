@@ -189,6 +189,33 @@ export function useHablando(): boolean {
   );
 }
 
+/**
+ * Espera a que la voz termine lo que está diciendo.
+ *
+ * Para escuchar DESPUÉS de hablar: si el micrófono se abre mientras suena la
+ * pregunta, se graba a sí misma. `arranqueMs` es cuánto esperar a que empiece
+ * (la frase se pide al servidor y tarda un poco); si en ese tiempo no sonó
+ * nada, se da por terminada. `topeMs` corta una frase que no termina nunca.
+ */
+export function esperarQueCalle({ arranqueMs = 2500, topeMs = 15_000 } = {}): Promise<void> {
+  return new Promise((resolve) => {
+    let arranco = hablando;
+    const fin = () => {
+      clearTimeout(sinArranque);
+      clearTimeout(tope);
+      oyentesHablando.delete(oir);
+      resolve();
+    };
+    const oir = () => {
+      if (hablando) arranco = true;
+      else if (arranco) fin();
+    };
+    const sinArranque = setTimeout(() => !arranco && fin(), arranqueMs);
+    const tope = setTimeout(fin, topeMs);
+    oyentesHablando.add(oir);
+  });
+}
+
 export function callarVoz() {
   turno++;
   for (const s of sonando) {

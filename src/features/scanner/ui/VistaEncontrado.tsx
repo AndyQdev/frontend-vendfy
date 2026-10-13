@@ -122,7 +122,7 @@ export function VistaEncontrado({
           className="mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success-soft-foreground"
         >
           <CheckCircle2 className="size-3.5" aria-hidden />
-          {recienCreado ? "¡Registrado!" : "Lo tenés en tu catálogo"}
+          {recienCreado ? "¡Registrado!" : "Lo tienes en tu catálogo"}
         </motion.div>
         <ResponsiveDialogTitle className="pr-16 text-xl">{producto.name}</ResponsiveDialogTitle>
         <ResponsiveDialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -284,7 +284,7 @@ export function VistaEncontrado({
 
             <motion.p variants={aparece} className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <ScanBarcode className="size-3.5" aria-hidden />
-              Escaneá otro código cuando quieras
+              Escanea otro código cuando quieras
             </motion.p>
           </motion.div>
         </div>

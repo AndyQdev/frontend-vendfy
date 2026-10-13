@@ -1,7 +1,7 @@
 import { FRASES_FIJAS } from "../model/frases";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { AudioLines, Check, Play, Volume2, VolumeX } from "lucide-react";
+import { AudioLines, Check, Mic, Play, Volume2, VolumeX } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -68,6 +68,16 @@ export function AjustesVoz({ className, align = "end" }: { className?: string; a
               </span>
             </span>
             <Switch checked={prefs.precios} onCheckedChange={(v) => setPreferenciasVoz({ precios: v })} />
+          </label>
+          <label className="flex cursor-pointer items-start gap-3">
+            <Mic className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Escuchar al dar de alta</span>
+              <span className="block text-xs text-muted-foreground">
+                Si el producto no está registrado, dime nombre, precio y cantidad y lo completo.
+              </span>
+            </span>
+            <Switch checked={prefs.escuchar} onCheckedChange={(v) => setPreferenciasVoz({ escuchar: v })} />
           </label>
           <label className="flex cursor-pointer items-start gap-3">
             <Volume2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />

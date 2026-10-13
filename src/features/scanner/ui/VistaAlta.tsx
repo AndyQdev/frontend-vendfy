@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { ArrowUpRight, Globe2, Minus, PackagePlus, Plus, ScanBarcode, Sparkles } from "lucide-react";
+import { ArrowUpRight, Globe2, Mic, Minus, PackagePlus, Plus, ScanBarcode, Sparkles } from "lucide-react";
 
-import { mejorarFotoConIa, subirFotoProducto, useBrands, useCategories } from "@/entities/product/api";
+import {
+  mejorarFotoConIa,
+  subirFotoProducto,
+  useBrands,
+  useCategories,
+  type CambiosAltaVoz,
+} from "@/entities/product/api";
 import type { FichaIa, ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { NOMBRE_FUENTE_CATALOGO } from "@/entities/product/model/escaneo";
 import { ApiError } from "@/shared/api/client";
@@ -19,10 +26,13 @@ import {
 } from "@/shared/ui/responsive-dialog";
 import { cn } from "@/shared/lib/cn";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { usePreferenciasVoz } from "@/shared/voz";
 import type { ContextoHoja } from "../model/ScannerProvider";
 import { sonar } from "../model/sonido";
 import { useEnriquecimientoIa } from "../model/useEnriquecimientoIa";
+import { useAltaPorVoz, type FaseVoz } from "../model/useAltaPorVoz";
 import { FichaEditor } from "./FichaEditor";
+import { OrbeVoz } from "./OrbeVoz";
 import { FotoHero, type FuenteFoto } from "./FotoHero";
 import { aparece, escalonado } from "./piezas";
 
@@ -51,9 +61,60 @@ interface Props {
   error: string | null;
   onRegistrar: (datos: DatosAlta) => void;
   onCompletar: (datos: Partial<DatosAlta>) => void;
+  /** Dónde va el orbe de la voz: al lado del parlante, en la cabecera de la hoja. */
+  ranuraOrbe?: HTMLElement | null;
 }
 
 const ATAJOS_STOCK = [6, 12, 24];
+
+/** Los campos que se pueden dictar. */
+type CampoVoz = keyof CambiosAltaVoz;
+const ORDEN_VOZ: CampoVoz[] = ["nombre", "marca", "categoria", "precio", "cantidad"];
+
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** 25 → "25"; 12.5 → "12,50": como lo escribiría una persona en el campo. */
+const precioATexto = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
+
+/** Reinicia una animación de CSS de una sola vez (el anillo verde al terminar). */
+function destellar(el: Element | null, clase: string) {
+  if (!(el instanceof HTMLElement)) return;
+  el.classList.remove(clase);
+  void el.offsetWidth;
+  el.classList.add(clase);
+  const fin = () => el.classList.remove(clase);
+  el.addEventListener("animationend", fin, { once: true });
+  setTimeout(fin, 1200);
+}
+
+/** La línea bajo el título que acompaña al orbe: qué está pasando y qué se oyó. */
+function textoDeVoz(fase: FaseVoz, oido: string | null, pregunta: string | null): string | null {
+  switch (fase) {
+    case "preparando":
+      return pregunta ?? (oido ? `«${oido}»` : "Preparando el micrófono…");
+    case "hablando":
+      return pregunta;
+    case "esperando":
+      if (pregunta) return pregunta;
+      return oido ? `«${oido}» · ¿Algo más?` : "Te escucho. Por ejemplo: «a 25 y tengo 10».";
+    case "escuchando":
+      return "Escuchando…";
+    case "procesando":
+      return "Entendiendo lo que dijiste…";
+    case "escribiendo":
+      return oido ? `«${oido}»` : null;
+    case "sin-voz":
+      return "No te escuché. Toca el micrófono para hablar.";
+    case "error":
+      return "No se pudo entender. Toca el micrófono para intentarlo de nuevo.";
+    case "sin-permiso":
+      return "Para dictar, permite el micrófono en el candado de la barra de direcciones.";
+    case "no-soportada":
+      return null;
+    default:
+      return oido ? `«${oido}»` : null;
+  }
+}
 
 /** Para comparar nombres: "Dulces y Mermeladas" = "dulces y mermeladas". */
 const normal = (s: string) =>
@@ -77,7 +138,17 @@ function especificacionesIniciales(ficha: FichaIa | null | undefined, cantidad: 
  * pone el precio. Si nadie lo conoce, nombre y precio; la foto la saca con el
  * celular y la IA la deja profesional.
  */
-export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, error, onRegistrar, onCompletar }: Props) {
+export function VistaAlta({
+  resultado,
+  contexto,
+  tiendas,
+  tiendaId,
+  guardando,
+  error,
+  onRegistrar,
+  onCompletar,
+  ranuraOrbe,
+}: Props) {
   const s = resultado.sugerencia;
   const enCaja = contexto === "caja";
   // En una compra la cantidad es lo comprado: entra a la compra, no como stock.
@@ -195,7 +266,7 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
       setSeleccion("ia");
       sonar("sugerido");
     } catch (e) {
-      setErrorFoto(e instanceof ApiError ? e.message : "No se pudo mejorar la foto. Probá de nuevo.");
+      setErrorFoto(e instanceof ApiError ? e.message : "No se pudo mejorar la foto. Inténtalo de nuevo.");
     } finally {
       setMejorandoPropia(false);
     }
@@ -232,6 +303,100 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
     onRegistrar(datos());
   };
 
+  // ─── Voz ─────────────────────────────────────────────────────────────
+  // Lo dictado se escribe en los campos de a uno, con un brillo en el que se
+  // está escribiendo, y queda marcado con un micrófono hasta que se lo cambie
+  // a mano. Nada se registra solo: el botón sigue siendo del comerciante.
+  const { escuchar: escucharAlAbrir } = usePreferenciasVoz();
+  const [editandoVoz, setEditandoVoz] = useState<CampoVoz | null>(null);
+  const [porVoz, setPorVoz] = useState<ReadonlySet<CampoVoz>>(new Set());
+  const montado = useRef(true);
+  useEffect(() => {
+    // En desarrollo React monta dos veces: hay que volver a marcarlo.
+    montado.current = true;
+    return () => void (montado.current = false);
+  }, []);
+
+  /** El comerciante lo cambió a mano: deja de ser "dictado". */
+  const aMano = (campo: CampoVoz | "descripcion" | "etiquetas" | "especificaciones") => {
+    tocar(campo);
+    setPorVoz((prev) => {
+      if (!prev.has(campo as CampoVoz)) return prev;
+      const otro = new Set(prev);
+      otro.delete(campo as CampoVoz);
+      return otro;
+    });
+  };
+
+  const valores = useRef({ nombre, marca, categoria, precio: precioNumero, stock });
+  valores.current = { nombre, marca, categoria, precio: precioNumero, stock };
+
+  const escribir = async (poner: (v: string) => void, valor: string) => {
+    // Rápido pero visible: ~0,4 s para un nombre largo, letra por letra.
+    const paso = Math.max(10, Math.min(32, 420 / Math.max(1, valor.length)));
+    for (let i = 1; i <= valor.length; i++) {
+      if (!montado.current) return;
+      poner(valor.slice(0, i));
+      await dormir(paso);
+    }
+  };
+
+  const aplicarVoz = async (cambios: CambiosAltaVoz) => {
+    for (const campo of ORDEN_VOZ) {
+      const valor = cambios[campo];
+      if (valor === undefined || !montado.current) continue;
+      tocar(campo);
+      setEditandoVoz(campo);
+      await dormir(140);
+      if (campo === "nombre") await escribir(setNombre, String(valor));
+      else if (campo === "marca") await escribir(setMarca, String(valor));
+      else if (campo === "categoria") await escribir(setCategoria, String(valor));
+      else if (campo === "precio") await escribir(setPrecio, precioATexto(Number(valor)));
+      else setStock(Math.max(enCompra ? 1 : 0, Number(valor)));
+      await dormir(campo === "cantidad" ? 420 : 220);
+      if (!montado.current) return;
+      setEditandoVoz(null);
+      setPorVoz((prev) => new Set(prev).add(campo));
+      destellar(document.querySelector(`[data-campo-alta="${campo}"]`), "campo-completo");
+    }
+  };
+
+  const voz = useAltaPorVoz({
+    automatico: escucharAlAbrir,
+    storeId: tienda || tiendaId || tiendas[0]?.id || null,
+    formulario: () => {
+      const v = valores.current;
+      return {
+        nombre: v.nombre.trim() || null,
+        marca: v.marca.trim() || null,
+        categoria: v.categoria.trim() || null,
+        precio: v.precio > 0 ? v.precio : null,
+        cantidad: v.stock,
+      };
+    },
+    categorias: categorias.map((c) => c.name),
+    cantidadEs: enCompra ? "compra" : "stock",
+    aplicar: aplicarVoz,
+  });
+  const lineaVoz = textoDeVoz(voz.fase, voz.oido, voz.pregunta);
+
+  /** Las clases del campo según la voz: el brillo mientras lo escribe. */
+  const deVoz = (campo: CampoVoz) => (editandoVoz === campo ? "campo-ia" : undefined);
+  /** El micrófono junto a la etiqueta: lo está escribiendo la voz o lo dictaste. */
+  const marcaVoz = (campo: CampoVoz) =>
+    editandoVoz === campo || porVoz.has(campo) ? (
+      <span
+        className={cn(
+          "ml-1.5 inline-flex items-center gap-1 align-middle text-[11px] font-medium",
+          editandoVoz === campo ? "text-primary" : "text-muted-foreground",
+        )}
+        data-testid={`por-voz-${campo}`}
+      >
+        <Mic className={cn("size-3", editandoVoz === campo && "animate-pulse")} aria-hidden />
+        {editandoVoz === campo ? "escribiendo…" : "dictado"}
+      </span>
+    ) : null;
+
   return (
     <motion.form
       key={`alta-${resultado.codigo}`}
@@ -255,15 +420,31 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
           {s ? <Sparkles className="size-3.5" aria-hidden /> : <PackagePlus className="size-3.5" aria-hidden />}
           {s ? "Lo encontramos en el catálogo" : "Producto nuevo"}
         </motion.div>
-        <ResponsiveDialogTitle className="pr-16 text-xl">
-          {s ? "Ya lo completamos por vos. Solo poné el precio" : "Nadie lo cargó todavía"}
+        <ResponsiveDialogTitle className="pr-24 text-xl">
+          {s ? "Ya lo completamos por ti. Solo pon el precio" : "Nadie lo cargó todavía"}
         </ResponsiveDialogTitle>
         <ResponsiveDialogDescription>
           {s
-            ? "Foto, marca, categoría y ficha salen de lo que sabemos de este código. Revisá lo que quieras y registralo."
+            ? "Foto, marca, categoría y ficha salen de lo que sabemos de este código. Revisa lo que quieras y regístralo."
             : "Con nombre y precio ya se puede vender. Una foto y la ficha lo hacen lucir en tu tienda online."}
         </ResponsiveDialogDescription>
+        <p
+          aria-live="polite"
+          data-testid="linea-voz"
+          className={cn(
+            "min-h-4 truncate text-xs transition-colors",
+            voz.fase === "sin-voz" || voz.fase === "error" || voz.fase === "sin-permiso"
+              ? "text-warning-soft-foreground"
+              : voz.oido && ["apagada", "listo", "esperando", "escribiendo"].includes(voz.fase)
+                ? "italic text-foreground/80"
+                : "text-muted-foreground",
+            !lineaVoz && "hidden",
+          )}
+        >
+          {lineaVoz}
+        </p>
       </ResponsiveDialogHeader>
+      {ranuraOrbe && createPortal(<OrbeVoz fase={voz.fase} nivel={voz.nivel} onTocar={voz.tocar} />, ranuraOrbe)}
 
       <ResponsiveDialogBody className="pb-5">
         <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_minmax(0,1fr)] md:gap-6">
@@ -312,38 +493,47 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
           {/* ── Datos ── */}
           <motion.div variants={escalonado} initial="oculto" animate="visible" className="min-w-0 space-y-4">
             <motion.div variants={aparece} className="space-y-1.5">
-              <Label htmlFor="escaner-nombre">Nombre</Label>
+              <Label htmlFor="escaner-nombre">
+                Nombre
+                {marcaVoz("nombre")}
+              </Label>
               <Input
                 id="escaner-nombre"
                 ref={nombreRef}
+                data-campo-alta="nombre"
                 value={nombre}
                 onChange={(e) => {
-                  tocar("nombre");
+                  aMano("nombre");
                   setNombre(e.target.value);
                 }}
                 placeholder="Ej.: Coca-Cola 2 L"
                 maxLength={100}
                 aria-invalid={intentado && faltaNombre}
                 autoComplete="off"
-                className="h-11 text-base font-medium"
+                className={cn("h-11 text-base font-medium", deVoz("nombre"))}
               />
-              {intentado && faltaNombre && <p className="text-xs text-destructive">Ponele un nombre.</p>}
+              {intentado && faltaNombre && <p className="text-xs text-destructive">Ponle un nombre.</p>}
             </motion.div>
 
             <motion.div variants={aparece} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="escaner-marca">Marca</Label>
+                <Label htmlFor="escaner-marca">
+                  Marca
+                  {marcaVoz("marca")}
+                </Label>
                 <Input
                   id="escaner-marca"
                   list="escaner-marcas"
+                  data-campo-alta="marca"
                   value={marca}
                   onChange={(e) => {
-                    tocar("marca");
+                    aMano("marca");
                     setMarca(e.target.value);
                   }}
                   placeholder="Ej.: Arcor"
                   maxLength={100}
                   autoComplete="off"
+                  className={deVoz("marca")}
                 />
                 <datalist id="escaner-marcas">
                   {marcas.map((m) => (
@@ -355,18 +545,23 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="escaner-categoria">Categoría</Label>
+                <Label htmlFor="escaner-categoria">
+                  Categoría
+                  {marcaVoz("categoria")}
+                </Label>
                 <Input
                   id="escaner-categoria"
                   list="escaner-categorias"
+                  data-campo-alta="categoria"
                   value={categoria}
                   onChange={(e) => {
-                    tocar("categoria");
+                    aMano("categoria");
                     setCategoria(e.target.value);
                   }}
                   placeholder={iaGenerando && !categoria ? "Buscando la mejor…" : "Ej.: Bebidas"}
                   maxLength={100}
                   autoComplete="off"
+                  className={deVoz("categoria")}
                 />
                 <datalist id="escaner-categorias">
                   {categorias.map((c) => (
@@ -381,7 +576,10 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
 
             <motion.div variants={aparece} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="escaner-precio">Precio de venta</Label>
+                <Label htmlFor="escaner-precio">
+                  Precio de venta
+                  {marcaVoz("precio")}
+                </Label>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
                     Bs
@@ -389,32 +587,63 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
                   <Input
                     id="escaner-precio"
                     ref={precioRef}
+                    data-campo-alta="precio"
                     value={precio}
-                    onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ""))}
+                    onChange={(e) => {
+                      aMano("precio");
+                      setPrecio(e.target.value.replace(/[^\d.,]/g, ""));
+                    }}
                     inputMode="decimal"
                     placeholder="0,00"
-                    className="h-12 pl-10 font-display text-xl font-semibold tabular-nums"
+                    className={cn("h-12 pl-10 font-display text-xl font-semibold tabular-nums", deVoz("precio"))}
                     aria-invalid={intentado && faltaPrecio}
                     autoComplete="off"
                   />
                 </div>
-                {intentado && faltaPrecio && <p className="text-xs text-destructive">¿A cuánto lo vendés?</p>}
+                {intentado && faltaPrecio && <p className="text-xs text-destructive">¿A qué precio lo vendes?</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="escaner-stock">{enCompra ? "¿Cuántos compraste?" : "¿Cuántos tenés?"}</Label>
-                <div className="flex h-12 items-center gap-1 rounded-lg border border-input bg-card p-1">
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Uno menos" onClick={() => setStock((n) => Math.max(enCompra ? 1 : 0, n - 1))}>
+                <Label htmlFor="escaner-stock">
+                  {enCompra ? "¿Cuántos compraste?" : "¿Cuántos tienes?"}
+                  {marcaVoz("cantidad")}
+                </Label>
+                <div
+                  data-campo-alta="cantidad"
+                  className={cn("flex h-12 items-center gap-1 rounded-lg border border-input bg-card p-1", deVoz("cantidad"))}
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Uno menos"
+                    onClick={() => {
+                      aMano("cantidad");
+                      setStock((n) => Math.max(enCompra ? 1 : 0, n - 1));
+                    }}
+                  >
                     <Minus aria-hidden />
                   </Button>
                   <input
                     id="escaner-stock"
                     value={stock}
-                    onChange={(e) => setStock(Math.max(0, parseInt(e.target.value.replace(/\D/g, "") || "0", 10)))}
+                    onChange={(e) => {
+                      aMano("cantidad");
+                      setStock(Math.max(0, parseInt(e.target.value.replace(/\D/g, "") || "0", 10)));
+                    }}
                     inputMode="numeric"
                     className="w-full min-w-0 bg-transparent text-center font-mono text-lg font-semibold tabular-nums outline-none"
                   />
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Uno más" onClick={() => setStock((n) => n + 1)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Uno más"
+                    onClick={() => {
+                      aMano("cantidad");
+                      setStock((n) => n + 1);
+                    }}
+                  >
                     <Plus aria-hidden />
                   </Button>
                 </div>
@@ -423,7 +652,10 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
                     <button
                       key={n}
                       type="button"
-                      onClick={() => setStock(n)}
+                      onClick={() => {
+                        aMano("cantidad");
+                        setStock(n);
+                      }}
                       className={cn(
                         "flex-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         stock === n ? "border-primary bg-primary-soft text-primary-soft-foreground" : "border-border hover:bg-muted",
@@ -446,14 +678,14 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
                   onChange={(e) => setTienda(e.target.value)}
                   aria-invalid={intentado && faltaTienda}
                 >
-                  <option value="">Elegí la tienda</option>
+                  <option value="">Elige la tienda</option>
                   {tiendas.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
                   ))}
                 </NativeSelect>
-                {intentado && faltaTienda && <p className="text-xs text-destructive">¿En qué tienda lo vendés?</p>}
+                {intentado && faltaTienda && <p className="text-xs text-destructive">¿En qué tienda lo vendes?</p>}
               </motion.div>
             )}
 
@@ -461,17 +693,17 @@ export function VistaAlta({ resultado, contexto, tiendas, tiendaId, guardando, e
               <FichaEditor
                 descripcion={descripcion}
                 onDescripcion={(v) => {
-                  tocar("descripcion");
+                  aMano("descripcion");
                   setDescripcion(v);
                 }}
                 etiquetas={etiquetas}
                 onEtiquetas={(v) => {
-                  tocar("etiquetas");
+                  aMano("etiquetas");
                   setEtiquetas(v);
                 }}
                 especificaciones={especificaciones}
                 onEspecificaciones={(v) => {
-                  tocar("especificaciones");
+                  aMano("especificaciones");
                   setEspecificaciones(v);
                 }}
                 cargando={iaGenerando && !ficha}

@@ -11,7 +11,8 @@ import { buscarPorCodigo, claveEscaneo, useCreateProduct } from "@/entities/prod
 import { ApiError } from "@/shared/api/client";
 import { formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
-import { decirFrases } from "@/shared/voz";
+import { decirFrases, preferenciasVoz } from "@/shared/voz";
+import { precargarEscucha } from "../model/escucha";
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -53,6 +54,8 @@ function festejar() {
  */
 export function HojaEscaneo() {
   const { hoja, cerrar } = useEscaner();
+  // Donde el formulario de alta pone el orbe de la voz: al lado del parlante.
+  const [ranuraOrbe, setRanuraOrbe] = useState<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const crear = useCreateProduct();
@@ -76,6 +79,12 @@ export function HojaEscaneo() {
     setRecienCreado(false);
     setErrorAlta(null);
   }, [hoja.clave]);
+
+  // El detector de voz se descarga mientras se busca el código: si resulta
+  // nuevo, el micrófono se abre sin esperar. Después queda en caché.
+  useEffect(() => {
+    if (hoja.abierta && preferenciasVoz().escuchar) precargarEscucha();
+  }, [hoja.abierta]);
 
   // Un sonido por lectura, distinto según lo que se encontró.
   useEffect(() => {
@@ -145,7 +154,7 @@ export function HojaEscaneo() {
       if (hoja.contexto && hoja.contexto !== "general") setTimeout(cerrar, 1100);
     } catch (error) {
       sonar("error");
-      setErrorAlta(error instanceof ApiError ? error.message : "No se pudo registrar. Probá de nuevo.");
+      setErrorAlta(error instanceof ApiError ? error.message : "No se pudo registrar. Inténtalo de nuevo.");
     }
   };
 
@@ -238,6 +247,7 @@ export function HojaEscaneo() {
       >
         <MotionConfig reducedMotion="user">
           <AjustesVoz className="absolute right-12 top-3.5 z-10 max-md:right-3" />
+          <div ref={setRanuraOrbe} className="absolute right-[5.25rem] top-3.5 z-10 max-md:right-12" />
 
           <AnimatePresence mode="wait" initial={false}>
             {consulta.isPending || (!resultado && consulta.isFetching) ? (
@@ -270,7 +280,7 @@ export function HojaEscaneo() {
                   </span>
                   <ResponsiveDialogTitle>No pudimos buscar el código</ResponsiveDialogTitle>
                   <ResponsiveDialogDescription>
-                    {consulta.error instanceof ApiError ? consulta.error.message : "Revisá la conexión e intentá de nuevo."}
+                    {consulta.error instanceof ApiError ? consulta.error.message : "Revisa la conexión e inténtalo de nuevo."}
                   </ResponsiveDialogDescription>
                 </ResponsiveDialogHeader>
                 <ResponsiveDialogBody className="flex justify-center pb-8">
@@ -309,6 +319,7 @@ export function HojaEscaneo() {
                 error={errorAlta}
                 onRegistrar={registrar}
                 onCompletar={completar}
+                ranuraOrbe={ranuraOrbe}
               />
             )}
           </AnimatePresence>
