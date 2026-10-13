@@ -530,9 +530,9 @@ export default function Caja() {
         const c = cuentaEnDolares(total, dolar.valor, dio);
         toast.success(`Venta finalizada · cobrado ${formatDolares(dio!)}`, {
           description: c.falta > 0
-            ? `Más ${formatMoney(c.falta)} en efectivo`
+            ? `Cobrá ${formatMoney(c.falta)} más en efectivo`
             : c.vuelto > 0
-              ? `Vuelto: ${formatMoney(c.vuelto)}`
+              ? `Dale de vuelto ${formatMoney(c.vuelto)}`
               : `Total ${formatMoney(total)}`,
         });
       } else {

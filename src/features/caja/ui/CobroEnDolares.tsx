@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
-import { centavos, formatDolar, formatDolares, formatMoney } from "@/shared/lib/money";
+import { centavos, formatDolar, formatMoney } from "@/shared/lib/money";
 import { leerDolar, type useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 
 /** "20", "20,50", "" → monto o null. */
@@ -26,17 +26,18 @@ export function cuentaEnDolares(total: number, dolar: number | null, usd: number
   };
 }
 
-const CAMPO =
-  "cifra h-8 rounded-md border border-input bg-card px-2 text-right text-base font-semibold outline-none focus:border-primary aria-[invalid=true]:border-destructive md:text-sm";
+/** Una cajita con su etiqueta arriba y el número abajo: dos entran en una línea. */
+const CAJA =
+  "flex min-w-0 flex-col rounded-lg border border-input bg-card px-2.5 py-1 transition-colors focus-within:border-primary";
+const NUMERO =
+  "cifra w-full min-w-0 bg-transparent text-base font-semibold text-foreground outline-none placeholder:text-muted-foreground/70 md:text-sm";
 
 /**
- * Cobrar en dólares, dentro del resumen de la venta: dos líneas.
- *
- *   Tipo de cambio [11,73]                  $us 8,53
- *   Recibe $us [10]                Vuelto Bs 17,30
- *
- * El tipo de cambio se corrige ahí mismo (al que estás vendiendo). Si no se
- * escribe cuánto da el cliente, se cobra lo justo en dólares.
+ * Cobrar en dólares, dentro del resumen de la venta: una línea con el tipo de
+ * cambio (se corrige ahí mismo, al que estás vendiendo) y lo que da el
+ * cliente. Abajo, solo si hace falta, qué hacer con la diferencia: darle
+ * vuelto en Bs o cobrarle el resto en Bs. No se registra como movimiento:
+ * la venta queda en su valor en Bs, con los dólares que entraron.
  */
 export function FilasDolares({
   total,
@@ -54,69 +55,76 @@ export function FilasDolares({
   const textoDolar = escribiendo ?? (dolar.valor !== null ? formatDolar(dolar.valor) : "");
   const dio = leerMonto(usd);
   const c = cuentaEnDolares(total, dolar.valor, dio);
+  const dolarMalo = (escribiendo !== null && leerDolar(escribiendo) === null) || dolar.valor === null;
 
   return (
     <div className="space-y-1.5" data-testid="cobro-dolares">
-      <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          Tipo de cambio
-          <input
-            type="text"
-            inputMode="decimal"
-            aria-label="Tipo de cambio (Bs por dólar)"
-            aria-invalid={escribiendo !== null && leerDolar(escribiendo) === null}
-            value={textoDolar}
-            placeholder="11,73"
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => {
-              setEscribiendo(e.target.value);
-              const n = leerDolar(e.target.value);
-              if (n !== null) dolar.cambiar(n);
-            }}
-            onBlur={() => setEscribiendo(null)}
-            className={cn(CAMPO, "w-[4.75rem]", dolar.valor === null && "border-warning")}
-          />
-          {dolar.aMano && dolar.delDia && (
-            <button
-              type="button"
-              onClick={() => {
-                setEscribiendo(null);
-                dolar.volverAlDelDia();
+      <div className="grid grid-cols-2 gap-2">
+        <label className={cn(CAJA, dolarMalo && "border-warning")}>
+          <span className="text-[11px] leading-4 text-muted-foreground">Tipo de cambio</span>
+          <span className="flex items-center gap-1">
+            <input
+              type="text"
+              inputMode="decimal"
+              aria-label="Tipo de cambio (Bs por dólar)"
+              aria-invalid={dolarMalo}
+              value={textoDolar}
+              placeholder="11,73"
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => {
+                setEscribiendo(e.target.value);
+                const n = leerDolar(e.target.value);
+                if (n !== null) dolar.cambiar(n);
               }}
-              title={`Usar el de hoy (${formatDolar(dolar.delDia.valor)})`}
-              aria-label={`Usar el tipo de cambio de hoy (${formatDolar(dolar.delDia.valor)})`}
-              className="rounded p-1 text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          )}
+              onBlur={() => setEscribiendo(null)}
+              className={NUMERO}
+            />
+            {dolar.aMano && dolar.delDia && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEscribiendo(null);
+                  dolar.volverAlDelDia();
+                }}
+                title={`Usar el de hoy (${formatDolar(dolar.delDia.valor)})`}
+                aria-label={`Usar el tipo de cambio de hoy (${formatDolar(dolar.delDia.valor)})`}
+                className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            )}
+          </span>
         </label>
-        <span className="cifra text-base font-bold" data-testid="total-dolares">
-          {c.exacto !== null ? formatDolares(c.exacto) : "—"}
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          Recibe $us
+        <label className={CAJA}>
+          <span className="text-[11px] leading-4 text-muted-foreground">Recibe $us</span>
           <input
             type="text"
             inputMode="decimal"
             aria-label="Dólares que da el cliente"
             value={usd}
             placeholder={c.exacto !== null ? formatDolar(c.exacto) : "0"}
+            onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => onUsd(e.target.value)}
-            className={cn(CAMPO, "w-[5.25rem]")}
+            className={NUMERO}
           />
         </label>
-        {dio !== null && c.enBs !== null && (
-          <span
-            className={cn("cifra text-xs font-semibold", c.falta > 0 ? "text-warning" : "text-success")}
-            data-testid="cobro-dolares-resultado"
-          >
-            {c.falta > 0 ? `Falta ${formatMoney(c.falta)} en Bs` : `Vuelto ${formatMoney(c.vuelto)}`}
-          </span>
-        )}
       </div>
+      {dio !== null && c.enBs !== null && (c.vuelto > 0 || c.falta > 0) && (
+        <p
+          className={cn("text-xs font-medium", c.falta > 0 ? "text-warning" : "text-success")}
+          data-testid="cobro-dolares-resultado"
+        >
+          {c.falta > 0 ? (
+            <>
+              Cobrá <span className="cifra font-semibold">{formatMoney(c.falta)}</span> más en efectivo
+            </>
+          ) : (
+            <>
+              Dale de vuelto <span className="cifra font-semibold">{formatMoney(c.vuelto)}</span>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

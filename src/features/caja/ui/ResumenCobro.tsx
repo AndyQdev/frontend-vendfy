@@ -1,9 +1,9 @@
 import type { ElementType } from "react";
 import { cn } from "@/shared/lib/cn";
-import { formatMoney } from "@/shared/lib/money";
+import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
 import type { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
-import { FilasDolares } from "./CobroEnDolares";
+import { cuentaEnDolares, FilasDolares } from "./CobroEnDolares";
 
 export interface MetodoPago {
   id: string;
@@ -47,6 +47,7 @@ export function ResumenCobro({
   className?: string;
 }) {
   const enDolares = metodo === "usd";
+  const enDolaresTotal = enDolares ? cuentaEnDolares(total, dolar.valor, null).exacto : null;
   return (
     <div className={cn("space-y-2.5", className)} data-testid="resumen-cobro">
       <div
@@ -90,10 +91,20 @@ export function ResumenCobro({
         {enDolares && (
           <FilasDolares total={total} dolar={dolar} usd={usdRecibido} onUsd={onUsdRecibido} />
         )}
-        <div className="flex items-baseline justify-between border-t border-border pt-2">
-          <span className="text-sm font-bold">Total</span>
-          <span className="cifra font-display text-2xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="total-venta">
-            {formatMoney(total)}
+        <div className="flex items-start justify-between border-t border-border pt-2">
+          <span className="pt-1 text-sm font-bold">Total</span>
+          <span className="text-right">
+            <span
+              className="cifra block font-display text-2xl font-bold leading-tight text-emerald-600 dark:text-emerald-400"
+              data-testid="total-venta"
+            >
+              {formatMoney(total)}
+            </span>
+            {enDolaresTotal !== null && (
+              <span className="cifra block text-xs font-medium text-muted-foreground" data-testid="total-dolares">
+                {formatDolares(enDolaresTotal)}
+              </span>
+            )}
           </span>
         </div>
       </div>
