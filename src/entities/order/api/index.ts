@@ -33,6 +33,18 @@ export function useOrders(params: OrderQueryParams = {}) {
   });
 }
 
+/** Los dólares que entraron hoy cobrando en dólares (se ven arriba de Ventas). */
+export function useDolaresHoy(storeId: string | undefined) {
+  return useQuery({
+    queryKey: ["orders", "dolares-hoy", storeId ?? "all"],
+    queryFn: async () =>
+      (await apiFetch<{ dolares: number; ventas: number; bs: number }>(
+        `/api/order/dolares-hoy${storeId ? `?storeId=${storeId}` : ""}`,
+      )).data!,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateOrder() {
   const queryClient = useQueryClient();
 

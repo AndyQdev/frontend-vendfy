@@ -7,6 +7,7 @@ import {
   useDeletePurchaseOrder,
 } from "@/entities/purchase-order/api";
 import type { PurchaseOrder } from "@/entities/purchase-order/model/types";
+import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { useStore } from "@/app/providers/auth";
 import { ChipProductoEscaneado, textoCompras, useFiltroEscaneado } from "@/features/scanner";
 import {
@@ -172,9 +173,16 @@ export function PurchaseOrdersTable() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return `Bs. ${Number(amount).toFixed(2)}`;
-  };
+  /** El total como lo cobró el proveedor; si fue en dólares, con su Bs abajo. */
+  const totalDe = (po: PurchaseOrder) =>
+    po.currency === "USD" ? (
+      <>
+        <span className="cifra">{formatDolares(Number(po.totalUsd ?? 0))}</span>
+        <span className="cifra block text-xs font-normal text-muted-foreground">{formatMoney(Number(po.totalAmount))}</span>
+      </>
+    ) : (
+      <span className="cifra">{formatMoney(Number(po.totalAmount))}</span>
+    );
 
   return (
     <div className="space-y-6">
@@ -333,7 +341,7 @@ export function PurchaseOrdersTable() {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold text-red-600">
-                      {formatCurrency(po.totalAmount)}
+                      {totalDe(po)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {po.store?.name || "—"}
@@ -392,9 +400,9 @@ export function PurchaseOrdersTable() {
                   subtitulo={po.referenceNumber || undefined}
                   derecha={
                     <>
-                      <p className="text-sm font-semibold text-red-600">
-                        {formatCurrency(po.totalAmount)}
-                      </p>
+                      <div className="text-right text-sm font-semibold text-red-600">
+                        {totalDe(po)}
+                      </div>
                       <Badge variant={status.variant} className="mt-1">
                         {status.label}
                       </Badge>

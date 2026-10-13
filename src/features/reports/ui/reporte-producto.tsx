@@ -7,7 +7,7 @@ import { BarChart3, Minus, TrendingDown, TrendingUp, Truck, Users } from "lucide
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { cn } from "@/shared/lib/cn";
-import { formatMoney } from "@/shared/lib/money";
+import { formatDolar, formatDolares, formatMoney } from "@/shared/lib/money";
 import { ChipProductoEscaneado, haceCuanto, type ProductoFiltrado } from "@/features/scanner";
 import { useReportProduct } from "../api";
 import type { ReportQueryParams, ReporteProducto as Reporte } from "../model/types";
@@ -279,8 +279,17 @@ function UltimaCompra({ r }: { r: Reporte }) {
         ) : (
           <>
             <p className="cifra text-xl font-bold">
-              {c.costo != null ? `${formatMoney(c.costo)} c/u` : "Sin costo"}
+              {c.costoUsd != null
+                ? `${formatDolares(c.costoUsd)} c/u`
+                : c.costo != null
+                  ? `${formatMoney(c.costo)} c/u`
+                  : "Sin costo"}
             </p>
+            {c.costoUsd != null && c.costo != null && (
+              <p className="cifra text-sm text-muted-foreground">
+                {formatMoney(c.costo)} al dólar de {formatDolar(c.dolar ?? 0)}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">
               {c.cantidad.toLocaleString("es-BO")} {c.cantidad === 1 ? "unidad" : "unidades"}
               {c.proveedor ? ` a ${c.proveedor}` : ""} · {haceCuanto(c.fecha)}

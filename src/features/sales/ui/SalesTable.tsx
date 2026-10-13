@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useOrders } from "@/entities/order/api";
+import { useDolaresHoy, useOrders } from "@/entities/order/api";
+import { nombrePago } from "@/entities/order/model/pago";
 import { useStore } from "@/app/providers/auth";
 import { ChipProductoEscaneado, textoVentas, useFiltroEscaneado } from "@/features/scanner";
 import {
@@ -17,7 +18,7 @@ import { Search, ShoppingCart, Package, DollarSign, Calendar, User, Store } from
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { OrderType, OrderStatus, Order } from "@/entities/order/model/types";
-import { formatMoney } from "@/shared/lib/money";
+import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { format } from "date-fns";
 import { SalesDetailsModal } from "./SalesDetailsModal";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
@@ -62,6 +63,7 @@ export default function SalesTable() {
   };
 
   const { data: ordersResponse, isLoading } = useOrders(queryParams);
+  const { data: dolaresHoy } = useDolaresHoy(selectedStore && selectedStore !== "all" ? selectedStore.id : undefined);
 
   // Otro producto escaneado: desde la primera página.
   const productoFiltrado = filtro.producto?.id;
@@ -150,6 +152,22 @@ export default function SalesTable() {
           className="pl-10"
         />
       </div>
+
+      {dolaresHoy && dolaresHoy.ventas > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-4 py-2.5 text-sm"
+          data-testid="dolares-hoy"
+        >
+          <DollarSign className="h-4 w-4 text-success" aria-hidden />
+          <span>
+            Hoy entraron <span className="cifra font-semibold">{formatDolares(dolaresHoy.dolares)}</span> cobrando en
+            dólares
+          </span>
+          <span className="cifra text-muted-foreground">
+            · {dolaresHoy.ventas} {dolaresHoy.ventas === 1 ? "venta" : "ventas"} · ≈ {formatMoney(dolaresHoy.bs)}
+          </span>
+        </div>
+      )}
 
       {filtro.producto && (
         <ChipProductoEscaneado
@@ -338,7 +356,7 @@ function OrdersTableContent({
                 {formatMoney(order.totalReceived)}
               </TableCell>
               <TableCell>{getStatusBadge(order.status)}</TableCell>
-              <TableCell className="capitalize">{order.paymentMethod}</TableCell>
+              <TableCell>{nombrePago(order.paymentMethod)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -384,7 +402,7 @@ function OrdersTableContent({
                 },
                 {
                   etiqueta: "Pago",
-                  valor: <span className="capitalize">{order.paymentMethod}</span>,
+                  valor: <span>{nombrePago(order.paymentMethod)}</span>,
                 },
                 showDeliveryInfo
                   ? {

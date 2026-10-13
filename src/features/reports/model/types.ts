@@ -126,6 +126,9 @@ export interface ReporteProducto {
     costo: number | null;
     cantidad: number;
     proveedor: string | null;
+    /** Comprado en dólares: lo que cobró el proveedor y a qué dólar. */
+    costoUsd?: number | null;
+    dolar?: number | null;
   } | null;
   ultimaVenta: string | null;
   clientesTop: Array<{ nombre: string; unidades: number }>;

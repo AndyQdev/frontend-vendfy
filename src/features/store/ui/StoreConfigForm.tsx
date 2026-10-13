@@ -1,3 +1,4 @@
+import { ElegirFuenteDolar } from "@/entities/exchange-rate/ui/dolar";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Monitor, Tablet, Smartphone, Sparkles } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
@@ -434,6 +435,23 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                 </SelectContent>
               </Select>
             </div>
+
+            {(formData.config?.currency || "BOB") === "BOB" && (
+              <div className="space-y-2">
+                <div>
+                  <Label>Dólar</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Para comprar y cobrar en dólares. Se actualiza solo cada mañana, y en cada compra o cobro se puede
+                    corregir a mano.
+                  </p>
+                </div>
+                <ElegirFuenteDolar
+                  storeId={store?.id}
+                  valor={formData.config?.exchangeRate?.source ?? "bcb"}
+                  onCambio={(source) => handleConfigFieldChange("exchangeRate", { source })}
+                />
+              </div>
+            )}
 
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium">Configuración de Envío</h4>

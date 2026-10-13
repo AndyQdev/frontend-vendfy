@@ -1,4 +1,5 @@
 import { Order, OrderStatus, OrderType } from "@/entities/order/model/types";
+import { cobroEnDolaresTexto, nombrePago } from "@/entities/order/model/pago";
 import { formatMoney } from "@/shared/lib/money";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -165,7 +166,7 @@ export function OrderDetailsModal({
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Pago</p>
-              <p className="font-semibold capitalize">{order.paymentMethod}</p>
+              <p className="font-semibold">{nombrePago(order.paymentMethod)}</p>
             </div>
           </div>
 
@@ -348,6 +349,12 @@ export function OrderDetailsModal({
               <span className="text-muted-foreground">Total recibido</span>
               <span className="font-semibold">{formatMoney(order.totalReceived)}</span>
             </div>
+            {cobroEnDolaresTexto(order) && (
+              <div className="flex items-center justify-between gap-3 mt-1 text-sm" data-testid="cobro-dolares-detalle">
+                <span className="text-muted-foreground">Cobrado en dólares</span>
+                <span className="cifra text-right font-semibold">{cobroEnDolaresTexto(order)}</span>
+              </div>
+            )}
           </div>
         </div>
 

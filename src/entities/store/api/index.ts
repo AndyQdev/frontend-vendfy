@@ -36,6 +36,8 @@ export function useUpdateStore() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stores"] });
       qc.invalidateQueries({ queryKey: ["store"] });
+      // La fuente del dólar vive en la configuración de la tienda.
+      qc.invalidateQueries({ queryKey: ["dolar"] });
     }
   });
 }

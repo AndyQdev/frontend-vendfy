@@ -55,6 +55,9 @@ export interface CreateOrderInput {
   paymentMethod: string;
   paymentDate: string;
   totalReceived: number;
+  /** Cobrado en dólares (paymentMethod "usd"): cuántos dio el cliente y a qué dólar. */
+  usdReceived?: number;
+  exchangeRate?: number;
   deliveryInfo?: DeliveryInfo;
   installmentInfo?: InstallmentInfo;
   storeId: string;
@@ -74,6 +77,9 @@ export interface Order {
   paymentMethod: string;
   paymentDate: string;
   totalReceived: number;
+  /** Cobrado en dólares (paymentMethod "usd"): los dólares que dio el cliente y el dólar usado. */
+  usdReceived?: number | string | null;
+  exchangeRate?: number | string | null;
   deliveryInfo?: DeliveryInfo;
   installmentInfo?: InstallmentInfo;
   store?: {

@@ -33,7 +33,9 @@ import {
   FilaDatos,
 } from "@/shared/ui/lista-tarjetas";
 import { cn } from "@/shared/lib/cn";
-import { formatMoney } from "@/shared/lib/money";
+import { centavos, formatDolar, formatEn, formatMoney } from "@/shared/lib/money";
+import { useDolar } from "@/entities/exchange-rate/api";
+import { LineaDolar } from "@/entities/exchange-rate/ui/dolar";
 import {
   ArrowLeft,
   Check,
@@ -74,6 +76,17 @@ export function PurchaseOrderDetail() {
 
   const pendiente = po?.status === "pending";
 
+  // ─── Dólares ───────────────────────────────────────────────────────────
+  // Una compra en dólares guarda su dólar. Se suele pagar al recibir: si el
+  // dólar de ese momento es otro, se cambia acá antes de confirmar y los Bs
+  // se recalculan con él.
+  const enDolares = po?.currency === "USD";
+  const dolarCompra = Number(po?.exchangeRate ?? 0) || null;
+  const { data: dolarTienda } = useDolar(enDolares && pendiente ? po?.store?.id : undefined);
+  const [dolarRecibir, setDolarRecibir] = useState<number | null>(null);
+  const dolarVigente = enDolares ? (pendiente ? dolarRecibir ?? dolarCompra : dolarCompra) : null;
+  const moneda = enDolares ? "USD" : "BOB";
+
   // Lo que llegó sin estar en la compra: se suma aparte, con el último costo.
   const sumarSinPedir = (r: ResultadoEscaneo, cantidad = 1) => {
     const p = r.producto;
@@ -87,10 +100,15 @@ export function PurchaseOrderDetail() {
       duration: 2500,
     });
     if (ya) return;
+    // El costo va en la moneda de la compra: en dólares, lo último que se
+    // pagó en dólares o el último en Bs pasado a dólares.
     void queryClient
       .fetchQuery(fichaProductoConsulta(p.id, po.store.id))
       .then((ficha) => {
-        const costo = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+        const enBs = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+        const costo = enDolares
+          ? ficha?.costo?.ultimoCostoUsd ?? (enBs && dolarVigente ? centavos(enBs / dolarVigente) : null)
+          : enBs;
         if (costo) rec.cambiarExtra(p.id, { costo });
       })
       .catch(() => undefined);
@@ -175,9 +193,27 @@ export function PurchaseOrderDetail() {
   // qué cambia. Sin contar, se recibe todo lo pedido como siempre.
   const conConteo = rec.empezo && !rec.igualAlPedido;
 
+  // Los Bs de cada línea: en una compra en dólares pendiente, con el dólar
+  // al que se va a recibir (es lo que va a calcular el servidor).
+  const usd = (n: unknown) => Number(n ?? 0);
+  const recalcular = enDolares && pendiente && dolarVigente !== null;
+  const bsUnitario = (item: (typeof po.items)[number]) =>
+    recalcular ? centavos(usd(item.unitCostUsd) * dolarVigente!) : Number(item.unitCost);
+  const bsSubtotal = (item: (typeof po.items)[number]) =>
+    recalcular ? centavos(item.quantity * usd(item.unitCostUsd) * dolarVigente!) : Number(item.subtotal);
+  const totalBs = recalcular
+    ? centavos((po.items ?? []).reduce((s, i) => s + bsSubtotal(i), 0))
+    : Number(po.totalAmount);
+  const dolarNuevo =
+    enDolares && dolarRecibir !== null && dolarRecibir !== dolarCompra ? dolarRecibir : undefined;
+
   const handleConfirm = async () => {
     try {
-      await confirmMutation.mutateAsync(conConteo ? { id: po.id, items: rec.items() } : po.id);
+      await confirmMutation.mutateAsync(
+        conConteo || dolarNuevo
+          ? { id: po.id, ...(conConteo && { items: rec.items() }), ...(dolarNuevo && { exchangeRate: dolarNuevo }) }
+          : po.id,
+      );
       rec.reiniciar();
       setRevisar(false);
       toast.success(
@@ -223,6 +259,7 @@ export function PurchaseOrderDetail() {
             <div className="flex items-center gap-3">
               <h1 className="titulo-pagina">Detalle de compra</h1>
               <Badge variant={status.variant}>{status.label}</Badge>
+              {enDolares && <Badge variant="secondary">En dólares</Badge>}
             </div>
             <p className="cifra mt-1.5 text-[13px] text-muted-foreground">{formatDate(po.created_at)}</p>
           </div>
@@ -278,6 +315,30 @@ export function PurchaseOrderDetail() {
         </Card>
       </div>
 
+      {/* El dólar de la compra: se puede cambiar mientras no se recibió. */}
+      {enDolares && (
+        <Card className="p-4" data-testid="dolar-compra">
+          <p className="mb-1 text-xs text-muted-foreground">
+            {pendiente ? "Dólar de la compra · si pagás a otro al recibir, cambialo" : "Dólar de la compra"}
+          </p>
+          {pendiente ? (
+            <LineaDolar
+              valor={dolarVigente}
+              delDia={dolarTienda?.dolar ?? null}
+              aMano={dolarTienda?.dolar ? dolarVigente !== dolarTienda.dolar.valor : true}
+              etiquetaAMano={dolarRecibir !== null && dolarRecibir !== dolarCompra ? "a mano" : "el de cuando se registró"}
+              onCambio={setDolarRecibir}
+              onVolver={() => setDolarRecibir(dolarTienda?.dolar?.valor ?? null)}
+            />
+          ) : (
+            <p className="text-sm">
+              <span className="text-muted-foreground">$us 1 = </span>
+              <span className="cifra font-semibold">Bs {formatDolar(dolarCompra ?? 0)}</span>
+            </p>
+          )}
+        </Card>
+      )}
+
       {po.notes && (
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">Notas</p>
@@ -309,7 +370,7 @@ export function PurchaseOrderDetail() {
               {pendiente && rec.empezo && (
                 <TableHead className="text-center w-[150px]">Llegó</TableHead>
               )}
-              <TableHead className="text-right w-[140px]">Costo unit.</TableHead>
+              <TableHead className="text-right w-[140px]">Costo unit.{enDolares ? " ($us)" : ""}</TableHead>
               <TableHead className="text-right w-[140px]">Subtotal</TableHead>
             </TableRow>
           </TableHeader>
@@ -358,10 +419,22 @@ export function PurchaseOrderDetail() {
                     </TableCell>
                   )}
                   <TableCell className="text-right">
-                    Bs. {Number(item.unitCost).toFixed(2)}
+                    <span className="cifra">
+                      {formatEn(enDolares ? usd(item.unitCostUsd) : Number(item.unitCost), moneda)}
+                    </span>
+                    {enDolares && (
+                      <span className="cifra block text-xs text-muted-foreground">{formatMoney(bsUnitario(item))}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    Bs. {Number(item.subtotal).toFixed(2)}
+                    <span className="cifra">
+                      {formatEn(enDolares ? usd(item.subtotalUsd) : Number(item.subtotal), moneda)}
+                    </span>
+                    {enDolares && (
+                      <span className="cifra block text-xs font-normal text-muted-foreground">
+                        ≈ {formatMoney(bsSubtotal(item))}
+                      </span>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -399,8 +472,15 @@ export function PurchaseOrderDetail() {
                   titulo={item.product?.name || "Producto"}
                   subtitulo={item.product?.sku || undefined}
                   derecha={
-                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                      Bs. {Number(item.subtotal).toFixed(2)}
+                    <span className="text-right">
+                      <span className="cifra block text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatEn(enDolares ? usd(item.subtotalUsd) : Number(item.subtotal), moneda)}
+                      </span>
+                      {enDolares && (
+                        <span className="cifra block text-xs text-muted-foreground">
+                          ≈ {formatMoney(bsSubtotal(item))}
+                        </span>
+                      )}
                     </span>
                   }
                 />
@@ -410,7 +490,9 @@ export function PurchaseOrderDetail() {
                     { etiqueta: "Cantidad", valor: item.quantity },
                     {
                       etiqueta: "Costo unit.",
-                      valor: `Bs. ${Number(item.unitCost).toFixed(2)}`,
+                      valor: enDolares
+                        ? `${formatEn(usd(item.unitCostUsd), "USD")} (${formatMoney(bsUnitario(item))})`
+                        : formatMoney(Number(item.unitCost)),
                     },
                   ]}
                 />
@@ -428,11 +510,16 @@ export function PurchaseOrderDetail() {
 
         {/* Footer con total destacado */}
         <div className="flex items-center justify-end gap-6 border-t bg-muted/30 px-4 py-3">
-          <div className="text-right">
+          <div className="text-right" data-testid="total-compra">
             <p className="text-xs text-muted-foreground">Total de la compra</p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              Bs. {Number(po.totalAmount).toFixed(2)}
+            <p className="cifra text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {enDolares ? formatEn(usd(po.totalUsd), "USD") : formatMoney(Number(po.totalAmount))}
             </p>
+            {enDolares && dolarVigente !== null && (
+              <p className="cifra text-xs text-muted-foreground">
+                = {formatMoney(totalBs)} al dólar de {formatDolar(dolarVigente)}
+              </p>
+            )}
           </div>
         </div>
       </Card>
@@ -470,7 +557,7 @@ export function PurchaseOrderDetail() {
                   onMas={() => rec.cambiarExtra(x.productId, { cantidad: x.cantidad + 1 })}
                 />
                 <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                  Costo c/u
+                  Costo c/u{enDolares ? " ($us)" : ""}
                   <Input
                     type="number"
                     inputMode="decimal"
@@ -526,7 +613,7 @@ export function PurchaseOrderDetail() {
               <ListaDiferencia
                 titulo="No estaban en la compra"
                 filas={rec.estado.extras.map(
-                  (x) => `${x.cantidad} de ${x.nombre} · ${x.costo ? `${formatMoney(x.costo)} c/u` : "sin costo"}`,
+                  (x) => `${x.cantidad} de ${x.nombre} · ${x.costo ? `${formatEn(x.costo, moneda)} c/u` : "sin costo"}`,
                 )}
               />
             )}

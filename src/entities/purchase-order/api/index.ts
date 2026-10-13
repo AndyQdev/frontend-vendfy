@@ -68,11 +68,15 @@ export function useConfirmPurchaseOrder() {
      * Con `items` (lo contado al escanear la mercadería) la compra queda como
      * llegó: lo que faltó sale, lo que sobró o no estaba pedido entra.
      */
-    mutationFn: async (arg: string | { id: string; items?: ItemRecibido[] }) => {
-      const { id, items } = typeof arg === "string" ? { id: arg, items: undefined } : arg;
+    mutationFn: async (arg: string | { id: string; items?: ItemRecibido[]; exchangeRate?: number }) => {
+      const { id, items, exchangeRate } =
+        typeof arg === "string" ? { id: arg, items: undefined, exchangeRate: undefined } : arg;
+      // En compras en dólares, `exchangeRate` es el dólar al que se pagó al
+      // recibir, si no es el de cuando se registró.
+      const body = { ...(items && { items }), ...(exchangeRate && { exchangeRate }) };
       const response = await apiFetch<PurchaseOrder>(
         `/api/purchase-order/${id}/confirm`,
-        { method: "PATCH", ...(items && { body: { items } }) }
+        { method: "PATCH", ...(Object.keys(body).length > 0 && { body }) }
       );
       return response.data as PurchaseOrder;
     },

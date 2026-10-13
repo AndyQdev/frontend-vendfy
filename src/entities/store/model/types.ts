@@ -49,4 +49,8 @@ export interface StoreConfig {
   storefront?: {
     url?: string;
   };
+  /** De dónde sale el dólar para comprar y cobrar en dólares. Sin elegir: BCB. */
+  exchangeRate?: {
+    source?: "bcb" | "binance";
+  };
 }

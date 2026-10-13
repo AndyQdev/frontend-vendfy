@@ -66,6 +66,9 @@ import { useStore } from "@/app/providers/auth";
 import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
+import { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
+import { formatDolares, formatMoney } from "@/shared/lib/money";
+import { CobroEnDolares, cuentaEnDolares, leerMonto } from "./CobroEnDolares";
 
 // Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre
 const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => {
@@ -93,6 +96,9 @@ const PAYMENT_METHODS = [
   { id: 'qr', name: 'QR', icon: QrCode },
   { id: 'card', name: 'Tarjeta', icon: CreditCard },
 ];
+
+/** Cobrar en dólares: solo en ventas rápidas de tiendas en Bs. */
+const PAGO_DOLARES = { id: 'usd', name: 'Dólares', icon: DollarSign };
 
 export default function Caja() {
   // Ref para el observador de intersección
@@ -436,6 +442,23 @@ export default function Caja() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal; // Por ahora sin descuentos
 
+  // ─── Cobrar en dólares ─────────────────────────────────────────────────
+  // Los precios siguen en Bs; el cliente paga con dólares y el vuelto es en
+  // Bs. La venta guarda cuántos dólares entraron y a qué dólar.
+  const dolar = useDolarElegido(storeId !== "all" ? storeId : undefined);
+  const [usdRecibido, setUsdRecibido] = useState("");
+  const metodosPago = useMemo(
+    () => (dolar.disponible && saleType === 'quick' ? [...PAYMENT_METHODS, PAGO_DOLARES] : PAYMENT_METHODS),
+    [dolar.disponible, saleType],
+  );
+  useEffect(() => {
+    if (paymentMethod === 'usd' && !metodosPago.some((m) => m.id === 'usd')) setPaymentMethod('cash');
+  }, [metodosPago, paymentMethod]);
+  const panelDolares =
+    paymentMethod === 'usd' ? (
+      <CobroEnDolares total={total} dolar={dolar} usd={usdRecibido} onUsd={setUsdRecibido} />
+    ) : null;
+
   // Crear nuevo cliente
   const handleCreateClient = async (data: { name: string; phone: string }) => {
     try {
@@ -480,6 +503,17 @@ export default function Caja() {
       return;
     }
 
+    const enDolares = paymentMethod === 'usd';
+    const dio = leerMonto(usdRecibido);
+    if (enDolares && !dolar.valor) {
+      toast.error("Escribí el dólar del cobro");
+      return;
+    }
+    if (enDolares && !dio) {
+      toast.error("¿Cuántos dólares te dio el cliente?");
+      return;
+    }
+
     try {
       await createOrderMutation.mutateAsync({
         totalAmount: total,
@@ -487,6 +521,7 @@ export default function Caja() {
         paymentMethod: paymentMethod,
         paymentDate: new Date().toISOString(),
         totalReceived: total,
+        ...(enDolares && { usdReceived: dio!, exchangeRate: dolar.valor! }),
         storeId: selectedStore.id,
         customerId: selectedClient.id,
         items: cart.map(item => ({
@@ -496,9 +531,21 @@ export default function Caja() {
         })),
       });
 
-      toast.success(`Venta rápida finalizada! Total: Bs. ${total.toFixed(2)}`);
+      if (enDolares) {
+        const c = cuentaEnDolares(total, dolar.valor, dio);
+        toast.success(`Venta finalizada · cobrado ${formatDolares(dio!)}`, {
+          description: c.falta > 0
+            ? `Más ${formatMoney(c.falta)} en efectivo`
+            : c.vuelto > 0
+              ? `Vuelto: ${formatMoney(c.vuelto)}`
+              : `Total ${formatMoney(total)}`,
+        });
+      } else {
+        toast.success(`Venta rápida finalizada! Total: Bs. ${total.toFixed(2)}`);
+      }
       setCart([]);
       setSelectedClient(null);
+      setUsdRecibido("");
     } catch (error) {
       // El error ya se muestra en el hook useCreateOrder
       console.error('Error en venta rápida:', error);
@@ -1246,8 +1293,8 @@ export default function Caja() {
                 {/* Métodos de pago en cards */}
                 <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground">Método de Pago</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {PAYMENT_METHODS.map((method) => {
+                <div className={`grid gap-2 ${metodosPago.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                    {metodosPago.map((method) => {
                     const Icon = method.icon;
                     const isActive = paymentMethod === method.id;
                     return (
@@ -1281,6 +1328,7 @@ export default function Caja() {
                     );
                     })}
                 </div>
+                {panelDolares}
                 </div>
 
                 {/* Botón finalizar — CTA esmeralda */}
@@ -1323,7 +1371,8 @@ export default function Caja() {
         finalizeSale={finalizeSale}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
-        paymentMethods={PAYMENT_METHODS}
+        paymentMethods={metodosPago}
+        panelPago={panelDolares}
         saleType={saleType}
         setSaleType={setSaleType}
         total={total}

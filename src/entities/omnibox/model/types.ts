@@ -289,6 +289,8 @@ export interface HerramientaGenerada {
 export interface CostoProducto {
   productId: string;
   ultimoCosto: number | null;
+  /** Lo último que se pagó en dólares, si alguna vez se compró en dólares. */
+  ultimoCostoUsd?: number | null;
   ultimoProveedor: string | null;
   costoPromedio: number | null;
 }

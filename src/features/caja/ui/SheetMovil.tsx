@@ -25,6 +25,7 @@ import {
   MapPin,
   DollarSign,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { type Customer } from "@/entities/customer";
 import { ComboBoxClient } from "./ComboBoxClient";
 
@@ -83,6 +84,8 @@ interface SheetMovileCartProps {
     name: string;
     icon: any;
   }>;
+  /** Lo que se muestra debajo del método elegido (el cobro en dólares). */
+  panelPago?: ReactNode;
   
   // Tipo de venta
   saleType: 'quick' | 'installment' | 'delivery';
@@ -114,6 +117,7 @@ export function SheetMovileCart({
   paymentMethod,
   setPaymentMethod,
   paymentMethods,
+  panelPago,
   saleType,
   setSaleType,
   total,
@@ -296,7 +300,7 @@ export function SheetMovileCart({
               <label className="text-xs font-semibold text-muted-foreground">
                 Método de Pago
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className={`grid gap-2 ${paymentMethods.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
                   const isActive = paymentMethod === method.id;
@@ -328,6 +332,7 @@ export function SheetMovileCart({
                   );
                 })}
               </div>
+              {panelPago}
             </div>
 
             {/* Botón finalizar */}

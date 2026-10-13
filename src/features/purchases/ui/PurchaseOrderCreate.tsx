@@ -6,6 +6,9 @@ import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { fichaProductoConsulta } from "@/entities/omnibox/api";
 import { useCreatePurchaseOrder, useConfirmPurchaseOrder } from "@/entities/purchase-order/api";
 import { useStore } from "@/app/providers/auth";
+import type { Moneda } from "@/entities/exchange-rate/model/types";
+import { LineaDolar, SelectorMoneda, useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
+import { centavos, formatDolar, formatEn, formatMoney } from "@/shared/lib/money";
 import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/button";
@@ -56,7 +59,36 @@ interface PurchaseItem {
   productImage?: string;
   productSku?: string;
   quantity: number;
+  /** En la moneda de la compra: Bs, o dólares si es en $us. */
   unitCost: number;
+}
+
+/**
+ * La moneda de la última compra a cada proveedor, en este navegador: si a
+ * "Importadora X" se le compra en dólares, la próxima arranca en dólares.
+ * El proveedor es texto libre, así que la clave es el nombre en minúsculas.
+ */
+const CLAVE_MONEDA_PROVEEDOR = "vendfy.moneda-proveedor";
+const claveProveedor = (nombre: string) => nombre.trim().toLowerCase();
+function monedaDelProveedor(nombre: string): Moneda | null {
+  if (!claveProveedor(nombre)) return null;
+  try {
+    const mapa = JSON.parse(localStorage.getItem(CLAVE_MONEDA_PROVEEDOR) || "{}");
+    const m = mapa[claveProveedor(nombre)];
+    return m === "USD" || m === "BOB" ? m : null;
+  } catch {
+    return null;
+  }
+}
+function recordarMonedaDelProveedor(nombre: string, moneda: Moneda) {
+  if (!claveProveedor(nombre)) return;
+  try {
+    const mapa = JSON.parse(localStorage.getItem(CLAVE_MONEDA_PROVEEDOR) || "{}");
+    mapa[claveProveedor(nombre)] = moneda;
+    localStorage.setItem(CLAVE_MONEDA_PROVEEDOR, JSON.stringify(mapa));
+  } catch {
+    /* sin almacenamiento: no se recuerda, nada más */
+  }
 }
 
 /**
@@ -114,14 +146,16 @@ function CostoUnitario({
   item,
   index,
   updateItem,
+  moneda,
 }: {
   item: PurchaseItem;
   index: number;
   updateItem: (index: number, field: keyof PurchaseItem, value: any) => void;
+  moneda: Moneda;
 }) {
   return (
     <div className="flex items-center justify-end gap-1.5">
-      <span className="text-xs text-muted-foreground">Bs.</span>
+      <span className="text-xs text-muted-foreground">{moneda === "USD" ? "$us" : "Bs"}</span>
       <Input
         type="number"
         min={0}
@@ -131,6 +165,7 @@ function CostoUnitario({
           updateItem(index, "unitCost", parseFloat(e.target.value) || 0)
         }
         placeholder="0.00"
+        aria-label={`Costo de ${item.productName} en ${moneda === "USD" ? "dólares" : "bolivianos"}`}
         className="h-8 w-24 text-right"
       />
     </div>
@@ -150,6 +185,43 @@ export function PurchaseOrderCreate() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [saveMode, setSaveMode] = useState<"pending" | "confirm">("confirm");
+
+  // ─── Moneda ────────────────────────────────────────────────────────────
+  // En dólares se escriben los costos como los cobra el proveedor; la
+  // compra guarda los dólares y el dólar, y al inventario entra en Bs.
+  const [moneda, setMoneda] = useState<Moneda>("BOB");
+  const [monedaTocada, setMonedaTocada] = useState(false);
+  const dolar = useDolarElegido(storeId);
+  const monedaRef = useRef(moneda);
+  monedaRef.current = moneda;
+  const dolarRef = useRef(dolar.valor);
+  dolarRef.current = dolar.valor;
+
+  /** Cambia la moneda pasando los costos ya escritos a la nueva. */
+  const cambiarMoneda = (nueva: Moneda) => {
+    if (nueva === moneda) return;
+    const d = dolar.valor;
+    const conCosto = items.some((i) => i.unitCost > 0);
+    if (d && conCosto) {
+      setItems((prev) =>
+        prev.map((i) => ({ ...i, unitCost: centavos(nueva === "USD" ? i.unitCost / d : i.unitCost * d) })),
+      );
+      toast.info(nueva === "USD" ? "Pasé los costos a dólares" : "Pasé los costos a bolivianos", { duration: 2200 });
+    }
+    setMoneda(nueva);
+  };
+
+  // Si a este proveedor ya se le compró en otra moneda, arranca en esa
+  // (mientras no se haya elegido a mano).
+  useEffect(() => {
+    if (monedaTocada || !dolar.disponible) return;
+    const t = setTimeout(() => {
+      const recordada = monedaDelProveedor(supplierName);
+      if (recordada && recordada !== monedaRef.current) cambiarMoneda(recordada);
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplierName, monedaTocada, dolar.disponible]);
 
   // Debounce search 400ms
   useEffect(() => {
@@ -244,12 +316,20 @@ export function PurchaseOrderCreate() {
       });
 
       // El costo llega después, para no frenar la pistola: casi siempre es
-      // el de la última vez. Si ya escribieron uno, no se pisa.
+      // el de la última vez. Si ya escribieron uno, no se pisa. En dólares,
+      // lo último que se pagó en dólares (el proveedor suele cobrar lo mismo
+      // en dólares aunque en Bs salga distinto) o el último en Bs pasado a
+      // dólares.
       if (yaEstaba || !storeId) return;
       void queryClient
         .fetchQuery(fichaProductoConsulta(p.id, storeId))
         .then((ficha) => {
-          const costo = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+          const enBs = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+          const d = dolarRef.current;
+          const costo =
+            monedaRef.current === "USD"
+              ? ficha?.costo?.ultimoCostoUsd ?? (enBs && d ? centavos(enBs / d) : null)
+              : enBs;
           if (!costo) return;
           setItems((prev) =>
             prev.map((i) => (i.productId === p.id && !i.unitCost ? { ...i, unitCost: costo } : i)),
@@ -286,6 +366,10 @@ export function PurchaseOrderCreate() {
   }, [resaltado]);
 
   const total = items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0);
+  const enDolares = moneda === "USD";
+  /** Lo mismo que calcula el servidor: cada línea en Bs, redondeada. */
+  const aBs = (usd: number) => (dolar.valor ? centavos(usd * dolar.valor) : 0);
+  const totalBs = enDolares ? centavos(items.reduce((s, i) => s + aBs(i.unitCost * i.quantity), 0)) : total;
   const isSubmitting = createMutation.isPending || confirmMutation.isPending;
 
   const handleSubmit = async () => {
@@ -294,6 +378,7 @@ export function PurchaseOrderCreate() {
     for (const item of items) {
       if (item.quantity <= 0) { toast.error(`Cantidad inválida en "${item.productName}"`); return; }
     }
+    if (enDolares && !dolar.valor) { toast.error("Escribí el dólar de la compra"); return; }
 
     try {
       const created = await createMutation.mutateAsync({
@@ -302,8 +387,10 @@ export function PurchaseOrderCreate() {
         supplierContact: supplierContact || undefined,
         referenceNumber: referenceNumber || undefined,
         notes: notes || undefined,
+        ...(enDolares ? { currency: "USD" as const, exchangeRate: dolar.valor! } : {}),
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity, unitCost: i.unitCost })),
       });
+      recordarMonedaDelProveedor(supplierName, moneda);
 
       if (saveMode === "confirm" && created.id) {
         await confirmMutation.mutateAsync(created.id);
@@ -412,6 +499,28 @@ export function PurchaseOrderCreate() {
                 <Input value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} placeholder="FAC-001234" className="h-9 mt-1" />
               </div>
             </div>
+            {dolar.disponible && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="moneda-compra">
+                <span className="text-xs font-medium">Moneda</span>
+                <SelectorMoneda
+                  valor={moneda}
+                  etiqueta="Moneda de la compra"
+                  onCambio={(m) => {
+                    setMonedaTocada(true);
+                    cambiarMoneda(m);
+                  }}
+                />
+                {enDolares && (
+                  <LineaDolar
+                    valor={dolar.valor}
+                    delDia={dolar.delDia}
+                    aMano={dolar.aMano}
+                    onCambio={dolar.cambiar}
+                    onVolver={dolar.volverAlDelDia}
+                  />
+                )}
+              </div>
+            )}
             <div className="mt-3">
               <Label className="text-xs">Notas</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." rows={2} className="mt-1" />
@@ -428,7 +537,7 @@ export function PurchaseOrderCreate() {
                     <TableHead className="w-[60px]"></TableHead>
                     <TableHead>Producto</TableHead>
                     <TableHead className="w-[170px] text-center">Cantidad</TableHead>
-                    <TableHead className="w-[140px] text-right">Costo unit.</TableHead>
+                    <TableHead className="w-[140px] text-right">Costo unit.{enDolares ? " ($us)" : ""}</TableHead>
                     <TableHead className="w-[120px] text-right">Subtotal</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -486,12 +595,18 @@ export function PurchaseOrderCreate() {
                           item={item}
                           index={index}
                           updateItem={updateItem}
+                          moneda={moneda}
                         />
                       </TableCell>
 
                       {/* Subtotal */}
                       <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                        Bs. {(item.quantity * item.unitCost).toFixed(2)}
+                        <span className="cifra">{formatEn(item.quantity * item.unitCost, moneda)}</span>
+                        {enDolares && dolar.valor && (
+                          <span className="cifra block text-xs font-normal text-muted-foreground">
+                            ≈ {formatMoney(aBs(item.quantity * item.unitCost))}
+                          </span>
+                        )}
                       </TableCell>
 
                       {/* Eliminar */}
@@ -554,8 +669,15 @@ export function PurchaseOrderCreate() {
                       titulo={item.productName}
                       subtitulo={item.productSku || undefined}
                       derecha={
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                          Bs. {(item.quantity * item.unitCost).toFixed(2)}
+                        <span className="text-right">
+                          <span className="cifra block text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                            {formatEn(item.quantity * item.unitCost, moneda)}
+                          </span>
+                          {enDolares && dolar.valor && (
+                            <span className="cifra block text-xs text-muted-foreground">
+                              ≈ {formatMoney(aBs(item.quantity * item.unitCost))}
+                            </span>
+                          )}
                         </span>
                       }
                     />
@@ -575,12 +697,13 @@ export function PurchaseOrderCreate() {
 
                       <label className="space-y-1 text-right">
                         <span className="etiqueta block text-[10px] text-muted-foreground">
-                          Costo unit.
+                          Costo unit.{enDolares ? " ($us)" : ""}
                         </span>
                         <CostoUnitario
                           item={item}
                           index={index}
                           updateItem={updateItem}
+                          moneda={moneda}
                         />
                       </label>
                     </div>
@@ -595,11 +718,16 @@ export function PurchaseOrderCreate() {
                   {items.reduce((s, i) => s + i.quantity, 0)} unidad
                   {items.reduce((s, i) => s + i.quantity, 0) !== 1 ? "es" : ""}
                 </div>
-                <div className="text-right">
+                <div className="text-right" data-testid="total-compra">
                   <p className="text-xs text-muted-foreground">Total a pagar</p>
-                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                    Bs. {total.toFixed(2)}
+                  <p className="cifra text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatEn(total, moneda)}
                   </p>
+                  {enDolares && dolar.valor && (
+                    <p className="cifra text-xs text-muted-foreground">
+                      = {formatMoney(totalBs)} al dólar de {formatDolar(dolar.valor)}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
