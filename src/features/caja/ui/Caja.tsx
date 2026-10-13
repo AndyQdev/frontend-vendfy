@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { AjustesVoz, agregarAVenta, frasesAlAgregar, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { AjustesVoz, agregarAVenta, frasesCaja, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { useVentaEnCurso } from "@/entities/order";
 import { decirFrases } from "@/shared/voz";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
@@ -350,9 +350,10 @@ export default function Caja() {
       const p = r.producto;
       if (!p) return;
       const resultado = agregarAVenta(r, storeId === "all" ? null : storeId);
-      // Quien escanea mira el producto, no la pantalla: la voz dice solo el
-      // precio ("Doce bolivianos con cincuenta."); si no entró, avisa el bip.
-      decirFrases(frasesAlAgregar(resultado));
+      // Quien escanea mira el producto, no la pantalla: la voz dice el precio
+      // y, desde el segundo, cuántos van ("Doce bolivianos. Van dos."); si no
+      // entró, "Agotado." o "No quedan más." además del bip.
+      decirFrases(frasesCaja(resultado));
 
       if (resultado.ok === false) {
         sonar("error");

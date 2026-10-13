@@ -1,3 +1,4 @@
+import { FRASES_FIJAS } from "../model/frases";
 import { useState } from "react";
 import { motion } from "motion/react";
 import { AudioLines, Check, Play, Volume2, VolumeX } from "lucide-react";
@@ -36,8 +37,8 @@ export function AjustesVoz({ className, align = "end" }: { className?: string; a
     setPreferenciasVoz({ voz: v.id });
     setProbando(v.id);
     probarVoz(v.id, muestra(v));
-    // Los precios del comercio con la voz nueva, para que suenen al instante.
-    void precalentarVoz();
+    // Los precios del comercio y las frases fijas con la voz nueva, para que suenen al instante.
+    void precalentarVoz(FRASES_FIJAS);
   };
 
   return (

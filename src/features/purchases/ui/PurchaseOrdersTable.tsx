@@ -9,7 +9,7 @@ import {
 import type { PurchaseOrder } from "@/entities/purchase-order/model/types";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { useStore } from "@/app/providers/auth";
-import { ChipProductoEscaneado, textoCompras, useFiltroEscaneado } from "@/features/scanner";
+import { ChipProductoEscaneado, frasesCompras, textoCompras, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -124,7 +124,7 @@ export function PurchaseOrdersTable() {
   // cuánto se le compró la última vez.
   const filtro = useFiltroEscaneado("Muestra solo las compras de ese producto");
 
-  const { data: response, isLoading } = usePurchaseOrders({
+  const { data: response, isLoading, isFetching } = usePurchaseOrders({
     limit: 50,
     order: "DESC",
     ...(storeId && { storeId }),
@@ -134,6 +134,11 @@ export function PurchaseOrdersTable() {
   const confirmMutation = useConfirmPurchaseOrder();
   const cancelMutation = useCancelPurchaseOrder();
   const deleteMutation = useDeletePurchaseOrder();
+
+  // "Mermelada Arcor. Lo compraste tres veces. La última, hace cinco días."
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesCompras(filtro.producto!.nombre, response?.resumen),
+  );
 
   const orders = response?.data || [];
 

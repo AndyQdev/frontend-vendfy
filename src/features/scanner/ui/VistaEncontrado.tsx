@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Store,
   Tag,
+  Truck,
 } from "lucide-react";
 
 import type { ItemVenta } from "@/entities/order";
@@ -60,6 +61,8 @@ interface Props {
   onAgregar: () => void;
   onCobrar: () => void;
   onIrACobrar: () => void;
+  /** A Nueva compra con este producto. */
+  onComprar: () => void;
   onEditar: () => void;
   onRepetirPrecio: () => void;
 }
@@ -73,6 +76,7 @@ export function VistaEncontrado({
   onAgregar,
   onCobrar,
   onIrACobrar,
+  onComprar,
   onEditar,
   onRepetirPrecio,
 }: Props) {
@@ -290,6 +294,10 @@ export function VistaEncontrado({
         <Button variant="ghost" onClick={onEditar}>
           <Pencil aria-hidden />
           Editar
+        </Button>
+        <Button variant="outline" onClick={onComprar}>
+          <Truck aria-hidden />
+          Comprar
         </Button>
         {deEste > 0 ? (
           <Button variant="outline" onClick={onIrACobrar}>

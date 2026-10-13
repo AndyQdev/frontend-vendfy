@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useCustomers, useDeleteCustomer } from "@/entities/customer/api";
-import { ChipProductoEscaneado, useFiltroEscaneado } from "@/features/scanner";
+import { ChipProductoEscaneado, frasesClientes, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -69,7 +69,11 @@ export default function CustomersTable() {
     ...(filtro.producto && { productId: filtro.producto.id }),
   };
 
-  const { data: customersResponse, isLoading } = useCustomers(queryParams);
+  const { data: customersResponse, isLoading, isFetching } = useCustomers(queryParams);
+  // "Mermelada Arcor. Te lo compraron cuatro clientes."
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesClientes(filtro.producto!.nombre, customersResponse?.countData ?? 0),
+  );
 
   // Otro producto escaneado: desde la primera página.
   const productoFiltrado = filtro.producto?.id;

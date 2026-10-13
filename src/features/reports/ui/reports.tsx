@@ -30,7 +30,7 @@ import {
 } from "../api";
 import type { ReportQueryParams } from "../model/types";
 import { ReporteProducto } from "./reporte-producto";
-import { useFiltroEscaneado } from "@/features/scanner";
+import { frasesReporte, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 
 export function Reports() {
   const [period, setPeriod] = useState("7days");
@@ -61,6 +61,8 @@ export function Reports() {
 
   // Escanear un producto muestra sus estadísticas, con el mismo período.
   const filtro = useFiltroEscaneado("Muestra las estadísticas de ese producto");
+  // "Reporte de Mermelada Arcor."
+  useVozAlFiltrar(filtro.producto, true, () => frasesReporte(filtro.producto!.nombre));
 
   const periods = [
     { value: "today", label: "Hoy" },

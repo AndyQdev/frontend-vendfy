@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useDolaresHoy, useOrders } from "@/entities/order/api";
 import { nombrePago } from "@/entities/order/model/pago";
 import { useStore } from "@/app/providers/auth";
-import { ChipProductoEscaneado, textoVentas, useFiltroEscaneado } from "@/features/scanner";
+import { ChipProductoEscaneado, frasesVentas, textoVentas, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -62,7 +62,11 @@ export default function SalesTable() {
     ...(filtro.producto && { productId: filtro.producto.id }),
   };
 
-  const { data: ordersResponse, isLoading } = useOrders(queryParams);
+  const { data: ordersResponse, isLoading, isFetching } = useOrders(queryParams);
+  // "Mermelada Arcor. Vendiste doce."
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesVentas(filtro.producto!.nombre, ordersResponse?.stats?.producto),
+  );
   const { data: dolaresHoy } = useDolaresHoy(selectedStore && selectedStore !== "all" ? selectedStore.id : undefined);
 
   // Otro producto escaneado: desde la primera página.

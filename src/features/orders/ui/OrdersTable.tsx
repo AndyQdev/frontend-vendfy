@@ -37,7 +37,7 @@ import { OrderDetailsModal } from "./OrderDetails";
 import { DeliveryTrackingModal } from "./DeliveryTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
-import { ChipProductoEscaneado, textoVentas, useFiltroEscaneado } from "@/features/scanner";
+import { ChipProductoEscaneado, frasesPedidos, textoVentas, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 
 type DateFilter = "day" | "week" | "month" | "year";
 
@@ -261,7 +261,11 @@ export default function OrdersTable() {
     dateFilter,
     ...(filtro.producto && { productId: filtro.producto.id }),
   };
-  const { data: ordersResponse, isLoading } = useOrders(paramsPedidos);
+  const { data: ordersResponse, isLoading, isFetching } = useOrders(paramsPedidos);
+  // "Mermelada Arcor. Está en tres pedidos." (los del período del tablero)
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesPedidos(filtro.producto!.nombre, ordersResponse?.stats?.producto?.ventas ?? ordersResponse?.data?.length ?? 0),
+  );
 
   const allOrders = ordersResponse?.data || [];
 

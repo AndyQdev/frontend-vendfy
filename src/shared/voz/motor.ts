@@ -26,9 +26,15 @@ import { preferenciasVoz } from "./preferencias";
 
 export type AvisoVoz = "agotado" | "sin_mas" | "a_pedido" | "quedan" | "van" | "sin_tienda";
 
+/**
+ * Una pieza de lo que se dice al escanear. "texto" es una frase corta ya
+ * escrita en palabras ("Tienes cuatro.", "Mermelada Arcor."): el servidor la
+ * guarda por su texto, así que se genera una vez para todos los comercios.
+ */
 export type FraseVoz =
   | { tipo: "precio"; monto: number; moneda?: string | null }
-  | { tipo: "aviso"; aviso: AvisoVoz; n?: number };
+  | { tipo: "aviso"; aviso: AvisoVoz; n?: number }
+  | { tipo: "texto"; texto: string };
 
 const FRECUENCIA = 24_000;
 
@@ -60,6 +66,7 @@ function monedaConocida(codigo?: string | null): string {
 
 /** Igual que en el servidor: así las URLs del precalentado se encuentran. */
 export function idDeFrase(f: FraseVoz): string {
+  if (f.tipo === "texto") return `t:${f.texto}`;
   return f.tipo === "precio"
     ? `precio:${f.monto.toFixed(2)}:${monedaConocida(f.moneda)}`
     : `aviso:${f.aviso}:${f.n ?? ""}`;
@@ -76,6 +83,7 @@ const NOMBRE_MONEDA: Record<string, [string, string]> = {
 
 /** Lo que dice la voz del navegador si la natural no llega. Con cifras: las lee bien. */
 function textoDeRespaldo(f: FraseVoz): string {
+  if (f.tipo === "texto") return f.texto;
   if (f.tipo === "precio") {
     const [singular, plural] = NOMBRE_MONEDA[monedaConocida(f.moneda)] ?? ["peso", "pesos"];
     const centavos = Math.round(f.monto * 100);
@@ -397,6 +405,7 @@ async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: num
 }
 
 function paraFrase(voz: string, f: FraseVoz): QueDecir {
+  if (f.tipo === "texto") return paraTexto(voz, f.texto, ESPERA_MS.precio);
   const frase =
     f.tipo === "precio"
       ? { tipo: "precio", monto: Math.round(f.monto * 100) / 100, ...(f.moneda ? { moneda: f.moneda } : {}) }
@@ -417,7 +426,7 @@ function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
 
 // ─── Lo que usan las pantallas ─────────────────────────────────────────────
 
-/** El precio de lo escaneado. Corta lo que se estuviera diciendo. */
+/** Lo que se dice al escanear (el precio, el stock…). Corta lo que se estuviera diciendo. */
 export function decirFrases(frases: FraseVoz[], { forzar = false }: { forzar?: boolean } = {}) {
   const { precios, voz } = preferenciasVoz();
   // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.
@@ -457,7 +466,7 @@ export function probarVoz(voz: string, texto: string) {
  * se queda con las URLs de los que ya están. Una vez cada media hora por
  * pestaña: el servidor los va generando de a poco.
  */
-export async function precalentarVoz() {
+export async function precalentarVoz(textos: string[] = []) {
   const { voz, precios } = preferenciasVoz();
   if (!precios || !localStorage.getItem("authToken")) return;
   const clave = `vendfy.voz.precalentado.${voz}`;
@@ -470,7 +479,7 @@ export async function precalentarVoz() {
   try {
     const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }> }>("/api/voz/precalentar", {
       method: "POST",
-      body: { voz },
+      body: { voz, ...(textos.length ? { textos } : {}) },
     });
     for (const { id, url } of r.data?.listas ?? []) recordarUrl(`${voz}|${id}`, url);
   } catch {

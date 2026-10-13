@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProducts } from "@/entities/product/api";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
@@ -9,7 +9,8 @@ import { useStore } from "@/app/providers/auth";
 import type { Moneda } from "@/entities/exchange-rate/model/types";
 import { LineaDolar, SelectorMoneda, useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 import { centavos, formatDolar, formatEn, formatMoney } from "@/shared/lib/money";
-import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { fraseNombre, fraseVan, frasesNuevaCompra, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { decirFrases } from "@/shared/voz";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -287,10 +288,8 @@ export function PurchaseOrderCreate() {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
-  const agregarEscaneado = useCallback(
-    (r: ResultadoEscaneo, cantidad = 1) => {
-      const p = r.producto;
-      if (!p) return;
+  const agregarProducto = useCallback(
+    (p: { id: string; name: string; imageUrl: string | null; sku: string | null }, cantidad = 1) => {
       const yaEstaba = itemsRef.current.find((i) => i.productId === p.id);
       setItems((prev) =>
         prev.some((i) => i.productId === p.id)
@@ -300,7 +299,7 @@ export function PurchaseOrderCreate() {
               {
                 productId: p.id,
                 productName: p.name,
-                productImage: p.imageUrls[0],
+                productImage: p.imageUrl ?? undefined,
                 productSku: p.sku ?? undefined,
                 quantity: cantidad,
                 unitCost: 0,
@@ -308,6 +307,9 @@ export function PurchaseOrderCreate() {
             ],
       );
       sonar("encontrado");
+      // La voz: desde el segundo, cuántos van; el primero espera al costo
+      // ("Mermelada Arcor. La última vez, cuarenta y cinco bolivianos.").
+      if (yaEstaba) decirFrases([fraseVan(yaEstaba.quantity + cantidad)]);
       setResaltado({ id: p.id, vez: Date.now() });
       const total = (yaEstaba?.quantity ?? 0) + cantidad;
       toast.success(p.name, {
@@ -320,25 +322,54 @@ export function PurchaseOrderCreate() {
       // lo último que se pagó en dólares (el proveedor suele cobrar lo mismo
       // en dólares aunque en Bs salga distinto) o el último en Bs pasado a
       // dólares.
-      if (yaEstaba || !storeId) return;
+      if (yaEstaba) return;
+      if (!storeId) {
+        decirFrases([fraseNombre(p.name)]);
+        return;
+      }
       void queryClient
         .fetchQuery(fichaProductoConsulta(p.id, storeId))
         .then((ficha) => {
           const enBs = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
           const d = dolarRef.current;
-          const costo =
-            monedaRef.current === "USD"
-              ? ficha?.costo?.ultimoCostoUsd ?? (enBs && d ? centavos(enBs / d) : null)
-              : enBs;
+          const enDolares = monedaRef.current === "USD";
+          const costo = enDolares
+            ? ficha?.costo?.ultimoCostoUsd ?? (enBs && d ? centavos(enBs / d) : null)
+            : enBs;
+          decirFrases(
+            frasesNuevaCompra(p.name, cantidad, costo ? { monto: costo, moneda: enDolares ? "USD" : "BOB" } : null),
+          );
           if (!costo) return;
           setItems((prev) =>
             prev.map((i) => (i.productId === p.id && !i.unitCost ? { ...i, unitCost: costo } : i)),
           );
         })
-        .catch(() => undefined);
+        .catch(() => decirFrases([fraseNombre(p.name)]));
     },
     [queryClient, storeId],
   );
+
+  const agregarEscaneado = useCallback(
+    (r: ResultadoEscaneo, cantidad = 1) => {
+      const p = r.producto;
+      if (!p) return;
+      agregarProducto({ id: p.id, name: p.name, imageUrl: p.imageUrls[0] ?? null, sku: p.sku ?? null }, cantidad);
+    },
+    [agregarProducto],
+  );
+
+  // "Comprar" desde la ficha de un producto: llega ya cargado.
+  const location = useLocation();
+  const desdeFicha = useRef(false);
+  useEffect(() => {
+    const comprar = (location.state as { comprar?: { id: string; name: string; imageUrl: string | null; sku: string | null } } | null)
+      ?.comprar;
+    if (!comprar || desdeFicha.current) return;
+    desdeFicha.current = true;
+    agregarProducto(comprar);
+    // Que volver o recargar no lo agregue otra vez.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, agregarProducto, navigate]);
 
   useManejadorEscaneo(async (lectura) => {
     const r = await buscar(lectura.codigo);

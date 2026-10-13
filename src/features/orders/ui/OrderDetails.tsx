@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/cn";
-import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { frasesArmado, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { decirFrases } from "@/shared/voz";
 import { esArmable, useArmado } from "../model/armado";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 import {
@@ -45,10 +46,19 @@ export function OrderDetailsModal({
       const p = r.producto;
       if (!p) {
         sonar("error");
+        decirFrases(frasesArmado({ tipo: "no_esta" }));
         toast.error("Ese código no está registrado", { description: "No es de este pedido." });
         return true;
       }
       const res = armado.escanear(p.id);
+      // "Uno de dos.", "Pedido armado.", "Ya están todos.", "Esto no va en el pedido."
+      decirFrases(
+        frasesArmado(
+          res.tipo === "sumado"
+            ? { tipo: "sumado", listas: res.cuenta, lleva: res.linea.lleva, pedidoCompleto: res.pedidoCompleto }
+            : { tipo: res.tipo },
+        ),
+      );
       if (res.tipo === "no_esta") {
         sonar("error");
         toast.error(`${p.name} no va en este pedido`);

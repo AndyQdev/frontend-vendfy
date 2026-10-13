@@ -53,7 +53,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
-import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import {
+  frasesNoEstabaEnLaCompra,
+  frasesRecepcion,
+  sonar,
+  useEscaner,
+  useManejadorEscaneo,
+} from "@/features/scanner";
+import { decirFrases } from "@/shared/voz";
 import { useRecepcion } from "../model/recepcion";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -94,6 +101,8 @@ export function PurchaseOrderDetail() {
     const ya = rec.estado.extras.some((x) => x.productId === p.id);
     rec.sumarExtra({ productId: p.id, nombre: p.name, imagen: p.imageUrls[0] ?? null }, cantidad);
     sonar("sugerido");
+    // "Mermelada Arcor. No estaba en la compra."
+    if (!ya) decirFrases(frasesNoEstabaEnLaCompra(p.name));
     setResaltado({ id: p.id, vez: Date.now() });
     toast.warning(`${p.name} no estaba en la compra`, {
       description: "Lo sumé aparte. Revisá su costo antes de confirmar.",
@@ -134,6 +143,8 @@ export function PurchaseOrderDetail() {
       const llego = (rec.estado.llego[p.id] ?? 0) + 1;
       rec.sumar(p.id, 1);
       setResaltado({ id: p.id, vez: Date.now() });
+      // "Dos de tres.", "Tres de tres. Completo.", "Llegaron cuatro. Pediste tres."
+      decirFrases(frasesRecepcion(llego, linea.pedido));
       if (llego > linea.pedido) {
         sonar("sugerido");
         toast.warning(p.name, {

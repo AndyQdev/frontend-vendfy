@@ -5,7 +5,7 @@ import { buscarPorCodigo, claveEscaneo, useCreateProduct } from "@/entities/prod
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import type { ProductInput } from "@/entities/product/model/schema";
 import type { ProductoOpcion } from "@/entities/omnibox/model/types";
-import { frasesDeFicha, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { frasesDeFicha, frasesFicha, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { ApiError } from "@/shared/api/client";
 import { decirFrases } from "@/shared/voz";
 
@@ -97,8 +97,11 @@ export function useEscaneoEnChat({
     cambiar(id, (e) => ({ ...e, resultado: r, producto, estado: "elegir" }));
     // Con la venta o la compra abierta no se pregunta: entra ahí, como en Caja.
     const destino = destinoDirecto(mesaRef.current.abierta);
-    // La voz dice el precio, como en todo el panel; comprando no (el precio de venta ahí confunde).
-    if (destino !== "compra") decirFrases(frasesDeFicha(r, storeId));
+    // La voz: con la venta abierta, el precio (entra directo, como en Caja);
+    // sin nada abierto, la ficha ("… ¿Lo vendes o lo compras?"); comprando
+    // nada (el precio de venta ahí confunde).
+    if (destino === "venta") decirFrases(frasesDeFicha(r, storeId));
+    else if (destino !== "compra") decirFrases(frasesFicha(r, storeId));
     if (destino === "venta") vender(id, producto);
     else if (destino === "compra") await comprar(id, producto);
   }
