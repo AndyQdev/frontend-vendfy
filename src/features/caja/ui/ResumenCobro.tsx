@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/cn";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
 import type { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
-import { cuentaEnDolares, FilasDolares } from "./CobroEnDolares";
+import { cuentaEnDolares, FilasDolares } from "@/entities/exchange-rate/ui/cobro-dolares";
 
 export interface MetodoPago {
   id: string;

@@ -2,7 +2,20 @@ import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { centavos, formatDolar, formatMoney } from "@/shared/lib/money";
-import { leerDolar, type useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
+import { leerDolar } from "./dolar";
+import type { DolarDelDia } from "../model/types";
+
+/**
+ * El dólar de un cobro: el del día o el escrito a mano. Lo da `useDolarElegido`
+ * (la Caja) o la venta del asistente, que lo guarda en su borrador.
+ */
+export interface DolarDelCobro {
+  valor: number | null;
+  delDia: DolarDelDia | null;
+  aMano: boolean;
+  cambiar: (n: number) => void;
+  volverAlDelDia: () => void;
+}
 
 /** "20", "20,50", "" → monto o null. */
 export const leerMonto = (v: string): number | null => {
@@ -46,7 +59,7 @@ export function FilasDolares({
   onUsd,
 }: {
   total: number;
-  dolar: ReturnType<typeof useDolarElegido>;
+  dolar: DolarDelCobro;
   usd: string;
   onUsd: (v: string) => void;
 }) {

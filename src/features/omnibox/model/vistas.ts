@@ -352,15 +352,28 @@ export function paraReponer(filas: Record<string, unknown>[]): Reposicion[] {
  * "Reponer estos 3" (el puente a N1): lo mismo que cargar cada producto a la
  * compra a mano, y la compra abierta para revisarla. No registra nada.
  */
-export function accionesReponer(items: Reposicion[]): AccionMesa[] {
+export function accionesReponer(
+  items: Reposicion[],
+  /** La compra abierta: en dólares, el costo (que viene en Bs) se pasa con su dólar. */
+  compra: { moneda?: "BOB" | "USD"; dolar?: number | null } = {},
+): AccionMesa[] {
   if (items.length === 0) return [];
+  const moneda = compra.moneda ?? "BOB";
   return [
     ...items.map(
       (it): AccionMesa => ({
         tipo: "agregarCompra",
         producto: it.producto,
         cantidad: it.cantidad,
-        costo: it.costo ?? 0,
+        // (Sin importar `convertir` de mesa.ts: mesa.ts ya importa de acá.)
+        costo:
+          it.costo == null
+            ? 0
+            : moneda === "BOB"
+              ? it.costo
+              : compra.dolar
+                ? Math.round((it.costo / compra.dolar) * 100) / 100
+                : 0,
         costoAnterior: it.costo,
       }),
     ),

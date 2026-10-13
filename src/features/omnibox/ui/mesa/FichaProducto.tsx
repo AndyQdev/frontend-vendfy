@@ -5,7 +5,7 @@ import { useFichaProducto } from "@/entities/omnibox/api";
 import type { ProductoOpcion } from "@/entities/omnibox/model/types";
 import { cn } from "@/shared/lib/cn";
 
-import type { TipoMesa } from "../../model/mesa";
+import { costoEnCompra, type BorradorCompra, type TipoMesa } from "../../model/mesa";
 import { BotonCta, FotoProducto, dinero, formato } from "../piezas";
 import { recordarOrigen } from "../coreografia/animaciones";
 import { Cantidad } from "./Cantidad";
@@ -24,13 +24,16 @@ export function FichaProducto({
   producto: base,
   storeId,
   mesa,
+  compra,
   onAgregar,
 }: {
   producto: ProductoOpcion;
   storeId: string;
   mesa: TipoMesa;
-  /** En la compra trae el costo y el anterior; en la venta, solo la cantidad. */
-  onAgregar: (cantidad: number, costo?: number, costoAnterior?: number | null) => void;
+  /** La compra abierta: el costo se precarga y se escribe en su moneda (Bs o dólares). */
+  compra?: Pick<BorradorCompra, "moneda" | "dolar">;
+  /** En la compra trae el costo (en su moneda) y los anteriores; en la venta, solo la cantidad. */
+  onAgregar: (cantidad: number, costo?: number, costoAnterior?: number | null, costoAnteriorUsd?: number | null) => void;
 }) {
   const { data: ficha } = useFichaProducto(base.productId, storeId);
   const [cantidad, setCantidad] = useState(1);
@@ -43,11 +46,14 @@ export function FichaProducto({
     onAgregar(...args);
   };
   // El costo se precarga con lo que se pagó la última vez: casi siempre es eso.
-  const costoPrevio = ficha?.costo?.ultimoCosto ?? ficha?.costo?.costoPromedio ?? null;
+  // En una compra en dólares, lo último pagado en dólares (o lo de Bs pasado).
+  const enDolares = compra?.moneda === "USD";
+  const sugerido = ficha?.costo ? costoEnCompra(compra ?? {}, null, null, ficha.costo).costo : null;
+  const costoPrevio = sugerido ? sugerido : null;
   const [costo, setCosto] = useState<string>("");
   useEffect(() => {
     setCosto(costoPrevio != null ? String(costoPrevio) : "");
-  }, [base.productId, costoPrevio]);
+  }, [base.productId, costoPrevio, enDolares]);
   // Otro producto, otra cuenta: ni la cantidad ni la foto elegida se arrastran.
   useEffect(() => {
     setCantidad(1);
@@ -174,7 +180,10 @@ export function FichaProducto({
         <div className="sticky bottom-0 z-10 space-y-2 border-t border-border bg-card px-4 py-3 sm:px-5">
           {ficha?.costo?.ultimoCosto != null && (
             <p className="cifra text-xs text-muted-foreground">
-              La última vez lo pagaste Bs {dinero(ficha.costo.ultimoCosto)}
+              La última vez lo pagaste{" "}
+              {enDolares && ficha.costo.ultimoCostoUsd != null
+                ? `$us ${dinero(ficha.costo.ultimoCostoUsd)}`
+                : `Bs ${dinero(ficha.costo.ultimoCosto)}`}
               {ficha.costo.ultimoProveedor ? ` a ${ficha.costo.ultimoProveedor}` : ""}
             </p>
           )}
@@ -184,7 +193,7 @@ export function FichaProducto({
               <Cantidad valor={cantidad} onCambio={(v) => setCantidad(Math.max(1, v))} />
             </div>
             <label>
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Costo c/u (Bs)</span>
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">Costo c/u ({enDolares ? "$us" : "Bs"})</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -199,7 +208,7 @@ export function FichaProducto({
             <BotonCta
               data-testid="omnibox-agregar-compra"
               className="h-11 flex-1"
-              onClick={() => agregar(cantidad, Number(costo) || 0, ficha?.costo?.ultimoCosto ?? null)}
+              onClick={() => agregar(cantidad, Number(costo) || 0, ficha?.costo?.ultimoCosto ?? null, ficha?.costo?.ultimoCostoUsd ?? null)}
             >
               <Truck className="size-4" />
               Agregar a la compra

@@ -68,7 +68,7 @@ import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 import { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
-import { cuentaEnDolares, leerMonto } from "./CobroEnDolares";
+import { cuentaEnDolares, leerMonto } from "@/entities/exchange-rate/ui/cobro-dolares";
 import { ResumenCobro } from "./ResumenCobro";
 
 // Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre

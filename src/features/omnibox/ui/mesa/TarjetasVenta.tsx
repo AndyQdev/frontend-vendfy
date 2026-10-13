@@ -225,6 +225,8 @@ export function TarjetaPedido({
     items.filter((it) => !it.agregados?.length).length +
     (e.nombre && !p.clienteAplicado ? 1 : 0);
   const esCompra = p.intencion === "agregar_a_compra";
+  // "a 8 dólares" / una factura en dólares: los costos de los renglones están en dólares.
+  const enDolares = (p.entidades as Record<string, unknown>).moneda === "USD";
 
   return (
     <Tarjeta estado={pendientes ? "pedido" : "pedido-listo"} hora={hora}>
@@ -244,7 +246,9 @@ export function TarjetaPedido({
                 {it.cantidad} × {it.producto.nombre}
                 <span className="cifra ml-1.5 text-xs text-muted-foreground">
                   {esCompra
-                    ? `a Bs ${dinero(it.precio ?? p.costos?.[it.producto.productId]?.ultimoCosto ?? 0)} c/u`
+                    ? enDolares
+                      ? `a $us ${dinero(it.precio ?? p.costos?.[it.producto.productId]?.ultimoCostoUsd ?? 0)} c/u`
+                      : `a Bs ${dinero(it.precio ?? p.costos?.[it.producto.productId]?.ultimoCosto ?? 0)} c/u`
                     : `Bs ${dinero((it.precio ?? Number(it.producto.precio)) * it.cantidad)}`}
                 </span>
               </Listo>

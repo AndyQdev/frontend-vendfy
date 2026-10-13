@@ -58,7 +58,7 @@ const RELLENO = new Set(
   ).split(" "),
 );
 
-const PALABRAS_DE_PAGO = /^(qr|q|r|cu|erre|kuerre|transferencia|efectivo|cash|mano|billete|tarjeta|debito|credito|pos)$/;
+const PALABRAS_DE_PAGO = /^(qr|q|r|cu|erre|kuerre|transferencia|efectivo|cash|mano|billete|tarjeta|debito|credito|pos|dolares|dolar|usd|verdes)$/;
 
 /** ¿La frase es solo la respuesta (y relleno), o trae palabras de otra cosa? */
 function soloRespuesta(t: string): boolean {
@@ -69,6 +69,8 @@ const SI = /^(si|sip|dale|ok|okey|okay|bueno|claro|de una|listo|ya|correcto|exac
 const NO = /^(no|nop|nel|nada|dejalo|deja|asi esta bien|esta bien|asi nomas|ahora no|no gracias|no hace falta)\b/;
 
 function pagoDicho(t: string): MetodoPago | null {
+  // Primero los dólares: "en efectivo, en dólares" es en dólares.
+  if (/\b(dolares|dolar|usd|verdes)\b/.test(t)) return "dolares";
   if (/\b(qr|q r|cu erre|kuerre|transferencia)\b/.test(t)) return "qr";
   if (/\b(efectivo|cash|en mano|billete)\b/.test(t)) return "efectivo";
   if (/\b(tarjeta|debito|credito|pos)\b/.test(t)) return "tarjeta";

@@ -43,7 +43,8 @@ export function useEscaneoEnChat({
   mesaRef: MutableRefObject<Mesa>;
   setMensajes: Dispatch<SetStateAction<Mensaje[]>>;
   aplicarEnMesa: (acciones: AccionMesa[], destino: TipoMesa) => void;
-  ultimoCosto: (productId: string) => Promise<{ costo: number; anterior: number | null }>;
+  /** En la moneda de la compra abierta (Bs o dólares). */
+  ultimoCosto: (productId: string) => Promise<{ costo: number; anterior: number | null; anteriorUsd?: number | null; moneda?: "BOB" | "USD" }>;
 }) {
   const queryClient = useQueryClient();
   const { buscar, abrir } = useEscaner();
@@ -64,10 +65,10 @@ export function useEscaneoEnChat({
     // Con el costo de la última vez: casi siempre es ese.
     const costo = await ultimoCosto(p.productId);
     aplicarEnMesa(
-      [{ tipo: "agregarCompra", producto: p, cantidad: 1, costo: costo.costo, costoAnterior: costo.anterior }],
+      [{ tipo: "agregarCompra", producto: p, cantidad: 1, costo: costo.costo, costoAnterior: costo.anterior, costoAnteriorUsd: costo.anteriorUsd ?? null }],
       "compra",
     );
-    cambiar(id, (e) => ({ ...e, estado: "hecho", resumen: resumenCompra(p, costo.costo) }));
+    cambiar(id, (e) => ({ ...e, estado: "hecho", resumen: resumenCompra(p, costo.costo, costo.moneda) }));
   }
 
   async function resolver(id: string, codigo: string) {

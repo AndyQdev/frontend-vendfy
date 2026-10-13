@@ -168,7 +168,10 @@ export function useCobrar() {
       storeId: string;
       lineas: { storeProductId: string; cantidad: number; precio: number }[];
       clienteId: string | null;
-      pago: "efectivo" | "qr" | "tarjeta";
+      pago: "efectivo" | "qr" | "tarjeta" | "dolares";
+      /** En dólares: el dólar del cobro y cuántos dio el cliente (sin el dato, lo justo). */
+      dolar?: number;
+      recibidoUsd?: number | null;
       /** G9f: con delivery o a cuotas. */
       entrega?: { direccion: string; costo: number; notas?: string } | null;
       cuotas?: { cantidad: number; inicial: number; proximaFecha: string } | null;
@@ -212,6 +215,9 @@ export function useRegistrarCompra() {
       proveedor?: string;
       referencia?: string;
       adjunto?: string;
+      /** En dólares, los costos van en dólares y el servidor los pasa a Bs con `dolar`. */
+      moneda?: "BOB" | "USD";
+      dolar?: number;
     }) => (await apiFetch<CompraRegistrada>("/api/omnibox/compras", { method: "POST", body: vars })).data!,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["omnibox", "ficha"] });

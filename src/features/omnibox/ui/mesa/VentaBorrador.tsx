@@ -1,7 +1,10 @@
 import type { Dispatch } from "react";
-import { AlertTriangle, Banknote, CalendarClock, CreditCard, Loader2, QrCode, ShoppingCart, Trash2, Truck, X } from "lucide-react";
+import { AlertTriangle, Banknote, CalendarClock, CreditCard, DollarSign, Loader2, QrCode, ShoppingCart, Trash2, Truck, X } from "lucide-react";
 
+import { useDolar } from "@/entities/exchange-rate/api";
+import { cuentaEnDolares, FilasDolares, type DolarDelCobro } from "@/entities/exchange-rate/ui/cobro-dolares";
 import { cn } from "@/shared/lib/cn";
+import { formatDolares } from "@/shared/lib/money";
 
 import { faltaParaCobrar, totalConEnvio, totalVenta, type AccionMesa, type BorradorVenta, type MetodoPago } from "../../model/mesa";
 import { BotonCta, FotoProducto, dinero } from "../piezas";
@@ -30,7 +33,32 @@ const METODOS: { id: MetodoPago; nombre: string; icono: typeof Banknote }[] = [
   { id: "efectivo", nombre: "Efectivo", icono: Banknote },
   { id: "qr", nombre: "QR", icono: QrCode },
   { id: "tarjeta", nombre: "Tarjeta", icono: CreditCard },
+  { id: "dolares", nombre: "Dólares", icono: DollarSign },
 ];
+
+/**
+ * El dólar del cobro de la venta del asistente: el del día hasta que se
+ * escriba otro. Se guarda en el borrador (y no en la pantalla) para que
+ * "cobrale en dólares" dicho en el chat cobre con el mismo.
+ */
+export function useDolarDeVenta(
+  storeId: string | undefined,
+  venta: Pick<BorradorVenta, "dolar">,
+  despachar: Dispatch<AccionMesa>,
+): DolarDelCobro & { disponible: boolean } {
+  const { data } = useDolar(storeId);
+  const delDia = data?.dolar ?? null;
+  const aMano = venta.dolar ?? null;
+  return {
+    valor: aMano ?? delDia?.valor ?? null,
+    delDia,
+    aMano: aMano !== null && aMano !== delDia?.valor,
+    cambiar: (n) => despachar({ tipo: "dolarVenta", dolar: n }),
+    volverAlDelDia: () => despachar({ tipo: "dolarVenta", dolar: null }),
+    // Cobrar en dólares solo aplica a tiendas en Bs.
+    disponible: (data?.moneda ?? "BOB") === "BOB",
+  };
+}
 
 /**
  * La venta que se va armando: líneas, cliente, método de pago y Cobrar.
@@ -54,6 +82,8 @@ export function VentaBorrador({
   /** Lo que respondió el servidor si no se pudo cobrar (stock, permisos…). */
   error: string | null;
 }) {
+  const dolar = useDolarDeVenta(storeId, venta, despachar);
+
   if (venta.lineas.length === 0) {
     return (
       <Vacio>
@@ -153,8 +183,9 @@ export function VentaBorrador({
             Método de pago
             {!venta.pago && <span className="ml-1 font-normal">· elegí cómo paga</span>}
           </p>
-          <div role="radiogroup" aria-label="Método de pago" className="flex gap-2">
-            {METODOS.map((m) => (
+          {/* Dólares solo en la venta en el momento y en tiendas en Bs, como en la Caja. */}
+          <div role="radiogroup" aria-label="Método de pago" className="grid grid-cols-2 gap-2">
+            {METODOS.filter((m) => m.id !== "dolares" || (dolar.disponible && !venta.entrega && !venta.cuotas)).map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -162,7 +193,7 @@ export function VentaBorrador({
                 aria-checked={venta.pago === m.id}
                 onClick={() => despachar({ tipo: "pago", pago: m.id })}
                 className={cn(
-                  "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors",
+                  "flex h-10 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors",
                   venta.pago === m.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-foreground hover:border-border-strong",
@@ -175,6 +206,18 @@ export function VentaBorrador({
           </div>
         </div>
       </div>
+
+      {/* ---- cobrar en dólares: tipo de cambio y cuánto da (el vuelto, en Bs) */}
+      {venta.pago === "dolares" && (
+        <div data-campo="dolares" className="border-t border-border pt-3">
+          <FilasDolares
+            total={totalVenta(venta)}
+            dolar={dolar}
+            usd={venta.recibidoUsd ?? ""}
+            onUsd={(v) => despachar({ tipo: "recibidoUsd", recibidoUsd: v })}
+          />
+        </div>
+      )}
 
       {/* ---- G9f: en el momento, con delivery o a cuotas (como en la Caja) */}
       <div data-campo="tipo-venta" className="space-y-2 border-t border-border pt-3">
@@ -305,6 +348,11 @@ export function VentaBorrador({
           <p data-testid="omnibox-total-venta" className="cifra text-3xl font-bold">
             Bs <NumeroAnimado valor={totalConEnvio(venta)} formato={dinero} />
           </p>
+          {venta.pago === "dolares" && cuentaEnDolares(totalVenta(venta), dolar.valor, null).exacto !== null && (
+            <p className="cifra text-xs text-muted-foreground">
+              {formatDolares(cuentaEnDolares(totalVenta(venta), dolar.valor, null).exacto!)}
+            </p>
+          )}
         </div>
         <BotonCta
           data-testid="omnibox-cobrar"

@@ -6,8 +6,12 @@ import { toast } from "sonner";
 
 import { useLeerFactura, useRegistrarCompra } from "@/entities/omnibox/api";
 import type { ProductoOpcion, Propuesta } from "@/entities/omnibox/model/types";
+import type { Moneda } from "@/entities/exchange-rate/model/types";
+import { LineaDolar, SelectorMoneda, useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
+import { convertir, costoEnCompra } from "@/features/omnibox/model/mesa";
 import { ElegirProducto } from "@/features/omnibox/ui/ElegirProducto";
 import { cn } from "@/shared/lib/cn";
+import { formatDolar } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
 import { ButtonMagic } from "@/shared/ui/button-magic";
 import {
@@ -29,6 +33,9 @@ import { Label } from "@/shared/ui/label";
  * (`POST /api/omnibox/factura`): cada renglón se cruza con el catálogo. Lo
  * reconocido llega elegido; lo dudoso se elige entre los parecidos o se busca;
  * lo que no va se omite. Registrar crea la orden y la confirma: sube el stock.
+ *
+ * Si la factura está en dólares (las de importadoras), la compra arranca en
+ * dólares: los costos se ven como en el papel y el servidor los pasa a Bs.
  */
 
 interface Linea {
@@ -47,13 +54,14 @@ function dinero(n: number) {
   return n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function lineasDe(p: Propuesta): Linea[] {
+/** Los renglones leídos, con el costo en la moneda de la compra (el de la factura, o el último pagado). */
+function lineasDe(p: Propuesta, compra: { moneda: Moneda; dolar: number | null }, monedaFactura: Moneda): Linea[] {
   return (p.items ?? []).map((it) => {
     const previo = it.producto ? p.costos?.[it.producto.productId] : undefined;
     return {
       texto: it.texto,
       cantidad: it.cantidad,
-      costo: it.precio ?? previo?.ultimoCosto ?? previo?.costoPromedio ?? 0,
+      costo: costoEnCompra(compra, it.precio, monedaFactura, previo).costo,
       producto: it.producto,
       opciones: it.opciones,
       omitida: false,
@@ -82,6 +90,10 @@ export function CompraConIaModal({
   const [proveedor, setProveedor] = useState("");
   const [referencia, setReferencia] = useState("");
   const [adjunto, setAdjunto] = useState<string | null>(null);
+  const [moneda, setMoneda] = useState<Moneda>("BOB");
+  const dolar = useDolarElegido(storeId);
+  const enDolares = moneda === "USD";
+  const signo = enDolares ? "$us" : "Bs";
 
   function reiniciar() {
     setArchivo(null);
@@ -89,6 +101,21 @@ export function CompraConIaModal({
     setProveedor("");
     setReferencia("");
     setAdjunto(null);
+    setMoneda("BOB");
+  }
+
+  /** Cambia la moneda pasando los costos ya cargados a la nueva (como en Nueva compra). */
+  function cambiarMoneda(nueva: Moneda) {
+    if (nueva === moneda) return;
+    if (lineas?.length) {
+      if (!dolar.valor) {
+        toast.error("Escribí el dólar para pasar los costos");
+        return;
+      }
+      setLineas((prev) => prev!.map((l) => ({ ...l, costo: convertir(l.costo, moneda, nueva, dolar.valor) ?? l.costo })));
+      toast.info(nueva === "USD" ? "Pasé los costos a dólares" : "Pasé los costos a bolivianos", { duration: 2200 });
+    }
+    setMoneda(nueva);
   }
 
   async function leerArchivo() {
@@ -100,7 +127,11 @@ export function CompraConIaModal({
         return;
       }
       const e = p.entidades as Record<string, any>;
-      setLineas(lineasDe(p));
+      // Una factura en dólares arranca en dólares (si la tienda está en Bs).
+      const monedaFactura: Moneda = e.moneda === "USD" ? "USD" : "BOB";
+      const inicial: Moneda = dolar.disponible ? monedaFactura : "BOB";
+      setMoneda(inicial);
+      setLineas(lineasDe(p, { moneda: inicial, dolar: dolar.valor }, monedaFactura));
       setProveedor(e.proveedor ?? "");
       setReferencia(e.referencia ?? "");
       setAdjunto(e.adjunto ?? null);
@@ -116,7 +147,12 @@ export function CompraConIaModal({
   const activas = (lineas ?? []).filter((l) => !l.omitida);
   const pendientes = activas.filter((l) => !l.producto).length;
   const total = activas.reduce((s, l) => s + l.cantidad * l.costo, 0);
-  const puedeRegistrar = activas.length > 0 && pendientes === 0 && !registrar.isPending;
+  const puedeRegistrar = activas.length > 0 && pendientes === 0 && !registrar.isPending && (!enDolares || Boolean(dolar.valor));
+  const totalBs = enDolares
+    ? dolar.valor
+      ? activas.reduce((s, l) => s + Math.round(l.cantidad * l.costo * dolar.valor! * 100) / 100, 0)
+      : null
+    : total;
 
   async function registrarCompra() {
     // Si el mismo producto quedó en dos renglones, se suma en una línea.
@@ -137,6 +173,7 @@ export function CompraConIaModal({
         proveedor: proveedor.trim() || undefined,
         referencia: referencia.trim() || undefined,
         adjunto: adjunto ?? undefined,
+        ...(enDolares ? { moneda: "USD" as const, dolar: dolar.valor! } : {}),
       });
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       qc.invalidateQueries({ queryKey: ["inventory"] });
@@ -223,13 +260,28 @@ export function CompraConIaModal({
               </div>
             </div>
 
+            {dolar.disponible && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="moneda-compra-ia">
+                <SelectorMoneda valor={moneda} onCambio={cambiarMoneda} etiqueta="Moneda de la compra" />
+                {enDolares && (
+                  <LineaDolar
+                    valor={dolar.valor}
+                    delDia={dolar.delDia}
+                    aMano={dolar.aMano}
+                    onCambio={dolar.cambiar}
+                    onVolver={dolar.volverAlDelDia}
+                  />
+                )}
+              </div>
+            )}
+
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">Producto</th>
                     <th className="w-24 px-3 py-2 font-medium">Cantidad</th>
-                    <th className="w-32 px-3 py-2 font-medium">Costo c/u (Bs)</th>
+                    <th className="w-32 px-3 py-2 font-medium">Costo c/u ({signo})</th>
                     <th className="w-28 px-3 py-2 text-right font-medium">Subtotal</th>
                     <th className="w-10 px-2 py-2" />
                   </tr>
@@ -313,7 +365,7 @@ export function CompraConIaModal({
                         />
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        {l.omitida ? "—" : `Bs ${dinero(l.cantidad * l.costo)}`}
+                        {l.omitida ? "—" : `${signo} ${dinero(l.cantidad * l.costo)}`}
                       </td>
                       <td className="px-2 py-2">
                         <Button
@@ -335,7 +387,16 @@ export function CompraConIaModal({
             <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <div>
                 <p className="text-xs text-muted-foreground">Total de la compra</p>
-                <p className="text-2xl font-bold tabular-nums">Bs {dinero(total)}</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {signo} {dinero(total)}
+                </p>
+                {enDolares && (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {totalBs != null && dolar.valor
+                      ? `= Bs ${dinero(totalBs)} al dólar de ${formatDolar(dolar.valor)}`
+                      : "Escribí el dólar para registrarla"}
+                  </p>
+                )}
                 {pendientes > 0 && (
                   <p className="text-xs font-medium text-amber-700">
                     Falta{pendientes === 1 ? "" : "n"} {pendientes} renglón{pendientes === 1 ? "" : "es"} por resolver
