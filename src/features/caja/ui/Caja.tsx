@@ -68,7 +68,8 @@ import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 import { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
-import { CobroEnDolares, cuentaEnDolares, leerMonto } from "./CobroEnDolares";
+import { cuentaEnDolares, leerMonto } from "./CobroEnDolares";
+import { ResumenCobro } from "./ResumenCobro";
 
 // Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre
 const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => {
@@ -455,10 +456,6 @@ export default function Caja() {
   useEffect(() => {
     if (paymentMethod === 'usd' && !metodosPago.some((m) => m.id === 'usd')) setPaymentMethod('cash');
   }, [metodosPago, paymentMethod]);
-  const panelDolares =
-    paymentMethod === 'usd' ? (
-      <CobroEnDolares total={total} dolar={dolar} usd={usdRecibido} onUsd={setUsdRecibido} />
-    ) : null;
 
   // Crear nuevo cliente
   const handleCreateClient = async (data: { name: string; phone: string }) => {
@@ -505,15 +502,12 @@ export default function Caja() {
     }
 
     const enDolares = paymentMethod === 'usd';
-    const dio = leerMonto(usdRecibido);
     if (enDolares && !dolar.valor) {
-      toast.error("Escribí el dólar del cobro");
+      toast.error("Escribí el tipo de cambio");
       return;
     }
-    if (enDolares && !dio) {
-      toast.error("¿Cuántos dólares te dio el cliente?");
-      return;
-    }
+    // Si no escribió cuánto dio, pagó lo justo en dólares.
+    const dio = enDolares ? leerMonto(usdRecibido) ?? cuentaEnDolares(total, dolar.valor, null).exacto : null;
 
     try {
       await createOrderMutation.mutateAsync({
@@ -1113,7 +1107,7 @@ export default function Caja() {
             
             <div className="h-full flex flex-col overflow-hidden pt-12">
             {/* Header del carrito */}
-            <div className="px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-transparent">
+            <div className="shrink-0 px-4 lg:px-6 pt-2 pb-3 lg:pb-4 bg-transparent">
                 {/* Select de cliente con botón de limpiar carrito */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -1152,8 +1146,8 @@ export default function Caja() {
                 </div>
             </div>
 
-            {/* Items del carrito */}
-            <div className="flex-1 overflow-y-auto px-3 lg:px-4 bg-transparent">
+            {/* Items del carrito: lo único que se desplaza */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 lg:px-4 bg-transparent">
                 {cart.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -1267,81 +1261,20 @@ export default function Caja() {
                 )}
             </div>
 
-            {/* Resumen pegado abajo */}
-            <div className="bg-transparent p-3 lg:p-4 space-y-2 lg:space-y-2.5">
-                {/* Card de totales con fondo gris pastel */}
-                <Card className="bg-muted/40 dark:bg-muted/20 border-border p-3 space-y-1.5">
-                <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">Bs. {subtotal.toFixed(2)}</span>
-                </div>
-                
-                <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Descuento</span>
-                    <span className="font-medium">Bs. 0.00</span>
-                </div>
-                
-                <Separator className="my-1.5" />
-                
-                <div className="flex justify-between items-center pt-1">
-                    <span className="text-sm font-bold">Total</span>
-                    <span className="font-display text-2xl font-bold text-emerald-600">
-                    Bs. {total.toFixed(2)}
-                    </span>
-                </div>
-                </Card>
-
-                {/* Métodos de pago en cards */}
-                <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground">Método de Pago</label>
-                <div className={`grid gap-2 ${metodosPago.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                    {metodosPago.map((method) => {
-                    const Icon = method.icon;
-                    const isActive = paymentMethod === method.id;
-                    return (
-                        <Card
-                        key={method.id}
-                        className={`p-2.5 cursor-pointer transition-all ${
-                            isActive
-                            ? 'bg-primary-soft border-primary/30 ring-1 ring-primary/15'
-                            : 'hover:border-primary/30 bg-card'
-                        }`}
-                        onClick={() => setPaymentMethod(method.id)}
-                        >
-                        <div className="flex flex-col items-center gap-1.5 text-center">
-                            <div
-                              className={`p-1.5 rounded-[11px] ${
-                                isActive ? 'shadow-[0_6px_14px_-5px_rgba(6,182,212,0.95)]' : 'bg-primary/10'
-                              }`}
-                              style={isActive ? { background: 'var(--primary-grad)' } : undefined}
-                            >
-                            <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
-                            </div>
-                            <span className={`text-[10px] font-medium ${
-                              isActive
-                                ? 'text-primary-soft-foreground'
-                                : 'text-foreground'
-                            }`}>
-                            {method.name}
-                            </span>
-                        </div>
-                        </Card>
-                    );
-                    })}
-                </div>
-                {panelDolares}
-                </div>
-
-                {/* Botón finalizar — CTA esmeralda */}
-                <Button
-                className="w-full h-11 text-sm font-bold text-white border-0 shadow-[var(--cta-shadow)] transition-all hover:brightness-105 hover:-translate-y-px disabled:opacity-60"
-                style={{ background: "var(--primary-grad)" }}
-                size="lg"
-                onClick={finalizeSale}
-                disabled={cart.length === 0}
-                >
-                Finalizar Venta
-                </Button>
+            {/* Pie pegado abajo: cómo paga, cuánto es y el botón, siempre a la vista */}
+            <div className="shrink-0 border-t border-border/60 p-3 lg:p-4">
+              <ResumenCobro
+                subtotal={subtotal}
+                total={total}
+                metodos={metodosPago}
+                metodo={paymentMethod}
+                onMetodo={setPaymentMethod}
+                dolar={dolar}
+                usdRecibido={usdRecibido}
+                onUsdRecibido={setUsdRecibido}
+                onFinalizar={finalizeSale}
+                deshabilitado={cart.length === 0}
+              />
             </div>
             </div>
         </div>
@@ -1369,14 +1302,22 @@ export default function Caja() {
         incrementQuantity={incrementQuantity}
         decrementQuantity={decrementQuantity}
         removeFromCart={removeFromCart}
-        finalizeSale={finalizeSale}
-        paymentMethod={paymentMethod}
-        setPaymentMethod={setPaymentMethod}
-        paymentMethods={metodosPago}
-        panelPago={panelDolares}
+        resumen={
+          <ResumenCobro
+            subtotal={subtotal}
+            total={total}
+            metodos={metodosPago}
+            metodo={paymentMethod}
+            onMetodo={setPaymentMethod}
+            dolar={dolar}
+            usdRecibido={usdRecibido}
+            onUsdRecibido={setUsdRecibido}
+            onFinalizar={finalizeSale}
+            deshabilitado={cart.length === 0}
+          />
+        }
         saleType={saleType}
         setSaleType={setSaleType}
-        total={total}
       />
 
       {/* Modal de crear cliente */}

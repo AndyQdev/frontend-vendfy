@@ -1,6 +1,5 @@
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
-import { Separator } from "@/shared/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Label } from "@/shared/ui/label";
 import { Input } from "@/shared/ui/input";
@@ -16,14 +15,10 @@ import {
   ShoppingCart,
   Plus,
   Minus,
-  Banknote,
-  QrCode,
-  CreditCard,
   Zap,
   Truck,
   Calendar,
   MapPin,
-  DollarSign,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { type Customer } from "@/entities/customer";
@@ -74,25 +69,13 @@ interface SheetMovileCartProps {
   incrementQuantity: (id: string) => void;
   decrementQuantity: (id: string) => void;
   removeFromCart: (id: string) => void;
-  finalizeSale: () => void;
 
-  // Método de pago
-  paymentMethod: string;
-  setPaymentMethod: (method: string) => void;
-  paymentMethods: Array<{
-    id: string;
-    name: string;
-    icon: any;
-  }>;
-  /** Lo que se muestra debajo del método elegido (el cobro en dólares). */
-  panelPago?: ReactNode;
+  /** El pie del carrito: método de pago, totales (y el cobro en dólares) y el botón. */
+  resumen: ReactNode;
   
   // Tipo de venta
   saleType: 'quick' | 'installment' | 'delivery';
   setSaleType: (type: 'quick' | 'installment' | 'delivery') => void;
-  
-  // Total para cálculos
-  total: number;
 }
 
 export function SheetMovileCart({
@@ -113,18 +96,10 @@ export function SheetMovileCart({
   incrementQuantity,
   decrementQuantity,
   removeFromCart,
-  finalizeSale,
-  paymentMethod,
-  setPaymentMethod,
-  paymentMethods,
-  panelPago,
+  resumen,
   saleType,
   setSaleType,
-  total,
 }: SheetMovileCartProps) {
-  // Calcular totales
-  const subtotal = total;
-
   return (
     <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
       <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
@@ -151,7 +126,7 @@ export function SheetMovileCart({
         {/* Contenido del carrito (reutilizando la misma estructura) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header del carrito */}
-          <div className="px-4 pb-3 bg-white">
+          <div className="shrink-0 px-4 pb-3 bg-white">
             {/* Select de cliente con botón de limpiar carrito */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -186,8 +161,8 @@ export function SheetMovileCart({
             </div>
           </div>
 
-          {/* Items del carrito */}
-          <div className="flex-1 overflow-y-auto px-4 bg-white">
+          {/* Items del carrito: lo único que se desplaza */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 bg-white">
             {cart.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -273,78 +248,8 @@ export function SheetMovileCart({
             )}
           </div>
 
-          {/* Resumen pegado abajo */}
-          <div className="bg-white p-4 space-y-2.5">
-            {/* Card de totales */}
-            <Card className="bg-slate-50/50 border-slate-200/50 p-3 space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">Bs. {subtotal.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Descuento</span>
-                <span className="font-medium">Bs. 0.00</span>
-              </div>
-
-              <Separator className="my-1.5" />
-
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-sm font-bold">Total</span>
-                <span className="text-xl font-bold">Bs. {total.toFixed(2)}</span>
-              </div>
-            </Card>
-
-            {/* Métodos de pago */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Método de Pago
-              </label>
-              <div className={`grid gap-2 ${paymentMethods.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
-                {paymentMethods.map((method) => {
-                  const Icon = method.icon;
-                  const isActive = paymentMethod === method.id;
-                  return (
-                    <Card
-                      key={method.id}
-                      className={`p-3 cursor-pointer transition-all hover:shadow-sm ${
-                        isActive
-                          ? "bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200"
-                          : "hover:border-primary/50"
-                      }`}
-                      onClick={() => setPaymentMethod(method.id)}
-                    >
-                      <div className="flex flex-col items-center gap-1.5">
-                        <Icon
-                          className={`h-5 w-5 ${
-                            isActive ? "text-emerald-600" : "text-muted-foreground"
-                          }`}
-                        />
-                        <span
-                          className={`text-xs font-medium ${
-                            isActive ? "text-emerald-700" : "text-muted-foreground"
-                          }`}
-                        >
-                          {method.name}
-                        </span>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-              {panelPago}
-            </div>
-
-            {/* Botón finalizar */}
-            <Button
-              className="w-full h-11 text-sm font-bold"
-              size="lg"
-              onClick={finalizeSale}
-              disabled={cart.length === 0}
-            >
-              Finalizar Venta
-            </Button>
-          </div>
+          {/* Pie pegado abajo (el mismo que en escritorio): el botón siempre a la vista */}
+          <div className="shrink-0 border-t border-border/60 bg-card p-4">{resumen}</div>
         </div>
       </SheetContent>
     </Sheet>
