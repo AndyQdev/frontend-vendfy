@@ -662,23 +662,39 @@
   inherits: false;
 }
 @layer components {
-  /* "Pensando…": un brillo que recorre la cápsula. */
+  /* "Pensando…": un brillo suave que cruza la cápsula sin apuro. */
   .voz-pensando {
-    background: linear-gradient(100deg, hsl(var(--primary-soft)) 20%, hsl(var(--card)) 50%, hsl(var(--primary-soft)) 80%);
-    background-size: 220% 100%;
-    animation: voz-pensando 1.1s linear infinite;
+    background: linear-gradient(100deg, hsl(var(--primary-soft)) 25%, hsl(var(--card)) 50%, hsl(var(--primary-soft)) 75%);
+    background-size: 250% 100%;
+    animation: voz-pensando 2.6s ease-in-out infinite;
   }
   @keyframes voz-pensando {
-    from { background-position: 110% 0; }
-    to { background-position: -110% 0; }
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
   }
-  /* Las barras cuando habla la voz o piensa. */
+  /* Pensando: las barras respiran de a una, como una ola lenta. */
+  .voz-pensar-barra {
+    animation: voz-pensar-barra 1.8s ease-in-out infinite;
+  }
+  @keyframes voz-pensar-barra {
+    0%, 100% { transform: scaleY(0.3); opacity: 0.55; }
+    40% { transform: scaleY(0.75); opacity: 1; }
+  }
+  /* Pensando: el ícono late despacio en vez de girar. */
+  .voz-pensar-icono {
+    animation: voz-pensar-icono 1.8s ease-in-out infinite;
+  }
+  @keyframes voz-pensar-icono {
+    0%, 100% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+  /* Hablando: cada barra a su ritmo (duración en línea), sin saltos bruscos. */
   .voz-barra {
-    animation: voz-barra 0.9s ease-in-out infinite;
+    animation: voz-barra 1s ease-in-out infinite;
   }
   @keyframes voz-barra {
-    0%, 100% { transform: scaleY(0.3); }
-    50% { transform: scaleY(1); }
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(0.9); }
   }
   /* "Te escucho": una onda que sale del micrófono. */
   .voz-onda {
@@ -728,6 +744,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .voz-pensando,
+    .voz-pensar-barra,
+    .voz-pensar-icono,
     .voz-barra,
     .voz-onda,
     .campo-ia,

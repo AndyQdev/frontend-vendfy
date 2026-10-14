@@ -49,6 +49,8 @@ const ESTILO: Record<FaseVoz, string> = {
 
 /** Alturas de reposo de cada barra: una onda, no un bloque. */
 const BASE = [0.35, 0.6, 0.9, 0.6, 0.35];
+/** Hablando, cada barra con su propio ritmo: parejas se ven mecánicas. */
+const RITMO_HABLA = [1.05, 0.85, 1.2, 0.95, 1.1];
 
 /**
  * Las barras de la voz. Escuchando, siguen el nivel de lo que entra por el
@@ -77,7 +79,8 @@ function Barras({ fase, nivel }: { fase: FaseVoz; nivel: React.MutableRefObject<
     return () => cancelAnimationFrame(id);
   }, [fase, nivel]);
 
-  const animada = fase === "hablando" || fase === "procesando";
+  const habla = fase === "hablando";
+  const piensa = fase === "procesando";
   return (
     <span aria-hidden className="flex h-5 items-center gap-[3px]">
       {BASE.map((h, i) => (
@@ -88,11 +91,14 @@ function Barras({ fase, nivel }: { fase: FaseVoz; nivel: React.MutableRefObject<
           }}
           className={cn(
             "h-full w-[3px] origin-center rounded-full bg-current transition-transform duration-75",
-            animada && "voz-barra",
+            habla && "voz-barra",
+            piensa && "voz-pensar-barra",
           )}
           style={{
-            transform: `scaleY(${animada ? h : fase === "listo" ? 0.5 : 0.25})`,
-            animationDelay: `${i * 110}ms`,
+            transform: `scaleY(${habla || piensa ? h : fase === "listo" ? 0.5 : 0.25})`,
+            ...(habla ? { animationDuration: `${RITMO_HABLA[i]}s`, animationDelay: `${i * 130}ms` } : {}),
+            // Pensando: una ola que va de izquierda a derecha.
+            ...(piensa ? { animationDelay: `${i * 180}ms` } : {}),
           }}
         />
       ))}
@@ -117,7 +123,9 @@ export function IndicadorVoz({
   const icono =
     fase === "listo" ? (
       <Check className="size-3.5" strokeWidth={3} />
-    ) : fase === "procesando" || fase === "preparando" ? (
+    ) : fase === "procesando" ? (
+      <Sparkles className="voz-pensar-icono size-3.5" />
+    ) : fase === "preparando" ? (
       <Loader2 className="size-3.5 animate-spin" />
     ) : fase === "escribiendo" ? (
       <Sparkles className="size-3.5" />
