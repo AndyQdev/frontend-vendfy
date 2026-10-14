@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Monitor, Tablet, Smartphone, Sparkles } from "lucide-react";
+import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Sparkles } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUpdateStore, useCreateStore } from "@/entities/store/api";
 import { StoreReviewsManager } from "./StoreReviewsManager";
 import { WebConTuIa } from "./WebConTuIa";
+import { DisenoTienda } from "./diseno/DisenoTienda";
+import { useCategories } from "@/entities/product/api";
 import { apiFetch } from "@/shared/api/client";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
 import { toast } from "sonner";
@@ -41,7 +43,6 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [seccionDiseno, setSeccionDiseno] = useState<'temas' | 'ia'>('temas');
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,8 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
 
   const updateStore = useUpdateStore();
   const createStore = useCreateStore();
+  // Para elegir a qué categoría lleva el botón de una imagen de portada.
+  const { data: categoriasTienda = [] } = useCategories(store?.id || undefined);
 
   useEffect(() => {
     if (store) setFormData(store);
@@ -162,6 +165,20 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
     throw new Error("Error al subir la imagen");
   };
 
+  // Las imágenes de portada (Diseño) van a la carpeta de la tienda, no a la de
+  // productos: son de la configuración de la tienda y no se mezclan con el
+  // catálogo. Las sube quien puede editar la tienda.
+  const subirImagenDeTienda = async (file: File): Promise<string> => {
+    const datos = new FormData();
+    datos.append("image", file);
+    const response = await apiFetch<{ url: string; path: string }>("/api/store/upload-image", {
+      method: "POST",
+      body: datos
+    });
+    if (response.data?.url) return response.data.url;
+    throw new Error("Error al subir la imagen");
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -204,45 +221,6 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
     handleConfigChange("branding", "bannerUrl", "");
   };
 
-  const categories = [
-    { value: "tecnologia", label: "Tecnología" },
-    { value: "moda", label: "Moda" },
-    { value: "hogar", label: "Hogar" },
-    { value: "abarrotes", label: "Abarrotes" },
-    { value: "belleza", label: "Belleza" },
-    { value: "deportes", label: "Deportes" },
-    { value: "arte", label: "Arte" }
-  ];
-
-  // Temas disponibles por categoría
-  const themesByCategory: Record<string, Array<{ value: string; label: string }>> = {
-    tecnologia: [
-      { value: "modern", label: "Modern - Estilo tecnológico moderno" }
-    ],
-    moda: [
-      { value: "elegante", label: "Elegante - Estilo fashion sofisticado" }
-    ],
-    hogar: [
-      { value: "minimal", label: "Minimal - Estilo minimalista limpio" }
-    ],
-    abarrotes: [
-      { value: "minimal", label: "Minimal - Estilo minimalista limpio" }
-    ],
-    belleza: [
-      { value: "classic", label: "Classic - Estilo clásico elegante" }
-    ],
-    deportes: [
-      { value: "darkmode", label: "Dark Mode - Estilo oscuro deportivo" }
-    ],
-    arte: [
-      { value: "creative", label: "Creative - Estilo creativo artístico" }
-    ]
-  };
-
-  // Obtener temas disponibles según la categoría seleccionada
-  const availableThemes = formData.config?.category 
-    ? themesByCategory[formData.config.category] || []
-    : [];
 
   const currencies = [
     { value: "BOB", label: "BOB - Bolivianos" },
@@ -571,144 +549,17 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
             />
           ) : (
             <>
-          <Card className="p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Diseño y Temas</h3>
-            <p className="text-sm text-muted-foreground">
-              Personaliza la apariencia visual de tu tienda
-            </p>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="category">Categoría</Label>
-                <Select
-                  value={formData.config?.category || ""}
-                  onValueChange={(value) => {
-                    handleConfigFieldChange("category", value);
-                    // Limpiar themeId si cambia la categoría para que seleccione el tema correspondiente
-                    const newTheme = themesByCategory[value]?.[0]?.value || "minimal";
-                    handleConfigFieldChange("themeId", newTheme);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  La categoría determina el tema visual disponible
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="themeId">Tema de Diseño</Label>
-                <Select
-                  value={formData.config?.themeId || ""}
-                  onValueChange={(value) => handleConfigFieldChange("themeId", value)}
-                  disabled={!formData.config?.category}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.config?.category ? "Seleccionar tema" : "Primero selecciona una categoría"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableThemes.map((theme) => (
-                      <SelectItem key={theme.value} value={theme.value}>
-                        {theme.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.config?.themeId 
-                    ? `Tema actual: ${availableThemes.find(t => t.value === formData.config?.themeId)?.label || formData.config.themeId}`
-                    : "Selecciona primero una categoría"
-                  }
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Vista Previa en Vivo del Tema */}
-          {formData.config?.themeId && (
-            <Card className="p-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">Vista Previa del Tema</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Preview en tiempo real de cómo se verá tu tienda
-                    </p>
-                  </div>
-                  
-                  {/* Botones de selección de dispositivo */}
-                  <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                    <Button
-                      variant={previewDevice === 'desktop' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setPreviewDevice('desktop')}
-                      className="h-8 px-3"
-                    >
-                      <Monitor className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Desktop</span>
-                    </Button>
-                    <Button
-                      variant={previewDevice === 'tablet' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setPreviewDevice('tablet')}
-                      className="h-8 px-3"
-                    >
-                      <Tablet className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Tablet</span>
-                    </Button>
-                    <Button
-                      variant={previewDevice === 'mobile' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setPreviewDevice('mobile')}
-                      className="h-8 px-3"
-                    >
-                      <Smartphone className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Móvil</span>
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="relative w-full bg-muted/10 rounded-lg overflow-hidden border-2 border-border flex justify-center py-4">
-                  {/* Iframe con la tienda en vivo - tamaño responsive */}
-                  <div 
-                    className="transition-all duration-300 ease-in-out"
-                    style={{
-                      width: previewDevice === 'desktop' ? '100%' : previewDevice === 'tablet' ? '768px' : '375px',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    <iframe
-                      key={`theme-preview-${formData.config.themeId}-${previewDevice}`}
-                      src={`${import.meta.env.VITE_URL_PUBLIC || 'https://compras.vendfy.shop'}/${formData.slug}?theme=${formData.config.themeId}&preview=true`}
-                      className="w-full h-[600px] border-0 rounded-lg shadow-lg"
-                      title="Vista previa del tema"
-                      loading="lazy"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    💡 El preview se actualiza automáticamente al cambiar el tema
-                  </p>
-                  <p className="text-xs text-muted-foreground font-medium">
-                    {previewDevice === 'desktop' && '🖥️ Vista Desktop (100%)'}
-                    {previewDevice === 'tablet' && '📱 Vista Tablet (768px)'}
-                    {previewDevice === 'mobile' && '📱 Vista Móvil (375px)'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
+          <DisenoTienda
+            slug={formData.slug}
+            rubro={formData.config?.category}
+            onCambiarRubro={(rubro) => handleConfigFieldChange("category", rubro)}
+            themeId={formData.config?.themeId}
+            apariencia={formData.config?.apariencia}
+            categorias={categoriasTienda}
+            onCambiarTema={(themeId) => handleConfigFieldChange("themeId", themeId)}
+            onCambiarApariencia={(apariencia) => handleConfigFieldChange("apariencia", apariencia)}
+            subirImagen={subirImagenDeTienda}
+          />
             </>
           )}
         </TabsContent>

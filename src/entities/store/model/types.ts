@@ -49,4 +49,48 @@ export interface StoreConfig {
   storefront?: {
     url?: string;
   };
+  /**
+   * Cómo se ve la tienda con un tema personalizable (Vitrina): paleta,
+   * tipografía, animaciones y las secciones de la portada. La tienda la valida
+   * entera al leerla (client-frontend/lib/tienda/apariencia.ts), así que acá
+   * todo es opcional.
+   */
+  apariencia?: AparienciaGuardada;
+}
+
+export interface DiapositivaGuardada {
+  imagen: string;
+  imagenMovil?: string;
+  titulo?: string;
+  texto?: string;
+  boton?: string;
+  /** 'catalogo' o 'categoria:<id>'. */
+  destino?: string;
+}
+
+export interface SeccionGuardada {
+  tipo: string;
+  activa: boolean;
+  variante: string;
+  fondo: string;
+}
+
+export interface AparienciaGuardada {
+  paleta?: string;
+  tipografia?: string;
+  esquinas?: string;
+  cabecera?: string;
+  entrada?: string;
+  hover?: string;
+  /** 'normal' o 'foto': la foto del producto viaja de la tarjeta al detalle. */
+  entrePaginas?: string;
+  anuncio?: { activo?: boolean; texto?: string; variante?: string };
+  secciones?: SeccionGuardada[];
+  portada?: {
+    diapositivas?: DiapositivaGuardada[];
+    intervalo?: number;
+    transicion?: string;
+    flechas?: boolean;
+    puntos?: boolean;
+  };
 }
