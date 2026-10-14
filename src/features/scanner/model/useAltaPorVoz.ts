@@ -29,6 +29,11 @@ export type FaseVoz =
 
 /** Vueltas seguidas sin entender nada: después, se deja de escuchar solo. */
 const MAX_SIN_PROGRESO = 2;
+/**
+ * Cuánto esperar la voz elegida antes del respaldo del navegador. En una
+ * conversación se prefiere un segundo más de silencio a que cambie la voz.
+ */
+const ESPERA_CONVERSACION_MS = 9000;
 /** Tope de vueltas automáticas en un mismo formulario. */
 const MAX_VUELTAS = 14;
 
@@ -113,12 +118,12 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
       setDialogo((x) => ({ ...x, vendfy: c.texto }));
 
       if (c.terminar) {
-        decirFrases(c.frases, { forzar: true });
+        decirFrases(c.frases, { forzar: true, esperaMs: ESPERA_CONVERSACION_MS });
         setPropia(null);
         return;
       }
       if (c.registrar) {
-        decirFrases(c.frases, { forzar: true });
+        decirFrases(c.frases, { forzar: true, esperaMs: ESPERA_CONVERSACION_MS });
         // Registra con lo que quedó escrito.
         await escritura;
         if (!vivo.current) return;
@@ -165,7 +170,7 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
     // Habla aunque "Decir el precio" esté apagado: es una conversación, no el aviso del escaneo.
     if (frases.length) {
       setPropia("hablando");
-      decirFrases(frases, { forzar: true });
+      decirFrases(frases, { forzar: true, esperaMs: ESPERA_CONVERSACION_MS });
       // Recién cuando calla: si no, el micrófono graba la pregunta.
       await esperarQueCalle({ arranqueMs: 3000, topeMs: 25_000 });
       if (!vivo.current) return;

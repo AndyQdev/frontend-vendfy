@@ -19,7 +19,9 @@ import { preferenciasVoz } from "./preferencias";
  *      El precalentado trae de una vez las de todos los precios del comercio.
  *   3. Lo que nadie dijo nunca se pide a la API, que lo transmite mientras lo
  *      genera: se empieza a escuchar con el primer trozo.
- *   4. Si nada de eso llega a tiempo, la voz del navegador.
+ *   4. Si nada de eso llega a tiempo, la voz del navegador, pero para la
+ *      frase ENTERA: nunca se mezclan dos voces en una misma respuesta (pasaba
+ *      al cambiar de voz, mientras el servidor generaba las frases nuevas).
  *
  * Un escaneo nuevo corta lo que se estaba diciendo: en un mostrador importa
  * el último producto, no el anterior.
@@ -47,7 +49,9 @@ type Muestras = Float32Array<ArrayBuffer>;
  * esperar un poco más; la muestra de una voz, lo que haga falta: es justamente
  * para escucharla.
  */
-const ESPERA_MS = { precio: 3000, asistente: 5000, muestra: 8000 } as const;
+const ESPERA_MS = { precio: 5000, asistente: 8000, muestra: 10_000 } as const;
+/** Si el servidor está sin cupo (429/503), cuánto esperar antes de volver a pedir la misma voz. */
+const REINTENTO_MS = 1200;
 const PAUSA_ENTRE_FRASES = 0.12;
 /** Colchón para que el audio transmitido no se corte con la primera demora de red. */
 const COLCHON_FLUJO = 0.06;
@@ -349,12 +353,21 @@ async function obtener(q: QueDecir): Promise<Pieza> {
   const corte = new AbortController();
   const reloj = setTimeout(() => corte.abort(), Math.max(0, limite - Date.now()));
   try {
-    const r = await fetch(`${API_URL}/api/voz/hablar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...autorizacion() },
-      body: JSON.stringify(q.cuerpo),
-      signal: corte.signal,
-    });
+    let r: Response;
+    for (;;) {
+      r = await fetch(`${API_URL}/api/voz/hablar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...autorizacion() },
+        body: JSON.stringify(q.cuerpo),
+        signal: corte.signal,
+      });
+      // Sin cupo por un momento: se insiste con la MISMA voz mientras quede tiempo.
+      if ([429, 502, 503].includes(r.status) && Date.now() + REINTENTO_MS + 800 < limite) {
+        await dormir(REINTENTO_MS);
+        continue;
+      }
+      break;
+    }
     if (!r.ok || !r.body) throw new Error(`voz ${r.status}`);
     if ((r.headers.get("content-type") ?? "").includes("application/json")) {
       const url: string | undefined = (await r.json())?.data?.url;
@@ -379,31 +392,44 @@ async function obtener(q: QueDecir): Promise<Pieza> {
   }
 }
 
-/** Las piezas se piden todas a la vez y suenan en orden, una detrás de otra. */
-async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: number) {
+/**
+ * Las piezas se piden todas a la vez y suenan en orden, una detrás de otra.
+ *
+ * Antes de sonar se espera a que todas tengan audio (se piden en paralelo, así
+ * que es el tiempo de la más lenta). Si alguna no llegó con la voz elegida, la
+ * respuesta entera la dice la voz del navegador: una sola voz, nunca dos.
+ */
+async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respaldos: string[], mio: number) {
   const ctx = contextoAudio();
-  let t = ctx ? Math.max(ctx.currentTime + 0.02, finProgramado) : 0;
   const v = velocidad();
   const pausa = PAUSA_ENTRE_FRASES / v;
+  const piezas = await Promise.all(pedidas);
+  const cancelarFlujos = () => piezas.forEach((p) => p.tipo === "flujo" && p.cancelar());
+  if (mio !== turno) {
+    cancelarFlujos();
+    return;
+  }
 
+  if (!ctx || piezas.some((p) => p.tipo === "navegador")) {
+    cancelarFlujos();
+    // Que no se pise con lo que ya está programado.
+    const espera = ctx ? (finProgramado - ctx.currentTime) * 1000 : 0;
+    if (espera > 0) await dormir(espera);
+    if (mio !== turno) return;
+    setHablando(true);
+    await decirConNavegador(respaldos.join(" "), v);
+    if (mio === turno) setHablando(sonando.size > 0);
+    return;
+  }
+
+  let t = Math.max(ctx.currentTime + 0.02, finProgramado);
   for (let i = 0; i < piezas.length; i++) {
-    const pieza = await piezas[i];
+    const pieza = piezas[i];
     if (mio !== turno) {
       if (pieza.tipo === "flujo") pieza.cancelar();
       continue;
     }
-
-    if (pieza.tipo === "navegador" || !ctx) {
-      // Que no se pise con lo que ya está programado.
-      const espera = ctx ? (t - ctx.currentTime) * 1000 : 0;
-      if (espera > 0) await dormir(espera);
-      if (mio !== turno || pieza.tipo !== "navegador") continue;
-      setHablando(true);
-      await decirConNavegador(pieza.texto, v);
-      if (mio === turno) setHablando(sonando.size > 0);
-      if (ctx) t = ctx.currentTime + pausa;
-      continue;
-    }
+    if (pieza.tipo === "navegador") continue;
 
     if (pieza.tipo === "buffer") {
       t = Math.max(t, ctx.currentTime + 0.01);
@@ -465,15 +491,15 @@ async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: num
   }
 }
 
-function paraFrase(voz: string, f: FraseVoz): QueDecir {
-  if (f.tipo === "texto") return paraTexto(voz, f.texto, ESPERA_MS.precio);
+function paraFrase(voz: string, f: FraseVoz, esperaMs: number = ESPERA_MS.precio): QueDecir {
+  if (f.tipo === "texto") return paraTexto(voz, f.texto, esperaMs);
   const frase =
     f.tipo === "precio"
       ? { tipo: "precio", monto: Math.round(f.monto * 100) / 100, ...(f.moneda ? { moneda: f.moneda } : {}) }
       : { tipo: "aviso", aviso: f.aviso, ...(f.n !== undefined ? { n: f.n } : {}) };
   return {
     id: `${voz}|${idDeFrase(f)}`,
-    esperaMs: ESPERA_MS.precio,
+    esperaMs,
     cuerpo: { voz, frase },
     respaldo: textoDeRespaldo(f),
     recordar: true,
@@ -487,15 +513,26 @@ function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
 
 // ─── Lo que usan las pantallas ─────────────────────────────────────────────
 
-/** Lo que se dice al escanear (el precio, el stock…). Corta lo que se estuviera diciendo. */
-export function decirFrases(frases: FraseVoz[], { forzar = false }: { forzar?: boolean } = {}) {
+/**
+ * Lo que se dice al escanear (el precio, el stock…). Corta lo que se estuviera diciendo.
+ * `esperaMs`: cuánto esperar la voz elegida antes del respaldo (una conversación puede esperar más).
+ */
+export function decirFrases(
+  frases: FraseVoz[],
+  { forzar = false, esperaMs }: { forzar?: boolean; esperaMs?: number } = {},
+) {
   const { precios, voz } = preferenciasVoz();
   // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.
   if ((!precios && !forzar) || !frases.length) return;
   callarVoz();
   const mio = turno;
-  const pedidos = frases.map((f) => paraFrase(voz, f));
-  void reproducir(pedidos.map(obtener), pedidos.map((p) => p.id), mio);
+  const pedidos = frases.map((f) => paraFrase(voz, f, esperaMs));
+  void reproducir(
+    pedidos.map(obtener),
+    pedidos.map((p) => p.id),
+    pedidos.map((p) => p.respaldo),
+    mio,
+  );
 }
 
 /** Lo que contesta el asistente. Se encola: el resumen y después la pregunta. */
@@ -510,7 +547,7 @@ export function decirTexto(texto: string | null | undefined) {
   // Se pide ya, en paralelo con lo que está sonando; suena cuando le toca.
   const pieza = obtener(pedido);
   colaTextos = colaTextos
-    .then(() => (mio === turno ? reproducir([pieza], [pedido.id], mio) : undefined))
+    .then(() => (mio === turno ? reproducir([pieza], [pedido.id], [pedido.respaldo], mio) : undefined))
     .catch(() => undefined);
 }
 
@@ -519,7 +556,7 @@ export function probarVoz(voz: string, texto: string) {
   callarVoz();
   const mio = turno;
   const pedido = paraTexto(voz, texto, ESPERA_MS.muestra);
-  void reproducir([obtener(pedido)], [pedido.id], mio);
+  void reproducir([obtener(pedido)], [pedido.id], [pedido.respaldo], mio);
 }
 
 /**
