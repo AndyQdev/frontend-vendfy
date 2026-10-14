@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { altaPorVoz, type CambiosAltaVoz, type FormularioAltaVoz, type PreguntaAltaVoz } from "@/entities/product/api";
-import { callarVoz, decirFrases, esperarQueCalle, type FraseVoz } from "@/shared/voz";
+import { callarVoz, decirFrases, terminoDeHablar, type FraseVoz } from "@/shared/voz";
 import { contestar, type MemoriaAlta } from "./conversacion-alta";
 import { ESPERA_MS, precargarEscucha, useEscucha, type EstadoEscucha } from "./escucha";
 
@@ -170,9 +170,11 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
     // Habla aunque "Decir el precio" esté apagado: es una conversación, no el aviso del escaneo.
     if (frases.length) {
       setPropia("hablando");
-      decirFrases(frases, { forzar: true, esperaMs: ESPERA_CONVERSACION_MS });
       // Recién cuando calla: si no, el micrófono graba la pregunta.
-      await esperarQueCalle({ arranqueMs: 3000, topeMs: 25_000 });
+      await Promise.race([
+        decirFrases(frases, { forzar: true, esperaMs: ESPERA_CONVERSACION_MS }),
+        new Promise((r) => setTimeout(r, 30_000)),
+      ]);
       if (!vivo.current) return;
     }
     await antes;
@@ -209,7 +211,10 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
     precargarEscucha();
     let cancelado = false;
     void (async () => {
-      await esperarQueCalle({ arranqueMs: 1200 });
+      // El "No está registrado. ¿Lo damos de alta?" lo pide la hoja apenas
+      // después de montar esto: se le da un momento y se espera a que termine.
+      await new Promise((r) => setTimeout(r, 200));
+      await Promise.race([terminoDeHablar(), new Promise((r) => setTimeout(r, 15_000))]);
       if (!cancelado && vivo.current) await hablarYEscucharRef.current([]);
     })();
     return () => {

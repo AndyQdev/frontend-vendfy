@@ -19,9 +19,10 @@ import { preferenciasVoz } from "./preferencias";
  *      El precalentado trae de una vez las de todos los precios del comercio.
  *   3. Lo que nadie dijo nunca se pide a la API, que lo transmite mientras lo
  *      genera: se empieza a escuchar con el primer trozo.
- *   4. Si nada de eso llega a tiempo, la voz del navegador, pero para la
- *      frase ENTERA: nunca se mezclan dos voces en una misma respuesta (pasaba
- *      al cambiar de voz, mientras el servidor generaba las frases nuevas).
+ *   4. Si nada de eso llega a tiempo, NO habla otra voz: la respuesta queda
+ *      escrita en pantalla. Se probó con la voz del navegador de respaldo y
+ *      se oían dos personas (la elegida y una "de IA"), que es peor que un
+ *      silencio. El navegador solo habla si este equipo no tiene audio web.
  *
  * Un escaneo nuevo corta lo que se estaba diciendo: en un mostrador importa
  * el último producto, no el anterior.
@@ -135,23 +136,42 @@ function aMemoria(id: string, b: AudioBuffer) {
 /** id de frase → URL del MP3, guardado en el navegador (sin el prefijo común, que se repite). */
 const urls = new Map<string, string>();
 let guardado: number | undefined;
+/**
+ * Con qué motor se generaron esas URLs ("v1" Gemini, "c1" Chirp). Si el
+ * servidor cambia de motor, lo guardado suena distinto y se olvida.
+ */
+let versionUrls = "";
 
 (function cargarUrls() {
   try {
     const crudo = localStorage.getItem(CLAVE_URLS);
     if (!crudo) return;
-    const { b, m } = JSON.parse(crudo) as { b: string; m: Record<string, string> };
+    const { b, m, v } = JSON.parse(crudo) as { b: string; m: Record<string, string>; v?: string };
+    versionUrls = v ?? "v1";
     for (const [id, resto] of Object.entries(m)) urls.set(id, resto.startsWith("http") ? resto : b + resto);
   } catch {
     // arranca vacío
   }
 })();
 
+/** El servidor dijo con qué motor genera: si no es el de lo guardado, se empieza de cero. */
+function confirmarVersion(version: string | undefined) {
+  if (!version || version === versionUrls) return;
+  versionUrls = version;
+  urls.clear();
+  enMemoria.clear();
+  guardarUrls();
+}
+
 function recordarUrl(id: string, url: string) {
   if (urls.get(id) === url) return;
   urls.delete(id);
   urls.set(id, url);
   while (urls.size > MAX_URLS) urls.delete(urls.keys().next().value!);
+  guardarUrls();
+}
+
+function guardarUrls() {
   window.clearTimeout(guardado);
   guardado = window.setTimeout(() => {
     try {
@@ -159,7 +179,7 @@ function recordarUrl(id: string, url: string) {
       const b = muestra.slice(0, muestra.lastIndexOf("/voz/") + 5);
       const m: Record<string, string> = {};
       for (const [k, v] of urls) m[k] = b && v.startsWith(b) ? v.slice(b.length) : v;
-      localStorage.setItem(CLAVE_URLS, JSON.stringify({ b, m }));
+      localStorage.setItem(CLAVE_URLS, JSON.stringify({ b, m, v: versionUrls }));
     } catch {
       // sin lugar: vale para esta sesión
     }
@@ -396,8 +416,9 @@ async function obtener(q: QueDecir): Promise<Pieza> {
  * Las piezas se piden todas a la vez y suenan en orden, una detrás de otra.
  *
  * Antes de sonar se espera a que todas tengan audio (se piden en paralelo, así
- * que es el tiempo de la más lenta). Si alguna no llegó con la voz elegida, la
- * respuesta entera la dice la voz del navegador: una sola voz, nunca dos.
+ * que es el tiempo de la más lenta). Si alguna no llegó con la voz elegida,
+ * no suena nada: una sola voz siempre, nunca dos. (Sin audio web en el
+ * equipo, todo lo dice el navegador: también una sola voz.)
  */
 async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respaldos: string[], mio: number) {
   const ctx = contextoAudio();
@@ -410,8 +431,11 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
     return;
   }
 
-  if (!ctx || piezas.some((p) => p.tipo === "navegador")) {
+  if (ctx && piezas.some((p) => p.tipo === "navegador")) {
     cancelarFlujos();
+    return;
+  }
+  if (!ctx) {
     // Que no se pise con lo que ya está programado.
     const espera = ctx ? (finProgramado - ctx.currentTime) * 1000 : 0;
     if (espera > 0) await dormir(espera);
@@ -489,6 +513,10 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
     t += pausa;
     finProgramado = t;
   }
+  // Resuelve cuando termina de sonar (o si otra cosa la cortó).
+  while (mio === turno && ctx.currentTime < finProgramado - pausa) {
+    await dormir(Math.max(30, (finProgramado - pausa - ctx.currentTime) * 1000));
+  }
 }
 
 function paraFrase(voz: string, f: FraseVoz, esperaMs: number = ESPERA_MS.precio): QueDecir {
@@ -520,19 +548,28 @@ function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
 export function decirFrases(
   frases: FraseVoz[],
   { forzar = false, esperaMs }: { forzar?: boolean; esperaMs?: number } = {},
-) {
+): Promise<void> {
   const { precios, voz } = preferenciasVoz();
   // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.
-  if ((!precios && !forzar) || !frases.length) return;
+  if ((!precios && !forzar) || !frases.length) return Promise.resolve();
   callarVoz();
   const mio = turno;
   const pedidos = frases.map((f) => paraFrase(voz, f, esperaMs));
-  void reproducir(
+  // Resuelve cuando terminó de decirlo (o se decidió no decirlo): quien
+  // escucha después, abre el micrófono recién ahí.
+  return (ultimaFrase = reproducir(
     pedidos.map(obtener),
     pedidos.map((p) => p.id),
     pedidos.map((p) => p.respaldo),
     mio,
-  );
+  ).catch(() => undefined));
+}
+
+let ultimaFrase: Promise<void> = Promise.resolve();
+
+/** Lo último que se mandó a decir con `decirFrases`, terminado (o descartado). */
+export function terminoDeHablar(): Promise<void> {
+  return ultimaFrase;
 }
 
 /** Lo que contesta el asistente. Se encola: el resumen y después la pregunta. */
@@ -580,10 +617,11 @@ export async function precalentarVoz(textos: string[] = []) {
   if (!tandas.length) tandas.push([]);
   for (const tanda of tandas) {
     try {
-      const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }> }>("/api/voz/precalentar", {
-        method: "POST",
-        body: { voz, ...(tanda.length ? { textos: tanda } : {}) },
-      });
+      const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }>; version?: string }>(
+        "/api/voz/precalentar",
+        { method: "POST", body: { voz, ...(tanda.length ? { textos: tanda } : {}) } },
+      );
+      confirmarVersion(r.data?.version);
       for (const { id, url } of r.data?.listas ?? []) recordarUrl(`${voz}|${id}`, url);
     } catch {
       // Sin precalentar, cada frase se genera la primera vez que se dice.

@@ -7,6 +7,7 @@ export {
   idDeFrase,
   precalentarVoz,
   probarVoz,
+  terminoDeHablar,
   useHablando,
   type AvisoVoz,
   type FraseVoz,

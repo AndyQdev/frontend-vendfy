@@ -90,7 +90,7 @@ function Barras({ fase, nivel }: { fase: FaseVoz; nivel: React.MutableRefObject<
             barras.current[i] = el;
           }}
           className={cn(
-            "h-full w-[3px] origin-center rounded-full bg-current transition-transform duration-75",
+            "h-full w-[3px] origin-center rounded-full bg-current transition-transform [transition-duration:75ms]",
             habla && "voz-barra",
             piensa && "voz-pensar-barra",
           )}
@@ -148,7 +148,7 @@ export function IndicadorVoz({
       data-testid="orbe-voz"
       data-fase={fase}
       className={cn(
-        "relative flex h-9 items-center gap-2 overflow-hidden rounded-full border-2 pl-1 pr-3 text-[13px] font-semibold transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "relative flex h-9 items-center gap-2 overflow-hidden rounded-full border-2 pl-1 pr-3 text-[13px] font-semibold transition-[background-color,border-color,color,box-shadow] [transition-duration:150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         ESTILO[fase],
       )}
     >
