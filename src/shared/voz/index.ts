@@ -15,6 +15,7 @@ export {
   preferenciasVoz,
   setPreferenciasVoz,
   usePreferenciasVoz,
+  VELOCIDADES,
   VOZ_POR_DEFECTO,
   type PreferenciasVoz,
 } from "./preferencias";

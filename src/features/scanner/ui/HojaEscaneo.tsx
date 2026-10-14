@@ -109,7 +109,7 @@ export function HojaEscaneo() {
     const clave = `${hoja.clave}:${estado}`;
     if (dijoQue.current === clave) return;
     dijoQue.current = clave;
-    if (estado === "nuevo") decirFrases(frasesNoRegistrado());
+    if (estado === "nuevo") decirFrases(frasesNoRegistrado(), { forzar: preferenciasVoz().escuchar });
     else if (estado === "ficha") decirFrases(frasesFicha(resultado, tiendaId));
     else if (!hoja.contexto || hoja.contexto === "general") {
       decirFrases(frasesFicha(resultado, tiendaId).slice(0, 2));

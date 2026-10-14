@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { altaPorVoz, type CambiosAltaVoz, type FormularioAltaVoz } from "@/entities/product/api";
-import { callarVoz, decirFrases, esperarQueCalle, preferenciasVoz, type FraseVoz } from "@/shared/voz";
+import { altaPorVoz, type CambiosAltaVoz, type FormularioAltaVoz, type PreguntaAltaVoz } from "@/entities/product/api";
+import { callarVoz, decirFrases, esperarQueCalle, type FraseVoz } from "@/shared/voz";
 import { contestar, type MemoriaAlta } from "./conversacion-alta";
 import { ESPERA_MS, precargarEscucha, useEscucha, type EstadoEscucha } from "./escucha";
 
@@ -14,8 +14,8 @@ import { ESPERA_MS, precargarEscucha, useEscucha, type EstadoEscucha } from "./e
  * preguntó algo y pide lo que falta ("Dime el precio de venta."). Así se sabe
  * que escuchó y qué decir después, sin mirar la pantalla.
  *
- * Registra solo si la persona lo pide con todas las letras ("regístralo") y
- * el formulario pasa sus validaciones de siempre.
+ * Registra solo si la persona lo pide: "regístralo", o "sí" cuando la voz
+ * preguntó "¿Lo registro?". Y siempre con las validaciones del formulario.
  */
 
 export type FaseVoz =
@@ -63,13 +63,16 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
   const vivo = useRef(true);
   const sinProgreso = useRef(0);
   const vueltas = useRef(0);
-  const memoria = useRef<MemoriaAlta>({ preguntoCantidad: false, dijoComoRegistrar: false });
+  const memoria = useRef<MemoriaAlta>({ preguntoCantidad: false });
+  /** La pregunta abierta y las últimas vueltas: viajan con cada frase. */
+  const pregunta = useRef<PreguntaAltaVoz | null>(automatico ? "alta" : null);
+  const historial = useRef<Array<{ tu: string; vendfy: string }>>([]);
 
   const datos = useRef({ storeId, formulario, categorias, cantidadEs, aplicar, registrar });
   datos.current = { storeId, formulario, categorias, cantidadEs, aplicar, registrar };
 
   // Las funciones se llaman entre sí; la ref evita el ciclo de dependencias.
-  const hablarYEscucharRef = useRef<(frases: FraseVoz[]) => Promise<void>>(async () => {});
+  const hablarYEscucharRef = useRef<(frases: FraseVoz[], antes?: Promise<void>) => Promise<void>>(async () => {});
 
   const alHablar = useCallback(async (wav: Blob) => {
     const d = datos.current;
@@ -82,30 +85,43 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
         formulario: d.formulario(),
         categorias: d.categorias,
         cantidadEs: d.cantidadEs,
+        pregunta: pregunta.current,
+        historial: historial.current,
       });
       if (!vivo.current) return;
       const dicho = r.transcripcion.texto.trim();
       setDialogo((x) => ({ ...x, tu: dicho || "…" }));
 
+      // La respuesta se arma con cómo VA a quedar el formulario, y se dice
+      // mientras se escribe: esperar la animación costaba ~1,5 s por vuelta.
+      const f = { ...datos.current.formulario(), ...r.cambios };
+      let escritura: Promise<void> = Promise.resolve();
       if (Object.keys(r.cambios).length) {
         setPropia("escribiendo");
-        await datos.current.aplicar(r.cambios);
-        if (!vivo.current) return;
-        setPropia("listo");
+        escritura = datos.current.aplicar(r.cambios);
       }
-
-      const f = datos.current.formulario();
       const c = contestar(
         r,
         { nombre: f.nombre, precio: f.precio, cantidad: f.cantidad ?? 0 },
         datos.current.cantidadEs,
         memoria.current,
+        pregunta.current,
       );
+      pregunta.current = c.pregunta;
+      historial.current = [...historial.current, { tu: dicho, vendfy: c.texto }].slice(-3);
       sinProgreso.current = c.progreso ? 0 : sinProgreso.current + 1;
       setDialogo((x) => ({ ...x, vendfy: c.texto }));
 
+      if (c.terminar) {
+        decirFrases(c.frases, { forzar: true });
+        setPropia(null);
+        return;
+      }
       if (c.registrar) {
-        decirFrases(c.frases);
+        decirFrases(c.frases, { forzar: true });
+        // Registra con lo que quedó escrito.
+        await escritura;
+        if (!vivo.current) return;
         if (!datos.current.registrar()) {
           setDialogo((x) => ({ ...x, vendfy: "Falta un dato: revisa lo marcado en rojo." }));
         }
@@ -117,7 +133,7 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
         setPropia(null);
         return;
       }
-      await hablarYEscucharRef.current(c.frases);
+      await hablarYEscucharRef.current(c.frases, escritura);
     } catch {
       if (!vivo.current) return;
       setDialogo((x) => ({ ...x, vendfy: "No pude procesar el audio. Toca el micrófono para intentarlo de nuevo." }));
@@ -135,21 +151,27 @@ export function useAltaPorVoz({ automatico, storeId, formulario, categorias, can
   const escuchaRef = useRef(escucha);
   escuchaRef.current = escucha;
 
-  /** Dice lo que tenga que decir y, cuando termina, vuelve a escuchar. */
-  hablarYEscucharRef.current = async (frases) => {
+  /**
+   * Dice lo que tenga que decir y, cuando termina (y terminó de escribir
+   * `antes`), vuelve a escuchar.
+   */
+  hablarYEscucharRef.current = async (frases, antes) => {
     if (!vivo.current) return;
     if (vueltas.current >= MAX_VUELTAS) {
       setPropia(null);
       return;
     }
     vueltas.current++;
-    if (frases.length && preferenciasVoz().precios) {
+    // Habla aunque "Decir el precio" esté apagado: es una conversación, no el aviso del escaneo.
+    if (frases.length) {
       setPropia("hablando");
-      decirFrases(frases);
+      decirFrases(frases, { forzar: true });
       // Recién cuando calla: si no, el micrófono graba la pregunta.
       await esperarQueCalle({ arranqueMs: 3000, topeMs: 25_000 });
       if (!vivo.current) return;
     }
+    await antes;
+    if (!vivo.current) return;
     setPropia(null);
     await escuchaRef.current.escuchar(ESPERA_MS);
   };

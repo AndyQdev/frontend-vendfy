@@ -1,4 +1,4 @@
-import type { CambiosAltaVoz, ResultadoAltaVoz } from "@/entities/product/api";
+import type { CambiosAltaVoz, PreguntaAltaVoz, ResultadoAltaVoz } from "@/entities/product/api";
 import type { FraseVoz } from "@/shared/voz";
 import { mayuscula, numeroALetras } from "@/shared/voz/letras";
 import { formatMoney } from "@/shared/lib/money";
@@ -12,6 +12,9 @@ import { formatMoney } from "@/shared/lib/money";
  * bolivianos.", "Cinco en stock.", "Dime el precio de venta."), que el
  * servidor guarda una vez y salen al instante. Solo la respuesta a una
  * pregunta ("¿para qué sirve la categoría?") se genera en el momento.
+ *
+ * La pregunta que queda abierta viaja con la próxima frase: así un "veinte"
+ * a secas es el precio, y un "sí" a "¿Lo registro?" registra.
  */
 
 const texto = (t: string): FraseVoz => ({ tipo: "texto", texto: t });
@@ -19,33 +22,55 @@ const texto = (t: string): FraseVoz => ({ tipo: "texto", texto: t });
 export const FRASES_ALTA = {
   listo: "Listo.",
   perfecto: "Perfecto.",
+  deAcuerdo: "De acuerdo.",
   registro: "Perfecto, lo registro.",
-  nombre: "¿Cómo se llama el producto?",
-  precio: "Dime el precio de venta.",
-  precioTrasCosto: "¿Y a qué precio lo vendes?",
-  cantidad: "¿Con cuántas unidades entra al stock?",
-  comoRegistrar: "Si está todo bien, di «regístralo» o toca Registrar.",
-  algoMas: "¿Algo más?",
+  noRegistro: "De acuerdo, no lo registro.",
+  queCambio: "De acuerdo. ¿Qué quieres cambiar?",
   repetir: "No te entendí bien. ¿Me lo repites?",
   falta: "Antes de registrarlo falta un dato.",
   anoteNombre: "Anoté el nombre.",
   anoteMarca: "Anoté la marca.",
   anoteCategoria: "Anoté la categoría.",
+  yaEsta: "Eso ya está anotado.",
 } as const;
+
+/** Lo que pregunta, según lo que falta. */
+export const PREGUNTAS: Record<PreguntaAltaVoz, string> = {
+  alta: "¿Lo damos de alta?",
+  nombre: "¿Cómo se llama el producto?",
+  precio: "Dime el precio de venta.",
+  precioYCantidad: "Dime el precio de venta y, si quieres, con cuántas unidades entra al stock.",
+  cantidad: "¿Con cuántas unidades entra al stock?",
+  registrar: "¿Lo registro?",
+};
+const PRECIO_TRAS_COSTO = "¿Y a qué precio lo vendes?";
+
+/** Cuando un dato se dijo pero no se entendió: se pide ese, no otro. */
+const NO_ENTENDI: Record<string, { frase: string; pregunta: PreguntaAltaVoz | null }> = {
+  precio: { frase: "No entendí bien el precio. ¿Me lo repites?", pregunta: "precio" },
+  cantidad: { frase: "No entendí bien la cantidad. ¿Me la repites?", pregunta: "cantidad" },
+  nombre: { frase: "No entendí bien el nombre. ¿Me lo repites?", pregunta: "nombre" },
+  marca: { frase: "No entendí bien la marca. ¿Me la repites?", pregunta: null },
+  categoria: { frase: "No entendí bien la categoría. ¿Me la repites?", pregunta: null },
+};
 
 const enStock = (n: number) => `${mayuscula(numeroALetras(n))} en stock.`;
 const compraste = (n: number) => `Compraste ${numeroALetras(n)}.`;
+/** Las cantidades más comunes, para que la confirmación salga al instante. */
+const CANTIDADES_COMUNES = [...Array.from({ length: 30 }, (_, i) => i + 1), 36, 40, 48, 50, 60, 100];
 
 /** Las frases fijas del alta, para precalentarlas con las demás. */
 export const FRASES_FIJAS_ALTA: string[] = [
   ...Object.values(FRASES_ALTA),
-  ...[...Array.from({ length: 12 }, (_, i) => i + 1), 24].flatMap((n) => [enStock(n), compraste(n)]),
+  ...Object.values(PREGUNTAS),
+  PRECIO_TRAS_COSTO,
+  ...Object.values(NO_ENTENDI).map((n) => n.frase),
+  ...CANTIDADES_COMUNES.flatMap((n) => [enStock(n), compraste(n)]),
 ];
 
 /** Lo que ya preguntó, para no repetirlo en cada vuelta. */
 export interface MemoriaAlta {
   preguntoCantidad: boolean;
-  dijoComoRegistrar: boolean;
 }
 
 export interface EstadoAlta {
@@ -57,12 +82,14 @@ export interface EstadoAlta {
 export interface Contestacion {
   /** Lo que se dice. */
   frases: FraseVoz[];
-  /** Lo mismo, para leer. */
+  /** Lo mismo, para leer (puede traer una ayuda que no se dice). */
   texto: string;
-  /** La pregunta que queda abierta (para mostrarla mientras escucha). */
-  pregunta: string | null;
+  /** La pregunta que queda abierta: viaja con la próxima frase. */
+  pregunta: PreguntaAltaVoz | null;
   /** Pidió registrar y está todo: el formulario registra. */
   registrar: boolean;
+  /** No quiere seguir ("no" a "¿Lo damos de alta?"): se deja de escuchar. */
+  terminar: boolean;
   /** Hubo algo útil en la frase (no cuenta para cortar por falta de progreso). */
   progreso: boolean;
 }
@@ -70,18 +97,36 @@ export interface Contestacion {
 const unir = (partes: string[]) =>
   partes.length <= 1 ? partes.join("") : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
 
+const sola = (t: string, extra: Partial<Contestacion> = {}): Contestacion => ({
+  frases: [texto(t)],
+  texto: t,
+  pregunta: null,
+  registrar: false,
+  terminar: false,
+  progreso: true,
+  ...extra,
+});
+
 export function contestar(
-  r: Pick<ResultadoAltaVoz, "cambios" | "soloCosto" | "afirma" | "registrar" | "respuesta">,
+  r: Pick<ResultadoAltaVoz, "cambios" | "soloCosto" | "afirma" | "niega" | "registrar" | "respuesta" | "dudas" | "yaEstaba">,
   ahora: EstadoAlta,
   cantidadEs: "stock" | "compra",
   memoria: MemoriaAlta,
+  /** Lo que se le acababa de preguntar. */
+  anterior: PreguntaAltaVoz | null,
 ): Contestacion {
   const c: CambiosAltaVoz = r.cambios;
   const huboCambios = Object.keys(c).length > 0;
   const completo = Boolean(ahora.nombre?.trim()) && Boolean(ahora.precio && ahora.precio > 0);
 
-  if (r.registrar && completo) {
-    return { frases: [texto(FRASES_ALTA.registro)], texto: FRASES_ALTA.registro, pregunta: null, registrar: true, progreso: true };
+  // Registrar: lo pidió con todas las letras, o dijo "sí" a "¿Lo registro?".
+  if (completo && (r.registrar || (r.afirma && anterior === "registrar"))) {
+    return sola(FRASES_ALTA.registro, { registrar: true });
+  }
+  if (r.niega && !huboCambios) {
+    return anterior === "alta"
+      ? sola(FRASES_ALTA.noRegistro, { terminar: true })
+      : sola(FRASES_ALTA.queCambio);
   }
 
   const frases: FraseVoz[] = [];
@@ -113,6 +158,14 @@ export function contestar(
     leer.push(`Listo: ${unir(anotado)}.`);
   }
 
+  // Quiso decir algo que no se entendió: se pide eso mismo, antes que nada.
+  const duda = (r.dudas ?? []).map((d) => NO_ENTENDI[d]).find(Boolean);
+  if (duda) {
+    frases.push(texto(duda.frase));
+    leer.push(duda.frase);
+    return { frases, texto: leer.join(" "), pregunta: duda.pregunta, registrar: false, terminar: false, progreso: huboCambios };
+  }
+
   if (r.respuesta) {
     frases.push(texto(r.respuesta));
     leer.push(r.respuesta);
@@ -125,24 +178,44 @@ export function contestar(
     } else if (r.afirma) {
       frases.push(texto(FRASES_ALTA.perfecto));
       leer.push(FRASES_ALTA.perfecto);
+    } else if (r.yaEstaba) {
+      frases.push(texto(FRASES_ALTA.yaEsta));
+      leer.push(FRASES_ALTA.yaEsta);
     } else if (!r.soloCosto) {
-      return { frases: [texto(FRASES_ALTA.repetir)], texto: FRASES_ALTA.repetir, pregunta: FRASES_ALTA.repetir, registrar: false, progreso: false };
+      return sola(FRASES_ALTA.repetir, { pregunta: anterior, progreso: false });
     }
   }
 
   // Lo que falta, de a uno: primero lo que impide registrar.
-  let pregunta: string;
-  if (!ahora.nombre?.trim()) pregunta = FRASES_ALTA.nombre;
-  else if (!(ahora.precio && ahora.precio > 0)) pregunta = r.soloCosto ? FRASES_ALTA.precioTrasCosto : FRASES_ALTA.precio;
-  else if (cantidadEs === "stock" && !ahora.cantidad && !memoria.preguntoCantidad) {
+  let pregunta: PreguntaAltaVoz;
+  let dicha: string;
+  const sinCantidad = cantidadEs === "stock" && !ahora.cantidad && c.cantidad === undefined;
+  if (!ahora.nombre?.trim()) {
+    pregunta = "nombre";
+    dicha = PREGUNTAS.nombre;
+  } else if (!(ahora.precio && ahora.precio > 0)) {
+    if (r.soloCosto) {
+      pregunta = "precio";
+      dicha = PRECIO_TRAS_COSTO;
+    } else if (sinCantidad && !memoria.preguntoCantidad) {
+      // Las dos de una vez: "a 20 y con 5" se contesta en una sola frase.
+      memoria.preguntoCantidad = true;
+      pregunta = "precioYCantidad";
+      dicha = PREGUNTAS.precioYCantidad;
+    } else {
+      pregunta = "precio";
+      dicha = PREGUNTAS.precio;
+    }
+  } else if (sinCantidad && !memoria.preguntoCantidad) {
     memoria.preguntoCantidad = true;
-    pregunta = FRASES_ALTA.cantidad;
-  } else if (!memoria.dijoComoRegistrar) {
-    memoria.dijoComoRegistrar = true;
-    pregunta = FRASES_ALTA.comoRegistrar;
-  } else pregunta = FRASES_ALTA.algoMas;
+    pregunta = "cantidad";
+    dicha = PREGUNTAS.cantidad;
+  } else {
+    pregunta = "registrar";
+    dicha = PREGUNTAS.registrar;
+  }
 
-  frases.push(texto(pregunta));
-  leer.push(pregunta);
-  return { frases, texto: leer.join(" "), pregunta, registrar: false, progreso: true };
+  frases.push(texto(dicha));
+  leer.push(pregunta === "registrar" ? `${dicha} Di «sí» o toca Registrar.` : dicha);
+  return { frases, texto: leer.join(" "), pregunta, registrar: false, terminar: false, progreso: true };
 }

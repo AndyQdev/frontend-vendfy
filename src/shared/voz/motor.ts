@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import { API_URL, apiFetch } from "@/shared/api/client";
 
+import { Acelerador, acelerarMuestras } from "./acelerar";
 import { contextoAudio } from "./audio";
 import { callarNavegador, decirConNavegador } from "./navegador";
 import { preferenciasVoz } from "./preferencias";
@@ -53,6 +54,7 @@ const COLCHON_FLUJO = 0.06;
 const MAX_EN_MEMORIA = 300;
 const MAX_URLS = 4000;
 const CLAVE_URLS = "vendfy.voz.urls.v1";
+const MAX_TEXTOS_PRECALENTAR = 80;
 
 // ─── Cómo se nombra cada frase ─────────────────────────────────────────────
 
@@ -158,6 +160,28 @@ function recordarUrl(id: string, url: string) {
       // sin lugar: vale para esta sesión
     }
   }, 1000);
+}
+
+// ─── Velocidad ─────────────────────────────────────────────────────────────
+
+function velocidad(): number {
+  const v = Number(preferenciasVoz().velocidad);
+  return Number.isFinite(v) && v >= 0.8 && v <= 2 ? v : 1;
+}
+
+/** Cada audio acelerado una vez por velocidad: repetir un precio sigue siendo instantáneo. */
+const acelerados = new WeakMap<AudioBuffer, { v: number; buffer: AudioBuffer }>();
+
+function acelerado(ctx: AudioContext, original: AudioBuffer): AudioBuffer {
+  const v = velocidad();
+  if (v === 1) return original;
+  const hecho = acelerados.get(original);
+  if (hecho?.v === v) return hecho.buffer;
+  const muestras = acelerarMuestras(original.getChannelData(0), original.sampleRate, v);
+  const buffer = ctx.createBuffer(1, muestras.length, original.sampleRate);
+  buffer.copyToChannel(muestras as Muestras, 0);
+  acelerados.set(original, { v, buffer });
+  return buffer;
 }
 
 // ─── Reproducción ──────────────────────────────────────────────────────────
@@ -359,6 +383,8 @@ async function obtener(q: QueDecir): Promise<Pieza> {
 async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: number) {
   const ctx = contextoAudio();
   let t = ctx ? Math.max(ctx.currentTime + 0.02, finProgramado) : 0;
+  const v = velocidad();
+  const pausa = PAUSA_ENTRE_FRASES / v;
 
   for (let i = 0; i < piezas.length; i++) {
     const pieza = await piezas[i];
@@ -373,32 +399,39 @@ async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: num
       if (espera > 0) await dormir(espera);
       if (mio !== turno || pieza.tipo !== "navegador") continue;
       setHablando(true);
-      await decirConNavegador(pieza.texto);
+      await decirConNavegador(pieza.texto, v);
       if (mio === turno) setHablando(sonando.size > 0);
-      if (ctx) t = ctx.currentTime + PAUSA_ENTRE_FRASES;
+      if (ctx) t = ctx.currentTime + pausa;
       continue;
     }
 
     if (pieza.tipo === "buffer") {
       t = Math.max(t, ctx.currentTime + 0.01);
-      programar(ctx, pieza.buffer, t);
-      t += pieza.buffer.duration + PAUSA_ENTRE_FRASES;
+      const buffer = acelerado(ctx, pieza.buffer);
+      programar(ctx, buffer, t);
+      t += buffer.duration + pausa;
       finProgramado = t;
       continue;
     }
 
-    // Transmitida: cada trozo se programa pegado al anterior.
+    // Transmitida: cada trozo se acelera y se programa pegado al anterior. En
+    // memoria queda el original, que se acelera a la velocidad del momento.
     const trozos: Muestras[] = [];
     let total = 0;
+    const acelerador = v === 1 ? null : new Acelerador(FRECUENCIA, v);
     t = Math.max(t, ctx.currentTime + COLCHON_FLUJO);
-    const sumar = (muestras: Muestras) => {
+    const tocar = (muestras: Float32Array) => {
+      if (!muestras.length) return;
       const b = ctx.createBuffer(1, muestras.length, FRECUENCIA);
-      b.copyToChannel(muestras, 0);
+      b.copyToChannel(muestras as Muestras, 0);
       // Si la red se atrasó, se retoma con un respiro mínimo en vez de amontonar.
       if (t < ctx.currentTime) t = ctx.currentTime + 0.03;
       programar(ctx, b, t);
       t += b.duration;
       finProgramado = t;
+    };
+    const sumar = (muestras: Muestras) => {
+      tocar(acelerador ? acelerador.push(muestras) : muestras);
       trozos.push(muestras);
       total += muestras.length;
     };
@@ -416,6 +449,7 @@ async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: num
     } catch {
       completa = false;
     }
+    if (acelerador && mio === turno) tocar(acelerador.flush());
     // Entera, queda en memoria: repetirla es instantáneo.
     if (completa && total) {
       const entera = ctx.createBuffer(1, total, FRECUENCIA);
@@ -426,7 +460,7 @@ async function reproducir(piezas: Array<Promise<Pieza>>, ids: string[], mio: num
       }
       aMemoria(ids[i], entera);
     }
-    t += PAUSA_ENTRE_FRASES;
+    t += pausa;
     finProgramado = t;
   }
 }
@@ -503,13 +537,19 @@ export async function precalentarVoz(textos: string[] = []) {
   } catch {
     // sin sessionStorage: se precalienta igual
   }
-  try {
-    const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }> }>("/api/voz/precalentar", {
-      method: "POST",
-      body: { voz, ...(textos.length ? { textos } : {}) },
-    });
-    for (const { id, url } of r.data?.listas ?? []) recordarUrl(`${voz}|${id}`, url);
-  } catch {
-    // Sin precalentar, cada precio se genera la primera vez que se escanea.
+  // El servidor acepta hasta 80 textos por pedido: van en tandas.
+  const tandas: string[][] = [];
+  for (let i = 0; i < textos.length; i += MAX_TEXTOS_PRECALENTAR) tandas.push(textos.slice(i, i + MAX_TEXTOS_PRECALENTAR));
+  if (!tandas.length) tandas.push([]);
+  for (const tanda of tandas) {
+    try {
+      const r = await apiFetch<{ encolados: number; listas: Array<{ id: string; url: string }> }>("/api/voz/precalentar", {
+        method: "POST",
+        body: { voz, ...(tanda.length ? { textos: tanda } : {}) },
+      });
+      for (const { id, url } of r.data?.listas ?? []) recordarUrl(`${voz}|${id}`, url);
+    } catch {
+      // Sin precalentar, cada frase se genera la primera vez que se dice.
+    }
   }
 }

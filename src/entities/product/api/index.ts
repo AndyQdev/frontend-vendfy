@@ -272,6 +272,9 @@ export type CambiosAltaVoz = Partial<{
   cantidad: number;
 }>;
 
+/** Lo último que preguntó la voz: con eso el servidor entiende un "veinte" o un "sí" a secas. */
+export type PreguntaAltaVoz = "alta" | "nombre" | "precio" | "precioYCantidad" | "cantidad" | "registrar";
+
 export interface ResultadoAltaVoz {
   transcripcion: { texto: string; motor: string; ms: number };
   cambios: CambiosAltaVoz;
@@ -279,10 +282,16 @@ export interface ResultadoAltaVoz {
   soloCosto: boolean;
   /** Solo asintió ("sí", "claro"). */
   afirma: boolean;
+  /** Solo dijo que no ("no", "todavía no"). */
+  niega: boolean;
   /** Pidió registrarlo ("regístralo", "dale de alta"). */
   registrar: boolean;
   /** Si preguntó algo, la respuesta corta. */
   respuesta: string | null;
+  /** Campos que quiso decir pero no se entendieron: hay que pedir que los repita. */
+  dudas: Array<keyof FormularioAltaVoz>;
+  /** Repitió lo que ya estaba anotado. */
+  yaEstaba: boolean;
   msInterpretar: number;
 }
 
@@ -292,6 +301,8 @@ export async function altaPorVoz(params: {
   formulario: FormularioAltaVoz;
   categorias: string[];
   cantidadEs: "stock" | "compra";
+  pregunta: PreguntaAltaVoz | null;
+  historial: Array<{ tu: string; vendfy: string }>;
 }): Promise<ResultadoAltaVoz> {
   const forma = new FormData();
   forma.append("audio", params.audio, params.audio.type.includes("wav") ? "alta.wav" : "alta.webm");
@@ -299,7 +310,13 @@ export async function altaPorVoz(params: {
   // En multipart no viajan objetos: va como JSON.
   forma.append(
     "contexto",
-    JSON.stringify({ formulario: params.formulario, categorias: params.categorias, cantidadEs: params.cantidadEs }),
+    JSON.stringify({
+      formulario: params.formulario,
+      categorias: params.categorias,
+      cantidadEs: params.cantidadEs,
+      pregunta: params.pregunta,
+      historial: params.historial,
+    }),
   );
   const r = await apiFetch<ResultadoAltaVoz>("/api/omnibox/voz/alta", { method: "POST", body: forma });
   return r.data!;

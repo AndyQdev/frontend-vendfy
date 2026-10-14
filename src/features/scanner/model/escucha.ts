@@ -26,8 +26,13 @@ export type EstadoEscucha =
 export const ESPERA_MS = 15_000;
 /** Tope de una intervención. */
 const TOPE_MS = 30_000;
-/** Silencio que da por terminada la frase. */
-const SILENCIO_MS = 2_000;
+/**
+ * Silencio que da por terminada la frase. Corto, para que conteste rápido: si
+ * alguien hace una pausa a mitad ("a veinte… y cinco de stock"), lo que sigue
+ * llega como otra frase y se entiende igual, porque la conversación tiene
+ * memoria.
+ */
+const SILENCIO_MS = 1_300;
 
 // El modelo y el motor salen del CDN con la versión exacta instalada: son
 // 5 MB (comprimidos) que el navegador guarda un año y no inflan el panel.
@@ -53,15 +58,18 @@ function cargar(): Promise<MicVAD> {
       onnxWASMBasePath: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${VERSION_ONNX}/dist/`,
       audioContext: contextoAudio() ?? undefined,
       startOnLoad: false,
-      positiveSpeechThreshold: 0.5,
-      negativeSpeechThreshold: 0.35,
+      // Los umbrales por defecto del modelo v5. Más altos, un "sí" corto no
+      // juntaba suficientes cuadros "seguro que es voz" y se descartaba
+      // (medido el 14/10/2026: la persona decía "sí" y no pasaba nada).
+      positiveSpeechThreshold: 0.3,
+      negativeSpeechThreshold: 0.25,
       redemptionMs: SILENCIO_MS,
       // Lo dicho un poco antes de que el detector lo notara: sin esto se pierde
       // la primera sílaba ("…í, con cinco").
       preSpeechPadMs: 400,
       // Un "sí" dura ~200 ms: con 300 se descartaba y la persona sentía que
       // no la escuchaba. Un golpe seco sobre el mostrador dura menos.
-      minSpeechMs: 160,
+      minSpeechMs: 128,
       // Al cortar por el tope, lo que se venía diciendo se entrega igual.
       submitUserSpeechOnPause: true,
       onSpeechStart: () => oyente?.inicio(),
