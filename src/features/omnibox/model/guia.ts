@@ -119,6 +119,7 @@ const PAGOS: { pago: MetodoPago; etiqueta: string }[] = [
   { pago: "efectivo", etiqueta: "Efectivo" },
   { pago: "qr", etiqueta: "QR" },
   { pago: "tarjeta", etiqueta: "Tarjeta" },
+  { pago: "dolares", etiqueta: "Dólares" },
 ];
 
 function bs(n: number): string {
@@ -138,14 +139,15 @@ export const MENSAJES = {
       clave: "VENTA_VACIA",
     };
   },
-  faltaPago(): MensajeGuia {
+  /** `conDolares`: en dólares solo se cobra la venta en el momento (no con delivery ni a cuotas). */
+  faltaPago(conDolares = true): MensajeGuia {
     return {
       codigo: "FALTA_PAGO",
       nivel: "error",
       mesa: "venta",
       texto: "Falta el método de pago. ¿Con qué paga?",
       campo: "pago",
-      acciones: PAGOS.map((p) => ({ tipo: "pago" as const, ...p })),
+      acciones: PAGOS.filter((p) => conDolares || p.pago !== "dolares").map((p) => ({ tipo: "pago" as const, ...p })),
       clave: "FALTA_PAGO",
     };
   },
@@ -309,7 +311,7 @@ export function cantidadNoDichaVigente(m: MensajeGuia, venta: BorradorVenta, com
 export function revisarVenta(v: BorradorVenta, pagoDicho?: MetodoPago | null): MensajeGuia[] {
   if (v.lineas.length === 0) return [MENSAJES.ventaVacia()];
   const out: MensajeGuia[] = [];
-  if (!(pagoDicho ?? v.pago)) out.push(MENSAJES.faltaPago());
+  if (!(pagoDicho ?? v.pago)) out.push(MENSAJES.faltaPago(!v.entrega && !v.cuotas));
   for (const l of v.lineas) {
     if (l.cantidad > l.stock) out.push(MENSAJES.sinStock(l));
   }

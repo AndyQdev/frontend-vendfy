@@ -17,6 +17,7 @@ export function useOrders(params: OrderQueryParams = {}) {
     queryParams.append('value', params.value);
   }
   if (params.status) queryParams.append('status', params.status);
+  if (params.productId) queryParams.append('productId', params.productId);
 
   return useQuery<OrdersResponse>({
     queryKey: ["orders", params],
@@ -25,9 +26,22 @@ export function useOrders(params: OrderQueryParams = {}) {
       return {
         statusCode: response.statusCode,
         data: response.data || [],
-        countData: response.countData || 0
+        countData: response.countData || 0,
+        ...(response.stats ? { stats: response.stats } : {}),
       };
     }
+  });
+}
+
+/** Los dólares que entraron hoy cobrando en dólares (se ven arriba de Ventas). */
+export function useDolaresHoy(storeId: string | undefined) {
+  return useQuery({
+    queryKey: ["orders", "dolares-hoy", storeId ?? "all"],
+    queryFn: async () =>
+      (await apiFetch<{ dolares: number; ventas: number; bs: number }>(
+        `/api/order/dolares-hoy${storeId ? `?storeId=${storeId}` : ""}`,
+      )).data!,
+    staleTime: 30_000,
   });
 }
 

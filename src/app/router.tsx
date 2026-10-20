@@ -22,6 +22,7 @@ import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 import WhatsAppPage from "@/pages/whatsapp";
 import CampaignsPage from "@/pages/campaigns";
+import PromotionsPage from "@/pages/promotions";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
@@ -94,6 +95,7 @@ export default function AppRouter() {
             <Route path="/reports/movements" element={<MovementPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
+            <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
 

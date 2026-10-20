@@ -1,3 +1,4 @@
+import { FRASES_FIJAS } from "./frases";
 import {
   createContext,
   useCallback,
@@ -185,7 +186,8 @@ export function ScannerProvider({ children }: PropsWithChildren) {
   }, []);
   useEffect(() => {
     if (!precios) return;
-    const reloj = window.setTimeout(() => void precalentarVoz(), 3000);
+    // Con los precios, las frases fijas de cada pantalla ("Tienes cuatro.", "Dos de tres.").
+    const reloj = window.setTimeout(() => void precalentarVoz(FRASES_FIJAS), 3000);
     return () => window.clearTimeout(reloj);
   }, [voz, precios]);
 

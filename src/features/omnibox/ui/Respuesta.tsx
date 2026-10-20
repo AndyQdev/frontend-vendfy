@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   Construction,
+  DollarSign,
   HelpCircle,
   Loader2,
   Lock,
@@ -17,6 +18,9 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { NOMBRE_FUENTE, type DolarDelDia, type FuenteDolar } from "@/entities/exchange-rate/model/types";
+import { origenDolar } from "@/entities/exchange-rate/ui/dolar";
+import { formatDolar, formatDolares } from "@/shared/lib/money";
 
 import {
   estadoDe,
@@ -97,7 +101,7 @@ export interface AccionesRespuesta {
   onConfirmarCompra: () => void;
   registrandoCompra: boolean;
   /** Lo que tiene la compra ahora, para decirlo en la confirmación. */
-  resumenCompra: { lineas: number; total: number; proveedor: string };
+  resumenCompra: { lineas: number; total: number; proveedor: string; moneda?: "BOB" | "USD" };
   /** Un análisis (G3): mostrar su vista en el panel. */
   onAbrirVista: () => void;
   /** La vista de ESTE mensaje es la que está abierta en el panel. */
@@ -583,6 +587,47 @@ function Resuelta({
   onSugerencia?: (texto: string) => void;
 }) {
   const datos = p.resultado?.datos as any;
+
+  // "¿A cuánto está el dólar?" / "¿cuántos dólares entraron hoy?" (C0, sin modelo).
+  if (p.intencion === "consultar_dolar" && datos) {
+    const dolar = datos.dolar as DolarDelDia | null;
+    const otra: FuenteDolar | null = dolar ? (dolar.fuente === "bcb" ? "binance" : "bcb") : null;
+    const valorOtra = otra && !dolar?.otraFuente ? datos.fuentes?.[otra] : null;
+    const hoy = datos.hoy as { dolares: number; ventas: number; bs: number } | null;
+    return (
+      <Tarjeta estado="resuelta" hora={cuando}>
+        <Cabecera icono={DollarSign}>El dólar</Cabecera>
+        <div data-testid="tarjeta-dolar" className="flex flex-wrap items-end gap-x-8 gap-y-3">
+          {dolar ? (
+            <div>
+              <p className="text-xs text-muted-foreground">$us 1 =</p>
+              <p className="cifra mt-1 text-2xl font-bold text-primary">Bs {formatDolar(dolar.valor)}</p>
+              <p className="text-xs text-muted-foreground">{origenDolar(dolar)}</p>
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">{p.resultado!.resumen}</p>
+          )}
+          {valorOtra && otra && (
+            <div>
+              <p className="text-xs text-muted-foreground">{NOMBRE_FUENTE[otra]}</p>
+              <p className="cifra mt-1 text-lg font-semibold text-foreground">Bs {formatDolar(valorOtra.valor)}</p>
+            </div>
+          )}
+          {hoy && (
+            <div>
+              <p className="text-xs text-muted-foreground">Cobrado hoy en dólares</p>
+              <p className="cifra mt-1 text-lg font-semibold text-foreground">{formatDolares(hoy.dolares)}</p>
+              <p className="cifra text-xs text-muted-foreground">
+                {hoy.ventas === 0
+                  ? "ninguna venta"
+                  : `${hoy.ventas} ${hoy.ventas === 1 ? "venta" : "ventas"} · Bs ${dinero(hoy.bs)}`}
+              </p>
+            </div>
+          )}
+        </div>
+      </Tarjeta>
+    );
+  }
 
   // "Datos de José" (G6b): su ficha, ahí mismo, y a un toque sus ventas.
   if (Array.isArray(datos?.clientes)) {

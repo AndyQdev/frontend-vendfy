@@ -89,7 +89,7 @@ export function FichaEditor({
             value={descripcion}
             onChange={(e) => onDescripcion(e.target.value)}
             rows={3}
-            placeholder="Contale al cliente qué es y por qué le conviene."
+            placeholder="Cuéntale al cliente qué es y por qué le conviene."
             className="resize-none bg-card text-sm"
           />
         )}

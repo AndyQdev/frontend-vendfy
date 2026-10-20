@@ -1,9 +1,12 @@
-import { useState, type Dispatch } from "react";
+import { useEffect, useState, type Dispatch } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, FileText, Loader2, PackageCheck, Trash2, Truck, X } from "lucide-react";
 
+import { useDolar } from "@/entities/exchange-rate/api";
+import { LineaDolar, SelectorMoneda } from "@/entities/exchange-rate/ui/dolar";
 import { cn } from "@/shared/lib/cn";
+import { formatDolar } from "@/shared/lib/money";
 
-import { totalCompra, type AccionMesa, type BorradorCompra } from "../../model/mesa";
+import { totalCompra, totalCompraBs, type AccionMesa, type BorradorCompra } from "../../model/mesa";
 import { BotonCta, BotonSecundario, FotoProducto, dinero } from "../piezas";
 import { Cantidad } from "./Cantidad";
 import { Vacio } from "./PanelMesa";
@@ -17,21 +20,39 @@ import { NumeroAnimado } from "../coreografia/NumeroAnimado";
  *
  * "Registrar compra" pide una segunda confirmación ahí mismo: una compra
  * recibida sube el stock, mueve el costo promedio y NO se puede anular.
+ *
+ * En dólares (el proveedor cotizó en dólares) los costos se escriben en
+ * dólares y el servidor los pasa a Bs con el dólar de la compra, como en
+ * Nueva compra.
  */
 export function CompraBorrador({
   compra,
   despachar,
+  storeId,
   onRegistrar,
   registrando,
   error,
 }: {
   compra: BorradorCompra;
   despachar: Dispatch<AccionMesa>;
+  storeId: string;
   onRegistrar: () => void;
   registrando: boolean;
   error: string | null;
 }) {
   const [confirmando, setConfirmando] = useState(false);
+  const { data: dolarDia } = useDolar(storeId);
+  const delDia = dolarDia?.dolar ?? null;
+  const moneda = compra.moneda ?? "BOB";
+  const enDolares = moneda === "USD";
+  const dolar = compra.dolar ?? delDia?.valor ?? null;
+  const signo = enDolares ? "$us" : "Bs";
+
+  // Una compra que pasó a dólares (una factura en dólares, "a 8 dólares")
+  // antes de que llegara el dólar del día: se fija con el de hoy.
+  useEffect(() => {
+    if (enDolares && compra.dolar == null && delDia) despachar({ tipo: "dolarCompra", dolar: delDia.valor });
+  }, [enDolares, compra.dolar, delDia, despachar]);
 
   const porResolver = compra.porResolver.length;
 
@@ -46,7 +67,9 @@ export function CompraBorrador({
   }
 
   const total = totalCompra(compra);
+  const totalBs = totalCompraBs(compra, dolar);
   const sinCosto = compra.lineas.filter((l) => !(l.costo > 0));
+  const aBs = (n: number) => (dolar ? Math.round(n * dolar * 100) / 100 : null);
 
   return (
     <div className="flex flex-col gap-3 p-4 sm:p-5">
@@ -64,9 +87,38 @@ export function CompraBorrador({
         </button>
       </div>
 
+      {/* ---- la moneda: Bs, o dólares si el proveedor cotizó en dólares */}
+      {(dolarDia?.moneda ?? "BOB") === "BOB" && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-campo="moneda" data-testid="omnibox-moneda-compra">
+          <SelectorMoneda
+            valor={moneda}
+            etiqueta="Moneda de la compra"
+            onCambio={(m) => despachar({ tipo: "monedaCompra", moneda: m, dolar })}
+          />
+          {enDolares && (
+            <LineaDolar
+              valor={dolar}
+              delDia={delDia}
+              aMano={compra.dolar != null && compra.dolar !== delDia?.valor}
+              onCambio={(n) => despachar({ tipo: "dolarCompra", dolar: n })}
+              onVolver={() => despachar({ tipo: "dolarCompra", dolar: delDia?.valor ?? null })}
+            />
+          )}
+        </div>
+      )}
+
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {compra.lineas.map((l) => {
-          const antes = l.costoAnterior;
+          // Se compara en la moneda de la compra: en dólares, con lo último
+          // pagado en dólares; si nunca se compró en dólares, se muestra lo
+          // pagado en Bs, sin flecha (no son comparables).
+          const antes = enDolares ? (l.costoAnteriorUsd ?? null) : l.costoAnterior;
+          const antesTexto =
+            antes != null
+              ? `${signo} ${dinero(antes)}`
+              : enDolares && l.costoAnterior != null
+                ? `Bs ${dinero(l.costoAnterior)}`
+                : null;
           const subio = antes != null && l.costo > antes;
           const bajo = antes != null && l.costo < antes;
           return (
@@ -77,7 +129,7 @@ export function CompraBorrador({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{l.nombre}</p>
-                  {antes != null ? (
+                  {antesTexto != null ? (
                     <p
                       className={cn(
                         "cifra flex items-center gap-1 text-xs",
@@ -86,7 +138,7 @@ export function CompraBorrador({
                     >
                       {subio && <ArrowUp className="size-3" />}
                       {bajo && <ArrowDown className="size-3" />}
-                      La última vez: Bs {dinero(antes)}
+                      La última vez: {antesTexto}
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">Primera compra de este producto</p>
@@ -115,26 +167,32 @@ export function CompraBorrador({
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   a
                   <span className="relative" data-campo={`costo:${l.productId}`}>
-                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">Bs</span>
+                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">{signo}</span>
                     <input
                       type="number"
                       inputMode="decimal"
                       step="0.01"
                       min="0"
-                      aria-label={`Costo de ${l.nombre}`}
+                      aria-label={`Costo de ${l.nombre}${enDolares ? " en dólares" : ""}`}
                       value={l.costo}
                       onChange={(e) =>
                         despachar({ tipo: "costoCompra", productId: l.productId, costo: Number(e.target.value) })
                       }
                       className={cn(
-                        "cifra h-9 w-28 rounded-lg border bg-card pl-8 pr-2 text-base md:text-sm font-semibold text-foreground outline-none focus:border-primary",
+                        "cifra h-9 w-28 rounded-lg border bg-card pr-2 text-base md:text-sm font-semibold text-foreground outline-none focus:border-primary",
+                        enDolares ? "pl-10" : "pl-8",
                         !(l.costo > 0) ? "border-warning" : "border-border",
                       )}
                     />
                   </span>
                   c/u
                 </label>
-                <p className="cifra ml-auto text-sm font-semibold">Bs {dinero(l.costo * l.cantidad)}</p>
+                <p className="cifra ml-auto text-right text-sm font-semibold">
+                  {signo} {dinero(l.costo * l.cantidad)}
+                  {enDolares && aBs(l.costo * l.cantidad) != null && (
+                    <span className="block text-xs font-normal text-muted-foreground">≈ Bs {dinero(aBs(l.costo * l.cantidad)!)}</span>
+                  )}
+                </p>
               </div>
             </li>
           );
@@ -211,8 +269,15 @@ export function CompraBorrador({
         <div>
           <p className="text-xs text-muted-foreground">Total de la compra</p>
           <p data-testid="omnibox-total-compra" className="cifra text-3xl font-bold">
-            Bs <NumeroAnimado valor={total} formato={dinero} />
+            {signo} <NumeroAnimado valor={total} formato={dinero} />
           </p>
+          {enDolares && (
+            <p className="cifra text-xs text-muted-foreground" data-testid="omnibox-total-compra-bs">
+              {totalBs != null && dolar
+                ? `= Bs ${dinero(totalBs)} al dólar de ${formatDolar(dolar)}`
+                : "Escribí el dólar para ver cuánto es en Bs"}
+            </p>
+          )}
         </div>
         {confirmando ? (
           <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">

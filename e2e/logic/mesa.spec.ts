@@ -12,6 +12,9 @@ import {
   totalVenta,
   totalCompra,
   costoSugerido,
+  costoEnCompra,
+  convertir,
+  totalCompraBs,
   unidades,
   type AccionMesa,
   type Mesa,
@@ -348,3 +351,86 @@ test.describe("vender con delivery o a cuotas (G9f)", () => {
   });
 });
 
+
+test.describe("dólares (fase 4)", () => {
+  const costos = {
+    a: { productId: "a", ultimoCosto: 99.7, ultimoCostoUsd: 8.5, ultimoProveedor: null, costoPromedio: 98 },
+    b: { productId: "b", ultimoCosto: 23.46, ultimoCostoUsd: null, ultimoProveedor: null, costoPromedio: null },
+  };
+  const item = (id: string, precio: number | null, cantidad = 10) => ({
+    texto: id,
+    buscado: id,
+    cantidad,
+    precio,
+    producto: producto(id, 150),
+    opciones: [],
+    noEncontrado: null,
+  });
+  const compraEn = (p: Parameters<typeof efectoDeVenta>[0], compra = { moneda: "BOB" as const, dolar: 11.73, lineas: [] as unknown[] }) =>
+    efectoDeVenta(p, compra as any);
+
+  test('"compré 10 audífonos a 8 dólares" con la compra vacía: la pasa a dólares y carga $us 8', () => {
+    const efecto = compraEn({ intencion: "agregar_a_compra", ejecutable: true, producto: null, items: [item("a", 8)], costos, entidades: { moneda: "USD" } });
+    expect(efecto?.acciones[0]).toEqual({ tipo: "monedaCompra", moneda: "USD", dolar: 11.73 });
+    expect(efecto?.acciones[1]).toMatchObject({ tipo: "agregarCompra", costo: 8, costoAnterior: 99.7, costoAnteriorUsd: 8.5 });
+    expect(efecto?.resumen).toBe("Cargado a la compra · 10 × Producto a a $us 8,00");
+  });
+
+  test("en una compra que ya está en Bs, lo dicho en dólares se pasa a Bs", () => {
+    const efecto = compraEn(
+      { intencion: "agregar_a_compra", ejecutable: true, producto: null, items: [item("a", 8)], costos, entidades: { moneda: "USD" } },
+      { moneda: "BOB", dolar: 11.73, lineas: [{}] },
+    );
+    expect(efecto?.acciones).toHaveLength(1);
+    expect(efecto?.acciones[0]).toMatchObject({ tipo: "agregarCompra", costo: 93.84 });
+  });
+
+  test("en dólares sin costo dicho: lo último pagado en dólares, o lo de Bs pasado", () => {
+    const efecto = compraEn(
+      { intencion: "agregar_a_compra", ejecutable: true, producto: null, items: [item("a", null), item("b", null)], costos, entidades: {} },
+      { moneda: "USD", dolar: 11.73, lineas: [{}] } as any,
+    );
+    expect(efecto?.acciones.map((a: any) => a.costo)).toEqual([8.5, 2]);
+  });
+
+  test("pasar la compra a dólares convierte los costos cargados, y volver los devuelve", () => {
+    let m = mesaReducer(MESA_INICIAL, { tipo: "agregarCompra", producto: producto("b", 30), cantidad: 2, costo: 23.46, costoAnterior: null });
+    m = mesaReducer(m, { tipo: "monedaCompra", moneda: "USD", dolar: 11.73 });
+    expect(m.compra.moneda).toBe("USD");
+    expect(m.compra.lineas[0].costo).toBe(2);
+    expect(totalCompraBs(m.compra, 11.73)).toBe(46.92);
+    m = mesaReducer(m, { tipo: "monedaCompra", moneda: "BOB", dolar: 11.73 });
+    expect(m.compra.lineas[0].costo).toBe(23.46);
+  });
+
+  test("sin dólar no se cambia la moneda de una compra con líneas", () => {
+    const m0 = mesaReducer(MESA_INICIAL, { tipo: "agregarCompra", producto: producto("b", 30), costo: 20, costoAnterior: null });
+    expect(mesaReducer(m0, { tipo: "monedaCompra", moneda: "USD", dolar: null })).toBe(m0);
+  });
+
+  test('"el gold a 15 dólares" en una compra en Bs: costo en Bs', () => {
+    const efecto = compraEn({ intencion: "cambiar_costo_compra", ejecutable: true, producto: null, entidades: { productId: "a", producto: "Gold", costo: 15, moneda: "USD" } });
+    expect(efecto?.acciones).toEqual([{ tipo: "costoCompra", productId: "a", costo: 175.95 }]);
+  });
+
+  test('"paga con 20 dólares": método dólares y lo que da', () => {
+    const efecto = efectoDeVenta({ intencion: "elegir_pago", ejecutable: true, producto: null, entidades: { pago: "dolares", dolares: 20 } });
+    expect(efecto?.acciones).toEqual([{ tipo: "pago", pago: "dolares", recibidoUsd: 20 }]);
+    let m = mesaReducer(MESA_INICIAL, efecto!.acciones[0]);
+    expect(m.venta.recibidoUsd).toBe("20");
+    // Delivery o cuotas no se cobran en dólares: el método se vuelve a elegir.
+    m = mesaReducer(m, { tipo: "tipoVenta", tipoVenta: "delivery" });
+    expect(m.venta.pago).toBeNull();
+  });
+
+  test("convertir: misma moneda tal cual; sin dólar, null", () => {
+    expect(convertir(10, "BOB", "BOB", null)).toBe(10);
+    expect(convertir(117.3, "BOB", "USD", 11.73)).toBe(10);
+    expect(convertir(10, "USD", "BOB", null)).toBeNull();
+  });
+
+  test("costoEnCompra: lo dicho manda, en la moneda de la compra", () => {
+    expect(costoEnCompra({ moneda: "USD", dolar: 11.73 }, 8, "USD", costos.a)).toEqual({ costo: 8, costoAnterior: 99.7, costoAnteriorUsd: 8.5 });
+    expect(costoEnCompra({ moneda: "BOB", dolar: 11.73 }, null, null, costos.a).costo).toBe(99.7);
+  });
+});

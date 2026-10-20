@@ -39,4 +39,6 @@ export interface CustomerQueryParams {
   order?: 'ASC' | 'DESC';
   attr?: string;
   value?: string;
+  /** Solo los clientes que compraron este producto (lo escaneado). */
+  productId?: string;
 }

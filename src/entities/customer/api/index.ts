@@ -12,6 +12,7 @@ export function useCustomers(params: CustomerQueryParams = {}) {
     queryParams.append('attr', params.attr);
     queryParams.append('value', params.value);
   }
+  if (params.productId) queryParams.append('productId', params.productId);
 
   return useQuery<CustomersResponse>({
     queryKey: ["customers", params],

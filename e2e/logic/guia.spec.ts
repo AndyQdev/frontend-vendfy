@@ -48,12 +48,12 @@ test.describe("revisar la venta", () => {
     expect(ms[0].nivel).toBe("error");
   });
 
-  test("sin método de pago: error que señala el campo y ofrece los tres métodos", () => {
+  test("sin método de pago: error que señala el campo y ofrece los cuatro métodos", () => {
     const m = aplicar({ tipo: "agregarVenta", producto: ACEITE });
     const falta = errores(revisarVenta(m.venta))[0];
     expect(falta.codigo).toBe("FALTA_PAGO");
     expect(falta.campo).toBe("pago");
-    expect(falta.acciones.map((a) => (a.tipo === "pago" ? a.pago : a.tipo))).toEqual(["efectivo", "qr", "tarjeta"]);
+    expect(falta.acciones.map((a) => (a.tipo === "pago" ? a.pago : a.tipo))).toEqual(["efectivo", "qr", "tarjeta", "dolares"]);
   });
 
   test('"cobrale con QR": el método dicho en la frase cuenta aunque no esté en el borrador', () => {

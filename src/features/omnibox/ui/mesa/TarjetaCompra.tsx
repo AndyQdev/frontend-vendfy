@@ -32,8 +32,20 @@ export function TarjetaCompra({ evento, cuando }: { evento: EventoCompra; cuando
           </p>
         </div>
         <div className="text-right">
-          <p className="cifra text-xl font-bold">Bs {dinero(compra.total)}</p>
-          <p className="cifra text-[11px] text-muted-foreground">{hora(cuando)}</p>
+          {/* En dólares: lo pagado en dólares, y en Bs lo que quedó en la compra. */}
+          {compra.moneda === "USD" && compra.totalUsd != null ? (
+            <>
+              <p className="cifra text-xl font-bold">$us {dinero(compra.totalUsd)}</p>
+              <p className="cifra text-[11px] text-muted-foreground">
+                Bs {dinero(compra.total)} · {hora(cuando)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="cifra text-xl font-bold">Bs {dinero(compra.total)}</p>
+              <p className="cifra text-[11px] text-muted-foreground">{hora(cuando)}</p>
+            </>
+          )}
         </div>
       </header>
 
@@ -43,7 +55,9 @@ export function TarjetaCompra({ evento, cuando }: { evento: EventoCompra; cuando
             <FotoProducto src={l.imagen} className="size-7" />
             <span className="cifra font-semibold">{l.cantidad} ×</span>
             <span className="max-w-[12rem] truncate">{l.nombre}</span>
-            <span className="cifra text-muted-foreground">a Bs {dinero(l.costo)}</span>
+            <span className="cifra text-muted-foreground">
+              a {compra.moneda === "USD" ? "$us" : "Bs"} {dinero(l.costo)}
+            </span>
             {l.stock != null && <StockSube antes={l.stock} suma={l.cantidad} />}
           </li>
         ))}
@@ -79,7 +93,8 @@ export function TarjetaConfirmarCompra({
   onConfirmar,
 }: {
   hora: string;
-  resumen: { lineas: number; total: number; proveedor: string };
+  /** `total` en la moneda de la compra (`moneda`, Bs si no se dice). */
+  resumen: { lineas: number; total: number; proveedor: string; moneda?: "BOB" | "USD" };
   registrando: boolean;
   onConfirmar: () => void;
 }) {
@@ -96,7 +111,9 @@ export function TarjetaConfirmarCompra({
       <Cabecera icono={Truck}>¿Registro la compra?</Cabecera>
       <p className="text-[13px] text-muted-foreground">
         {resumen.lineas} {resumen.lineas === 1 ? "producto" : "productos"} ·{" "}
-        <span className="cifra font-semibold text-foreground">Bs {dinero(resumen.total)}</span>
+        <span className="cifra font-semibold text-foreground">
+          {resumen.moneda === "USD" ? "$us" : "Bs"} {dinero(resumen.total)}
+        </span>
         {resumen.proveedor ? ` · ${resumen.proveedor}` : " · sin proveedor"}. Sube el stock y no se puede anular.
       </p>
       <div className="grid grid-cols-2 gap-2">

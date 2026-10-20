@@ -83,7 +83,7 @@ import {
 import { PanelConversaciones } from "./conversaciones/PanelConversaciones";
 import {
   MESA_INICIAL,
-  costoSugerido,
+  costoEnCompra,
   efectoDeVenta,
   facturaDe,
   type AccionMesa,
@@ -92,9 +92,12 @@ import {
   mesaReducer,
   totalCompra,
   type MetodoPago,
+  type MonedaCompra,
   type TipoMesa,
   faltaParaCobrar,
 } from "../model/mesa";
+import { useDolar } from "@/entities/exchange-rate/api";
+import { leerMonto } from "@/entities/exchange-rate/ui/cobro-dolares";
 import { useDictado } from "../model/use-dictado";
 import { crearCoreografia, efectosDeCambio } from "../model/coreografia";
 import {
@@ -144,6 +147,9 @@ export function OmniboxPage() {
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
   const storeId = tienda?.id ?? null;
+  // El dólar del día: para las compras en dólares y cobrar en dólares desde el chat.
+  const { data: dolarDia } = useDolar(storeId ?? undefined);
+  const dolarDelDia = dolarDia?.dolar?.valor ?? null;
 
   const [texto, setTexto] = useState("");
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
@@ -295,14 +301,26 @@ export function OmniboxPage() {
     if (opciones.senalar ?? mensaje.nivel === "error") senalar(mensaje);
   }
 
-  /** El último costo pagado por un producto (para "Cargar compra" desde la venta). */
-  async function ultimoCosto(productId: string): Promise<{ costo: number; anterior: number | null }> {
+  /**
+   * La compra abierta con el dólar que se usaría (el suyo o el del día): lo
+   * que necesitan las cargas para poner el costo en su moneda.
+   */
+  function compraConDolar() {
+    const c = mesaRef.current.compra;
+    return { moneda: c.moneda ?? "BOB", lineas: c.lineas, dolar: c.dolar ?? dolarDelDia };
+  }
+
+  /** El último costo pagado por un producto (para "Cargar compra" desde la venta), en la moneda de la compra. */
+  async function ultimoCosto(
+    productId: string,
+  ): Promise<{ costo: number; anterior: number | null; anteriorUsd: number | null; moneda: MonedaCompra }> {
+    const moneda = compraConDolar().moneda;
     try {
       const r = await apiFetch<{ costo: CostoProducto | null }>(`/api/omnibox/producto/${productId}?storeId=${storeId}`);
-      const c = r.data?.costo ?? null;
-      return { costo: costoSugerido(null, c), anterior: c?.ultimoCosto ?? null };
+      const c = costoEnCompra(compraConDolar(), null, null, r.data?.costo ?? null);
+      return { costo: c.costo, anterior: c.costoAnterior, anteriorUsd: c.costoAnteriorUsd, moneda };
     } catch {
-      return { costo: 0, anterior: null };
+      return { costo: 0, anterior: null, anteriorUsd: null, moneda };
     }
   }
 
@@ -350,9 +368,20 @@ export function OmniboxPage() {
         break;
       case "comprar": {
         // D3: "No tenés stock, ¿querés agregar?" → la compra con el producto.
-        const costo = a.costo != null ? { costo: a.costo, anterior: a.costoAnterior } : await ultimoCosto(a.producto.productId);
+        // El costo de la Guía viene en Bs: en una compra en dólares se pasa.
+        const costo =
+          a.costo != null
+            ? { ...costoEnCompra(compraConDolar(), a.costo, "BOB", null), anterior: a.costoAnterior, anteriorUsd: null }
+            : await ultimoCosto(a.producto.productId);
         origenCambio.current = "guia";
-        despachar({ tipo: "agregarCompra", producto: a.producto, cantidad: a.cantidad, costo: costo.costo, costoAnterior: costo.anterior });
+        despachar({
+          tipo: "agregarCompra",
+          producto: a.producto,
+          cantidad: a.cantidad,
+          costo: costo.costo,
+          costoAnterior: costo.anterior,
+          costoAnteriorUsd: costo.anteriorUsd,
+        });
         despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
         break;
       }
@@ -1027,7 +1056,7 @@ export function OmniboxPage() {
   const accionesVista: AccionesVista = {
     verProducto: (producto) => despachar({ tipo: "verProducto", producto }),
     reponer: (items: Reposicion[]) => {
-      const acciones = accionesReponer(items);
+      const acciones = accionesReponer(items, compraConDolar());
       anunciarAdvertencias(mesaRef.current, acciones);
       origenCambio.current = "guia";
       acciones.forEach(despachar);
@@ -1340,7 +1369,7 @@ export function OmniboxPage() {
   /** Lo que se dice en voz alta de una respuesta del servidor: corto, nunca la tarjeta entera. */
   function fraseDeRespuesta(p: Propuesta | null | undefined): string | null {
     if (!p) return "Te escuché, pero no entendí qué querés hacer.";
-    const efecto = esDeVenta(p) ? efectoDeVenta(p) : null;
+    const efecto = esDeVenta(p) ? efectoDeVenta(p, compraConDolar()) : null;
     if (efecto?.cobrar) return null; // lo dice el cobro, cuando termine
     if (efecto) return paraHablar(efecto.resumen);
     if (p.vista) return p.intencion === "cambiar_vista" ? "Listo, cambié la vista." : `Te armé: ${p.vista.titulo}.`;
@@ -1481,7 +1510,7 @@ export function OmniboxPage() {
    * el teléfono no (taparía el chat en cada "sumá"): queda el chip.
    */
   function aplicarVenta(id: string, p: Propuesta) {
-    const efecto = efectoDeVenta(p);
+    const efecto = efectoDeVenta(p, compraConDolar());
     if (!efecto) return; // falta algo: la tarjeta del chat lo pide
     anunciarAdvertencias(mesaRef.current, efecto.acciones);
     origenCambio.current = "chat";
@@ -1501,7 +1530,11 @@ export function OmniboxPage() {
 
     if (efecto.cobrar) {
       actualizar(id, (x) => ({ ...x, desenlace: { tipo: "mesa", resumen: efecto.resumen } }));
-      cobrarVenta({ mensajeId: id, pago: (p.entidades as any).pago as MetodoPago | undefined });
+      cobrarVenta({
+        mensajeId: id,
+        pago: (p.entidades as any).pago as MetodoPago | undefined,
+        recibidoUsd: (p.entidades as any).dolares ?? null,
+      });
       return;
     }
     if (ancho) despachar({ tipo: "abrir", mesa: destino, pestana: "borrador" });
@@ -1562,6 +1595,14 @@ export function OmniboxPage() {
       return;
     }
     const lineas = compra0.lineas;
+    // En dólares, el dólar de la compra (o el del día): sin él no hay cómo pasarla a Bs.
+    const enDolares = (compra0.moneda ?? "BOB") === "USD";
+    const dolarCompra = compra0.dolar ?? dolarDelDia;
+    if (enDolares && !dolarCompra) {
+      setErrorCompra("Escribí el dólar de la compra: sin él no se puede pasar a Bs.");
+      despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
+      return;
+    }
     try {
       const compra = await registrar.mutateAsync({
         storeId,
@@ -1569,6 +1610,7 @@ export function OmniboxPage() {
         referencia: compra0.referencia || undefined,
         adjunto: compra0.adjunto ?? undefined,
         lineas: lineas.map((l) => ({ productId: l.productId, cantidad: l.cantidad, costo: l.costo })),
+        ...(enDolares ? { moneda: "USD" as const, dolar: dolarCompra! } : {}),
       });
       const evento = {
         tipo: "compra" as const,
@@ -1611,13 +1653,21 @@ export function OmniboxPage() {
     if (it.agregados?.includes(producto.productId)) return;
     const destino = mesaDe(p);
     if (destino === "compra") {
-      const previo = p.costos?.[producto.productId];
+      // El renglón de una factura en dólares trae su costo en dólares.
+      const dicha = (p.entidades as any).moneda;
+      const c = costoEnCompra(
+        compraConDolar(),
+        it.precio,
+        dicha === "USD" || dicha === "BOB" ? dicha : null,
+        p.costos?.[producto.productId],
+      );
       despachar({
         tipo: "agregarCompra",
         producto,
         cantidad: it.cantidad,
-        costo: costoSugerido(it.precio, previo),
-        costoAnterior: previo?.ultimoCosto ?? null,
+        costo: c.costo,
+        costoAnterior: c.costoAnterior,
+        costoAnteriorUsd: c.costoAnteriorUsd,
       });
     } else {
       despachar({
@@ -1654,7 +1704,7 @@ export function OmniboxPage() {
    * Cobrar lo armado en la mesa. Lo llama el botón o una frase ("cobrale con
    * QR", D2). Desde el chat la venta queda en la tarjeta de ESA frase.
    */
-  async function cobrarVenta(opciones: { mensajeId?: string; pago?: MetodoPago } = {}) {
+  async function cobrarVenta(opciones: { mensajeId?: string; pago?: MetodoPago; recibidoUsd?: number | null } = {}) {
     const venta0 = mesaRef.current.venta;
     if (!storeId) return;
     const pago = opciones.pago ?? venta0.pago;
@@ -1663,7 +1713,7 @@ export function OmniboxPage() {
     // Guía, se cobra solo.
     const bloquea = errores(revisarVenta(venta0, pago))[0];
     if (bloquea || !pago) {
-      const m = bloquea ?? MENSAJES.faltaPago();
+      const m = bloquea ?? MENSAJES.faltaPago(!venta0.entrega && !venta0.cuotas);
       if (opciones.mensajeId) {
         actualizar(opciones.mensajeId, (x) => ({
           ...x,
@@ -1685,10 +1735,19 @@ export function OmniboxPage() {
         if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
         return;
       }
+      // En dólares: el dólar del cobro (el escrito o el del día) y cuánto dio (vacío = lo justo).
+      const dolarCobro = venta0.dolar ?? dolarDelDia;
+      if (pago === "dolares" && !dolarCobro) {
+        setErrorCobro("Escribí el tipo de cambio para cobrar en dólares.");
+        if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
+        return;
+      }
       const venta = await cobrar.mutateAsync({
         storeId,
         clienteId: venta0.clienteId,
         pago,
+        // Lo dicho en la frase ("paga con 20 dólares") llega antes de que el borrador se actualice.
+        ...(pago === "dolares" ? { dolar: dolarCobro!, recibidoUsd: opciones.recibidoUsd ?? leerMonto(venta0.recibidoUsd ?? "") } : {}),
         lineas: lineas.map((l) => ({ storeProductId: l.storeProductId, cantidad: l.cantidad, precio: l.precio })),
         ...(venta0.entrega
           ? { entrega: { direccion: venta0.entrega.direccion.trim(), costo: venta0.entrega.costo ?? 0, ...(venta0.entrega.notas.trim() ? { notas: venta0.entrega.notas.trim() } : {}) } }
@@ -1964,6 +2023,7 @@ export function OmniboxPage() {
                     resumenCompra={{
                       lineas: mesa.compra.lineas.length,
                       total: totalCompra(mesa.compra),
+                      moneda: mesa.compra.moneda ?? "BOB",
                       proveedor: mesa.compra.proveedor,
                     }}
                     onAbrirVista={() => m.propuesta && mostrarAnalisis(m.id, m.texto ?? "", m.propuesta)}

@@ -11,7 +11,8 @@ import { buscarPorCodigo, claveEscaneo, useCreateProduct } from "@/entities/prod
 import { ApiError } from "@/shared/api/client";
 import { formatMoney } from "@/shared/lib/money";
 import { Button } from "@/shared/ui/button";
-import { decirFrases } from "@/shared/voz";
+import { decirFrases, preferenciasVoz } from "@/shared/voz";
+import { precargarEscucha } from "../model/escucha";
 import {
   ResponsiveDialog,
   ResponsiveDialogBody,
@@ -24,6 +25,7 @@ import { useEscaner } from "../model/ScannerProvider";
 import { sonar } from "../model/sonido";
 import { useTiendaActiva } from "../model/useTiendaActiva";
 import { agregarAVenta, frasesDeFicha, tiendaParaVender } from "../model/venta";
+import { fraseNombre, frasesCaja, frasesFicha, frasesNoRegistrado, fraseVan } from "../model/frases";
 import { AjustesVoz } from "./AjustesVoz";
 import { CodigoDeBarras } from "./piezas";
 import { cn } from "@/shared/lib/cn";
@@ -52,6 +54,8 @@ function festejar() {
  */
 export function HojaEscaneo() {
   const { hoja, cerrar } = useEscaner();
+  // Donde el formulario de alta pone el orbe de la voz: al lado del parlante.
+  const [ranuraOrbe, setRanuraOrbe] = useState<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const crear = useCreateProduct();
@@ -60,7 +64,6 @@ export function HojaEscaneo() {
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [venta] = useVentaEnCurso();
   const sonoParaClave = useRef(0);
-  const dijoParaClave = useRef(0);
 
   const consulta = useQuery({
     queryKey: claveEscaneo(hoja.codigo),
@@ -77,6 +80,12 @@ export function HojaEscaneo() {
     setErrorAlta(null);
   }, [hoja.clave]);
 
+  // El detector de voz se descarga mientras se busca el código: si resulta
+  // nuevo, el micrófono se abre sin esperar. Después queda en caché.
+  useEffect(() => {
+    if (hoja.abierta && preferenciasVoz().escuchar) precargarEscucha();
+  }, [hoja.abierta]);
+
   // Un sonido por lectura, distinto según lo que se encontró.
   useEffect(() => {
     if (!hoja.abierta || !resultado || sonoParaClave.current === hoja.clave) return;
@@ -88,13 +97,24 @@ export function HojaEscaneo() {
     if (consulta.isError && hoja.abierta) sonar("error");
   }, [consulta.isError, hoja.abierta]);
 
-  // Y la voz dice el precio: quien escanea mira el producto, no la pantalla.
-  // También al terminar de registrarlo, como confirmación.
+  // Y la voz: quien escanea mira el producto, no la pantalla.
+  //   registrado → "Mermelada Arcor. Cincuenta bolivianos. ¿Lo vendes o lo compras?"
+  //   nuevo      → "No está registrado. ¿Lo damos de alta?"
+  //   recién dado de alta → "Mermelada Arcor. Cincuenta bolivianos." (si la
+  //   hoja la abrió una pantalla, esa pantalla dice lo suyo al recibirlo)
+  const dijoQue = useRef<string>("");
   useEffect(() => {
-    if (!hoja.abierta || !resultado?.producto || dijoParaClave.current === hoja.clave) return;
-    dijoParaClave.current = hoja.clave;
-    decirFrases(frasesDeFicha(resultado, tiendaId));
-  }, [hoja.abierta, hoja.clave, resultado, tiendaId]);
+    if (!hoja.abierta || !resultado) return;
+    const estado = !resultado.producto ? "nuevo" : recienCreado ? "creado" : "ficha";
+    const clave = `${hoja.clave}:${estado}`;
+    if (dijoQue.current === clave) return;
+    dijoQue.current = clave;
+    if (estado === "nuevo") decirFrases(frasesNoRegistrado(), { forzar: preferenciasVoz().escuchar });
+    else if (estado === "ficha") decirFrases(frasesFicha(resultado, tiendaId));
+    else if (!hoja.contexto || hoja.contexto === "general") {
+      decirFrases(frasesFicha(resultado, tiendaId).slice(0, 2));
+    }
+  }, [hoja.abierta, hoja.clave, hoja.contexto, resultado, recienCreado, tiendaId]);
 
   const registrar = async (datos: DatosAlta) => {
     if (!resultado) return;
@@ -120,12 +140,13 @@ export function HojaEscaneo() {
       // Lo que cambió: el producto, su stock, y lo que la hoja muestra.
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       void queryClient.invalidateQueries({ queryKey: ["inventory-infinite"] });
+      // Antes de traerlo: así la voz sabe que es una confirmación, no una ficha nueva.
+      setRecienCreado(true);
       const nuevo = await queryClient.fetchQuery({
         queryKey: claveEscaneo(hoja.codigo),
         queryFn: ({ signal }) => buscarPorCodigo(hoja.codigo, signal),
         staleTime: 0,
       });
-      setRecienCreado(true);
       sonar("creado");
       festejar();
       hoja.alRegistrar?.(nuevo, { cantidad: Math.max(1, datos.initialStock) });
@@ -133,7 +154,7 @@ export function HojaEscaneo() {
       if (hoja.contexto && hoja.contexto !== "general") setTimeout(cerrar, 1100);
     } catch (error) {
       sonar("error");
-      setErrorAlta(error instanceof ApiError ? error.message : "No se pudo registrar. Probá de nuevo.");
+      setErrorAlta(error instanceof ApiError ? error.message : "No se pudo registrar. Inténtalo de nuevo.");
     }
   };
 
@@ -169,9 +190,11 @@ export function HojaEscaneo() {
   const agregar = useCallback((): boolean => {
     if (!resultado?.producto) return false;
     const r = agregarAVenta(resultado, tiendaId);
-    // El precio ya lo dijo al abrir la ficha: aquí solo suenan los bips.
+    // El precio ya lo dijo al abrir la ficha: la voz solo cuenta ("Van dos.")
+    // o avisa que no entró ("Agotado.").
     if (r.ok === false) {
       sonar("error");
+      decirFrases(frasesCaja(r));
       toast.error(
         r.motivo === "sin_tienda"
           ? "No se vende en esta tienda"
@@ -183,6 +206,7 @@ export function HojaEscaneo() {
       return false;
     }
     sonar("encontrado");
+    if (r.cantidad >= 2) decirFrases([fraseVan(r.cantidad)]);
     toast.success(r.cantidad > 1 ? `${r.cantidad} en la venta` : "Agregado a la venta", {
       description: `${resultado.producto.name} · ${formatMoney(r.tienda.price)}`,
       duration: 2200,
@@ -190,6 +214,16 @@ export function HojaEscaneo() {
     });
     return true;
   }, [resultado, tiendaId, irACobrar]);
+
+  // "Comprar": a Nueva compra con el producto ya cargado (y su último costo).
+  const comprar = useCallback(() => {
+    const p = resultado?.producto;
+    if (!p) return;
+    cerrar();
+    navigate("/purchases/new", {
+      state: { comprar: { id: p.id, name: p.name, imageUrl: p.imageUrls[0] ?? null, sku: p.sku ?? null } },
+    });
+  }, [resultado, cerrar, navigate]);
 
   // "Cobrar ahora": lo agrega (si no estaba) y va a Caja.
   const cobrarAhora = useCallback(() => {
@@ -213,6 +247,7 @@ export function HojaEscaneo() {
       >
         <MotionConfig reducedMotion="user">
           <AjustesVoz className="absolute right-12 top-3.5 z-10 max-md:right-3" />
+          <div ref={setRanuraOrbe} className="absolute right-[5.25rem] top-3 z-10 max-md:right-12" />
 
           <AnimatePresence mode="wait" initial={false}>
             {consulta.isPending || (!resultado && consulta.isFetching) ? (
@@ -245,7 +280,7 @@ export function HojaEscaneo() {
                   </span>
                   <ResponsiveDialogTitle>No pudimos buscar el código</ResponsiveDialogTitle>
                   <ResponsiveDialogDescription>
-                    {consulta.error instanceof ApiError ? consulta.error.message : "Revisá la conexión e intentá de nuevo."}
+                    {consulta.error instanceof ApiError ? consulta.error.message : "Revisa la conexión e inténtalo de nuevo."}
                   </ResponsiveDialogDescription>
                 </ResponsiveDialogHeader>
                 <ResponsiveDialogBody className="flex justify-center pb-8">
@@ -266,6 +301,7 @@ export function HojaEscaneo() {
                 onAgregar={agregar}
                 onCobrar={cobrarAhora}
                 onIrACobrar={irACobrar}
+                onComprar={comprar}
                 onRepetirPrecio={() => decirFrases(frasesDeFicha(resultado, tiendaId), { forzar: true })}
                 onEditar={() => {
                   cerrar();
@@ -283,6 +319,7 @@ export function HojaEscaneo() {
                 error={errorAlta}
                 onRegistrar={registrar}
                 onCompletar={completar}
+                ranuraOrbe={ranuraOrbe}
               />
             )}
           </AnimatePresence>

@@ -98,3 +98,38 @@ export interface SalesByDayAndHour {
   salesByDay: SalesByDayItem[];
   salesByHour: SalesByHourItem[];
 }
+
+/** El reporte de un producto: lo que muestra Estadísticas al escanearlo. */
+export interface ReporteProducto {
+  producto: { id: string; nombre: string; imagen: string | null };
+  periodo: {
+    unidades: number;
+    ingresos: number;
+    ventas: number;
+    clientes: number;
+    /** Lo que costó lo vendido; null si no hay costo registrado. */
+    costo: number | null;
+    /** false si alguna venta no registró costo: la ganancia es aproximada. */
+    costoCompleto: boolean;
+    /** Días del período; null en "Todo". */
+    dias: number | null;
+  };
+  anterior: { unidades: number; ingresos: number } | null;
+  granularidad: "hour" | "day" | "week" | "month";
+  serie: Array<{ fecha: string; unidades: number; ingresos: number }>;
+  /** Su puesto entre lo vendido en el período; null si no se vendió. */
+  ranking: { puesto: number; de: number } | null;
+  /** null si el producto no tiene inventario en la tienda elegida. */
+  stock: { disponible: number; reservado: number } | null;
+  ultimaCompra: {
+    fecha: string;
+    costo: number | null;
+    cantidad: number;
+    proveedor: string | null;
+    /** Comprado en dólares: lo que cobró el proveedor y a qué dólar. */
+    costoUsd?: number | null;
+    dolar?: number | null;
+  } | null;
+  ultimaVenta: string | null;
+  clientesTop: Array<{ nombre: string; unidades: number }>;
+}

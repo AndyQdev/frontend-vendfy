@@ -7,7 +7,9 @@ import {
   useDeletePurchaseOrder,
 } from "@/entities/purchase-order/api";
 import type { PurchaseOrder } from "@/entities/purchase-order/model/types";
+import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { useStore } from "@/app/providers/auth";
+import { ChipProductoEscaneado, frasesCompras, textoCompras, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 import {
   Table,
   TableBody,
@@ -118,15 +120,25 @@ export function PurchaseOrdersTable() {
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
   const [iaAbierto, setIaAbierto] = useState(false);
 
-  const { data: response, isLoading } = usePurchaseOrders({
+  // Escanear un producto deja solo las compras que lo tienen: a quién y a
+  // cuánto se le compró la última vez.
+  const filtro = useFiltroEscaneado("Muestra solo las compras de ese producto");
+
+  const { data: response, isLoading, isFetching } = usePurchaseOrders({
     limit: 50,
     order: "DESC",
     ...(storeId && { storeId }),
+    ...(filtro.producto && { productId: filtro.producto.id }),
   });
 
   const confirmMutation = useConfirmPurchaseOrder();
   const cancelMutation = useCancelPurchaseOrder();
   const deleteMutation = useDeletePurchaseOrder();
+
+  // "Mermelada Arcor. Lo compraste tres veces. La última, hace cinco días."
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesCompras(filtro.producto!.nombre, response?.resumen),
+  );
 
   const orders = response?.data || [];
 
@@ -166,9 +178,16 @@ export function PurchaseOrdersTable() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return `Bs. ${Number(amount).toFixed(2)}`;
-  };
+  /** El total como lo cobró el proveedor; si fue en dólares, con su Bs abajo. */
+  const totalDe = (po: PurchaseOrder) =>
+    po.currency === "USD" ? (
+      <>
+        <span className="cifra">{formatDolares(Number(po.totalUsd ?? 0))}</span>
+        <span className="cifra block text-xs font-normal text-muted-foreground">{formatMoney(Number(po.totalAmount))}</span>
+      </>
+    ) : (
+      <span className="cifra">{formatMoney(Number(po.totalAmount))}</span>
+    );
 
   return (
     <div className="space-y-6">
@@ -197,6 +216,17 @@ export function PurchaseOrdersTable() {
         </div>
       </div>
       {storeId && <CompraConIaModal open={iaAbierto} onOpenChange={setIaAbierto} storeId={storeId} />}
+
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={textoCompras(response?.resumen)}
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todas las compras"
+        />
+      )}
 
       {/* Table */}
       {isLoading ? (
@@ -244,6 +274,11 @@ export function PurchaseOrdersTable() {
           ))}
         </ListaTarjetas>
         </>
+      ) : orders.length === 0 && filtro.producto ? (
+        <div className="rounded-lg border bg-card py-12 text-center text-muted-foreground">
+          <PackageIcon className="mx-auto mb-3 h-10 w-10 opacity-40" />
+          <p>Ninguna compra tiene este producto.</p>
+        </div>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={TruckIcon}
@@ -311,7 +346,7 @@ export function PurchaseOrdersTable() {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold text-red-600">
-                      {formatCurrency(po.totalAmount)}
+                      {totalDe(po)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {po.store?.name || "—"}
@@ -370,9 +405,9 @@ export function PurchaseOrdersTable() {
                   subtitulo={po.referenceNumber || undefined}
                   derecha={
                     <>
-                      <p className="text-sm font-semibold text-red-600">
-                        {formatCurrency(po.totalAmount)}
-                      </p>
+                      <div className="text-right text-sm font-semibold text-red-600">
+                        {totalDe(po)}
+                      </div>
                       <Badge variant={status.variant} className="mt-1">
                         {status.label}
                       </Badge>

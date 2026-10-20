@@ -78,8 +78,9 @@ export function resumenVenta(p: ProductoOpcion): string {
   return `Agregado a la venta · ${p.nombre} · ${bs(p.precio)}`;
 }
 
-export function resumenCompra(p: ProductoOpcion, costo: number): string {
-  return `Cargado a la compra · ${p.nombre}${costo > 0 ? ` a ${bs(costo)}` : ""}`;
+export function resumenCompra(p: ProductoOpcion, costo: number, moneda: "BOB" | "USD" = "BOB"): string {
+  const monto = moneda === "USD" ? bs(costo).replace("Bs", "$us") : bs(costo);
+  return `Cargado a la compra · ${p.nombre}${costo > 0 ? ` a ${monto}` : ""}`;
 }
 
 /**

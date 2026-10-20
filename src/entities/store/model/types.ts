@@ -49,6 +49,10 @@ export interface StoreConfig {
   storefront?: {
     url?: string;
   };
+  /** De dónde sale el dólar para comprar y cobrar en dólares. Sin elegir: BCB. */
+  exchangeRate?: {
+    source?: "bcb" | "binance";
+  };
   /**
    * Cómo se ve la tienda con un tema personalizable (Vitrina): paleta,
    * tipografía, animaciones y las secciones de la portada. La tienda la valida
@@ -61,6 +65,16 @@ export interface StoreConfig {
 export interface DiapositivaGuardada {
   imagen: string;
   imagenMovil?: string;
+  /** Hacia dónde se recorta, en % del ancho y del alto. Sin él, el centro. */
+  enfoque?: { x: number; y: number };
+  /** Entra entera, sin recortar (un flyer con texto en los bordes). */
+  completa?: boolean;
+  /**
+   * Lo mismo en el celular. Sin `imagenMovil`, el celular hereda el encuadre
+   * de la principal y estos solo pisan lo que se cambió en la vista Celular.
+   */
+  enfoqueMovil?: { x: number; y: number };
+  completaMovil?: boolean;
   titulo?: string;
   texto?: string;
   boton?: string;

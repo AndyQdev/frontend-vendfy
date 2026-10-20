@@ -4,7 +4,7 @@ import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useNavigate } from "react-router-dom";
 import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
 import { useCategories, useBrands } from "@/entities/product/api";
-import { frasesDeFicha, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
+import { fraseVan, frasesInventario, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { decirFrases } from "@/shared/voz";
 import { inventariosDeEscaneo } from "../model/escaneo";
 import { EmptyState } from "@/shared/ui/empty-state";
@@ -212,12 +212,14 @@ export default function InventoryTable() {
     sonar("encontrado");
     const actual = aperturaRef.current;
     if (actual?.escaneo && tiendas.some((t) => t.id === actual.inventory.id)) {
+      // Escanear otra vez el mismo es contar uno más: "Van dos."
+      decirFrases([fraseVan(actual.escaneo.lecturas + 1)]);
       setApertura({ ...actual, escaneo: { ...actual.escaneo, lecturas: actual.escaneo.lecturas + 1 } });
       return true;
     }
     setHistoryDialogOpen(false);
-    // Como en todo el panel, la voz dice el precio (solo al abrirlo, no en cada +1).
-    decirFrases(frasesDeFicha(r, storeId === "all" ? null : storeId));
+    // "Mermelada Arcor. Tienes cuatro. ¿Agregas, quitas o cuentas?"
+    decirFrases(frasesInventario(r, storeId === "all" ? null : storeId));
     setApertura({
       inventory: tiendas[0],
       alcance: "envase",

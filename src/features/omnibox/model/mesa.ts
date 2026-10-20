@@ -29,7 +29,11 @@ export type TipoPanel = TipoMesa | "analisis" | "herramienta" | "lista" | "ficha
 
 export type Pestana = "producto" | "borrador";
 
-export type MetodoPago = "efectivo" | "qr" | "tarjeta";
+/** "dolares": cobrar en dólares, como en la Caja (solo la venta en el momento). */
+export type MetodoPago = "efectivo" | "qr" | "tarjeta" | "dolares";
+
+/** La moneda de una compra: Bs, o dólares si el proveedor cotizó en dólares. */
+export type MonedaCompra = "BOB" | "USD";
 
 export interface LineaVenta {
   productId: string;
@@ -49,10 +53,12 @@ export interface LineaCompra {
   nombre: string;
   imagen: string | null;
   cantidad: number;
-  /** Costo unitario que se pagó al proveedor. */
+  /** Costo unitario que se pagó al proveedor, en la moneda de la compra. */
   costo: number;
-  /** Lo que se pagó la vez anterior: si el proveedor subió, se nota. */
+  /** Lo que se pagó la vez anterior, en Bs: si el proveedor subió, se nota. */
   costoAnterior: number | null;
+  /** Lo que se pagó en dólares la última vez que se compró en dólares. */
+  costoAnteriorUsd?: number | null;
   /** Stock de la tienda al cargarlo: para mostrar cuánto sube al registrar. */
   stock: number;
 }
@@ -85,6 +91,12 @@ export interface BorradorVenta {
   /** G9f: con delivery o a cuotas (como en la Caja). Sin ninguno, en el momento. */
   entrega?: EntregaVenta | null;
   cuotas?: CuotasVenta | null;
+  /**
+   * Cobrar en dólares: el dólar escrito a mano (null = el del día) y lo que
+   * da el cliente, tal como se escribe ("" = lo justo).
+   */
+  dolar?: number | null;
+  recibidoUsd?: string;
 }
 
 export interface BorradorCompra {
@@ -102,6 +114,10 @@ export interface BorradorCompra {
    * registra: quedaría una compra con productos de menos.
    */
   porResolver: string[];
+  /** En dólares, los costos de las líneas están en dólares (como en Nueva compra). */
+  moneda?: MonedaCompra;
+  /** El dólar de la compra (Bs por dólar). null = todavía sin fijar: el del día. */
+  dolar?: number | null;
 }
 
 /** Una pregunta de análisis y la vista que la responde. */
@@ -177,6 +193,8 @@ export const VENTA_VACIA: BorradorVenta = {
   pago: null,
   entrega: null,
   cuotas: null,
+  dolar: null,
+  recibidoUsd: "",
 };
 
 export const COMPRA_VACIA: BorradorCompra = {
@@ -186,6 +204,8 @@ export const COMPRA_VACIA: BorradorCompra = {
   referencia: "",
   adjunto: null,
   porResolver: [],
+  moneda: "BOB",
+  dolar: null,
 };
 
 export const MESA_INICIAL: Mesa = {
@@ -233,19 +253,34 @@ export type AccionMesa =
   | { tipo: "cantidadVenta"; productId: string; cantidad: number }
   | { tipo: "precioVenta"; productId: string; precio: number }
   | { tipo: "cliente"; clienteId: string | null; nombre: string }
-  | { tipo: "pago"; pago: MetodoPago }
+  | { tipo: "pago"; pago: MetodoPago; recibidoUsd?: number | null }
+  /** Cobrar en dólares: el dólar a mano (null = volver al del día) y cuánto da el cliente. */
+  | { tipo: "dolarVenta"; dolar: number | null }
+  | { tipo: "recibidoUsd"; recibidoUsd: string }
   | { tipo: "limpiarVenta" }
   /** G9f: la venta pasa a ser con delivery, a cuotas, o en el momento (los dos null). */
   | { tipo: "tipoVenta"; tipoVenta: "rapida" | "delivery" | "cuotas" }
   | { tipo: "entrega"; entrega: Partial<EntregaVenta> }
   | { tipo: "cuotas"; cuotas: Partial<CuotasVenta> }
   // ---- compra
-  | { tipo: "agregarCompra"; producto: ProductoOpcion; cantidad?: number; costo: number; costoAnterior: number | null }
+  /** `costo` ya en la moneda de la compra (ver `costoEnCompra`). */
+  | {
+      tipo: "agregarCompra";
+      producto: ProductoOpcion;
+      cantidad?: number;
+      costo: number;
+      costoAnterior: number | null;
+      costoAnteriorUsd?: number | null;
+    }
   | { tipo: "quitarCompra"; productId: string }
   | { tipo: "cantidadCompra"; productId: string; cantidad: number }
   | { tipo: "costoCompra"; productId: string; costo: number }
   | { tipo: "proveedor"; proveedor: string; contacto?: string }
   | { tipo: "referencia"; referencia: string }
+  /** Pasar la compra a Bs o a dólares: los costos cargados se convierten con `dolar`. */
+  | { tipo: "monedaCompra"; moneda: MonedaCompra; dolar: number | null }
+  /** El dólar de la compra (pagaste a otro precio). Los costos en dólares no cambian. */
+  | { tipo: "dolarCompra"; dolar: number | null }
   /** Se leyó una factura: su foto, su proveedor y los renglones por resolver. */
   | {
       tipo: "factura";
@@ -382,7 +417,23 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
       return { ...m, venta: { ...m.venta, clienteId: a.clienteId, clienteNombre: a.nombre } };
 
     case "pago":
-      return { ...m, venta: { ...m.venta, pago: a.pago } };
+      return {
+        ...m,
+        venta: {
+          ...m.venta,
+          pago: a.pago,
+          // "Paga con 20 dólares": lo que da el cliente viene con el método.
+          ...(a.pago === "dolares" && a.recibidoUsd ? { recibidoUsd: String(a.recibidoUsd) } : {}),
+          // En dólares solo se cobra la venta en el momento (como en la Caja).
+          ...(a.pago === "dolares" ? { entrega: null, cuotas: null } : {}),
+        },
+      };
+
+    case "dolarVenta":
+      return { ...m, venta: { ...m.venta, dolar: a.dolar } };
+
+    case "recibidoUsd":
+      return { ...m, venta: { ...m.venta, recibidoUsd: a.recibidoUsd } };
 
     case "limpiarVenta":
       return { ...m, venta: VENTA_VACIA };
@@ -392,6 +443,8 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
         ...m,
         venta: {
           ...m.venta,
+          // Delivery o cuotas no se cobran en dólares: el método se vuelve a elegir.
+          ...(a.tipoVenta !== "rapida" && m.venta.pago === "dolares" ? { pago: null } : {}),
           entrega: a.tipoVenta === "delivery" ? (m.venta.entrega ?? { direccion: "", costo: null, notas: "" }) : null,
           cuotas: a.tipoVenta === "cuotas" ? (m.venta.cuotas ?? { cantidad: 2, inicial: null, proxima: "" }) : null,
         },
@@ -421,6 +474,7 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
               cantidad,
               costo: a.costo,
               costoAnterior: a.costoAnterior,
+              costoAnteriorUsd: a.costoAnteriorUsd ?? null,
               stock: Number(a.producto.stock) || 0,
             },
           ];
@@ -458,6 +512,23 @@ export function mesaReducer(m: Mesa, a: AccionMesa): Mesa {
       };
     case "referencia":
       return { ...m, compra: { ...m.compra, referencia: a.referencia } };
+    case "monedaCompra": {
+      const antes = m.compra.moneda ?? "BOB";
+      if (a.moneda === antes) return { ...m, compra: { ...m.compra, dolar: m.compra.dolar ?? a.dolar } };
+      // Sin dólar no se pueden pasar los costos cargados: mejor no cambiar nada.
+      if (m.compra.lineas.length > 0 && !a.dolar) return m;
+      return {
+        ...m,
+        compra: {
+          ...m.compra,
+          moneda: a.moneda,
+          dolar: a.dolar ?? m.compra.dolar ?? null,
+          lineas: m.compra.lineas.map((l) => ({ ...l, costo: convertir(l.costo, antes, a.moneda, a.dolar) ?? l.costo })),
+        },
+      };
+    }
+    case "dolarCompra":
+      return { ...m, compra: { ...m.compra, dolar: a.dolar } };
     case "factura":
       return {
         ...m,
@@ -486,13 +557,62 @@ export function borradorDe(m: Mesa, tipo: TipoMesa): { lineas: unknown[] } {
   return tipo === "venta" ? m.venta : m.compra;
 }
 
+/** El total en la moneda de la compra (Bs, o dólares si es en dólares). */
 export function totalCompra(c: BorradorCompra): number {
   return Math.round(c.lineas.reduce((s, l) => s + l.costo * l.cantidad, 0) * 100) / 100;
+}
+
+/**
+ * El total en Bs de una compra en dólares: cada línea pasada a Bs con el
+ * dólar de la compra, como lo calcula el servidor (por línea, a centavos).
+ */
+export function totalCompraBs(c: BorradorCompra, dolar: number | null): number | null {
+  if ((c.moneda ?? "BOB") === "BOB") return totalCompra(c);
+  if (!dolar) return null;
+  return Math.round(c.lineas.reduce((s, l) => s + Math.round(l.costo * l.cantidad * dolar * 100) / 100, 0) * 100) / 100;
+}
+
+const centavos = (n: number) => Math.round(n * 100) / 100;
+
+/** Un monto de una moneda a otra con el dólar. Sin dólar (y hacía falta), null. */
+export function convertir(n: number, de: MonedaCompra, a: MonedaCompra, dolar: number | null | undefined): number | null {
+  if (de === a) return n;
+  if (!dolar) return null;
+  return centavos(de === "BOB" ? n / dolar : n * dolar);
 }
 
 /** El costo que se precarga: el que se dijo, si no el último, si no el promedio. */
 export function costoSugerido(dicho: number | null | undefined, costo: CostoProducto | null | undefined): number {
   return dicho ?? costo?.ultimoCosto ?? costo?.costoPromedio ?? 0;
+}
+
+/**
+ * El costo de una línea que se agrega a la compra, en la moneda de la compra.
+ *
+ * - Si se dijo ("a 8 dólares", el renglón de la factura), ese, pasado a la
+ *   moneda de la compra si se dijo en la otra.
+ * - Si no, en dólares el último que se pagó en dólares (el proveedor suele
+ *   cobrar lo mismo en dólares aunque en Bs salga distinto); si nunca se
+ *   compró en dólares, el último en Bs pasado con el dólar.
+ * - En Bs, el último o el promedio, como siempre.
+ */
+export function costoEnCompra(
+  compra: Pick<BorradorCompra, "moneda" | "dolar">,
+  dicho: number | null | undefined,
+  monedaDicha: MonedaCompra | null | undefined,
+  previo: CostoProducto | null | undefined,
+): { costo: number; costoAnterior: number | null; costoAnteriorUsd: number | null } {
+  const moneda = compra.moneda ?? "BOB";
+  const anteriores = { costoAnterior: previo?.ultimoCosto ?? null, costoAnteriorUsd: previo?.ultimoCostoUsd ?? null };
+  if (dicho != null) {
+    return { costo: convertir(dicho, monedaDicha ?? moneda, moneda, compra.dolar) ?? 0, ...anteriores };
+  }
+  if (moneda === "USD") {
+    const enBs = previo?.ultimoCosto ?? previo?.costoPromedio ?? null;
+    const costo = previo?.ultimoCostoUsd ?? (enBs != null ? convertir(enBs, "BOB", "USD", compra.dolar) : null) ?? 0;
+    return { costo, ...anteriores };
+  }
+  return { costo: costoSugerido(null, previo), ...anteriores };
 }
 
 export function totalVenta(v: BorradorVenta): number {
@@ -542,10 +662,21 @@ export function facturaDe(
   };
 }
 
-const NOMBRE_PAGO: Record<MetodoPago, string> = { efectivo: "efectivo", qr: "QR", tarjeta: "tarjeta" };
+const NOMBRE_PAGO: Record<MetodoPago, string> = { efectivo: "efectivo", qr: "QR", tarjeta: "tarjeta", dolares: "dólares" };
 
 function bs(n: number): string {
   return `Bs ${n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function monto(n: number, moneda: MonedaCompra): string {
+  return moneda === "USD"
+    ? `$us ${n.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : bs(n);
+}
+
+/** La moneda que dijo la frase o la factura ("USD" en `entidades.moneda`). */
+function monedaDe(e: Record<string, any>): MonedaCompra | null {
+  return e.moneda === "USD" || e.moneda === "BOB" ? e.moneda : null;
 }
 
 export interface EfectoDeVenta {
@@ -566,37 +697,52 @@ export interface EfectoDeVenta {
  * la propuesta no alcanza para actuar (falta el producto, hay dos José),
  * devuelve null y la pantalla muestra la tarjeta para elegir.
  */
-export function efectoDeVenta(p: {
-  intencion: string | null;
-  ejecutable: boolean;
-  entidades: Record<string, unknown>;
-  producto: ProductoOpcion | null;
-  items?: ItemPedido[];
-  clienteAplicado?: string;
-  costos?: Record<string, CostoProducto>;
-}): EfectoDeVenta | null {
+export function efectoDeVenta(
+  p: {
+    intencion: string | null;
+    ejecutable: boolean;
+    entidades: Record<string, unknown>;
+    producto: ProductoOpcion | null;
+    items?: ItemPedido[];
+    clienteAplicado?: string;
+    costos?: Record<string, CostoProducto>;
+  },
+  /**
+   * La compra abierta, con el dólar que se usaría (el suyo o el del día):
+   * para cargar los costos en su moneda y, si está vacía y la frase dice
+   * dólares, pasarla a dólares.
+   */
+  compra: Pick<BorradorCompra, "moneda" | "dolar" | "lineas"> = COMPRA_VACIA,
+): EfectoDeVenta | null {
   if (!p.ejecutable || !p.intencion) return null;
   const e = p.entidades as Record<string, any>;
 
   // Cargar a la compra: como un pedido, con el costo de cada renglón (el que
-  // se dijo o, si no, el último que se pagó).
+  // se dijo o, si no, el último que se pagó), en la moneda de la compra.
   if (p.intencion === "agregar_a_compra" && p.items) {
     const acciones: AccionMesa[] = [];
     const partes: string[] = [];
+    const dicha = monedaDe(e);
+    const actual = compra.moneda ?? "BOB";
+    // Una compra vacía toma la moneda de lo dicho ("compré… a 8 dólares", una
+    // factura en dólares). Con líneas ya cargadas, lo dicho se pasa a la suya.
+    const moneda = dicha && compra.lineas.length === 0 ? dicha : actual;
+    const destino = { moneda, dolar: compra.dolar ?? null };
+    if (moneda !== actual) acciones.push({ tipo: "monedaCompra", moneda, dolar: destino.dolar });
     for (const it of p.items) {
       if (!it.producto || it.agregados?.includes(it.producto.productId)) continue;
-      const previo = p.costos?.[it.producto.productId];
-      const costo = costoSugerido(it.precio, previo);
+      const c = costoEnCompra(destino, it.precio, dicha, p.costos?.[it.producto.productId]);
       acciones.push({
         tipo: "agregarCompra",
         producto: it.producto,
         cantidad: it.cantidad,
-        costo,
-        costoAnterior: previo?.ultimoCosto ?? null,
+        costo: c.costo,
+        costoAnterior: c.costoAnterior,
+        costoAnteriorUsd: c.costoAnteriorUsd,
       });
-      partes.push(`${it.cantidad} × ${it.producto.nombre} a ${bs(costo)}`);
+      partes.push(`${it.cantidad} × ${it.producto.nombre} a ${monto(c.costo, moneda)}`);
     }
-    if (acciones.length === 0) return null;
+    if (!acciones.some((a) => a.tipo === "agregarCompra")) return null;
     return { acciones, resumen: `Cargado a la compra · ${partes.join(", ")}` };
   }
 
@@ -666,12 +812,16 @@ export function efectoDeVenta(p: {
             : `${e.producto}: ahora son ${cantidad}`,
       };
     }
-    case "cambiar_costo_compra":
+    case "cambiar_costo_compra": {
       if (!e.productId || e.costo == null) return null;
+      // "El gold a 15 dólares" en una compra en Bs: se pasa a Bs con el dólar.
+      const moneda = compra.moneda ?? "BOB";
+      const costo = convertir(Number(e.costo), monedaDe(e) ?? moneda, moneda, compra.dolar) ?? Number(e.costo);
       return {
-        acciones: [{ tipo: "costoCompra", productId: e.productId, costo: Number(e.costo) }],
-        resumen: `${e.producto}: costo ${bs(Number(e.costo))}`,
+        acciones: [{ tipo: "costoCompra", productId: e.productId, costo }],
+        resumen: `${e.producto}: costo ${monto(costo, moneda)}`,
       };
+    }
     case "elegir_proveedor":
       if (!e.proveedor) return null;
       return {
@@ -687,8 +837,8 @@ export function efectoDeVenta(p: {
     case "elegir_pago":
       if (!e.pago) return null;
       return {
-        acciones: [{ tipo: "pago", pago: e.pago as MetodoPago }],
-        resumen: `Paga con ${NOMBRE_PAGO[e.pago as MetodoPago]}`,
+        acciones: [{ tipo: "pago", pago: e.pago as MetodoPago, recibidoUsd: e.dolares ?? null }],
+        resumen: `Paga con ${NOMBRE_PAGO[e.pago as MetodoPago] ?? e.pago}${e.dolares ? ` · da $us ${e.dolares}` : ""}`,
       };
     case "vaciar_venta":
       return e.mesa === "compra"
@@ -696,7 +846,7 @@ export function efectoDeVenta(p: {
         : { acciones: [{ tipo: "limpiarVenta" }], resumen: "Empecé la venta de nuevo" };
     case "cobrar":
       return {
-        acciones: e.pago ? [{ tipo: "pago", pago: e.pago as MetodoPago }] : [],
+        acciones: e.pago ? [{ tipo: "pago", pago: e.pago as MetodoPago, recibidoUsd: e.dolares ?? null }] : [],
         resumen: "Cobrando…",
         cobrar: true,
       };

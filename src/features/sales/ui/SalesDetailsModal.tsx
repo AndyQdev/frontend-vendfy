@@ -1,5 +1,6 @@
 import { formatMoney } from "@/shared/lib/money";
 import { Order } from "@/entities/order/model/types";
+import { cobroEnDolaresTexto } from "@/entities/order/model/pago";
 import { Badge } from "@/shared/ui/badge";
 import {
   ResponsiveDialog as Dialog,
@@ -57,6 +58,12 @@ export function SalesDetailsModal({ order, open, onClose }: OrderDetailsModalPro
               <p className="text-sm font-medium text-foreground">Recibido</p>
               <p className="text-lg font-bold">{formatMoney(Number(order.totalReceived))}</p>
             </div>
+            {cobroEnDolaresTexto(order) && (
+              <div className="col-span-2" data-testid="cobro-dolares-detalle">
+                <p className="text-sm font-medium text-foreground">Cobrado en dólares</p>
+                <p className="cifra text-base">{cobroEnDolaresTexto(order)}</p>
+              </div>
+            )}
           </div>
 
           {/* Información de Entrega */}

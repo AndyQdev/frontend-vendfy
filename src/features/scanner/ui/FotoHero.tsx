@@ -112,9 +112,9 @@ export function FotoHero({
               <span className="grid size-14 place-items-center rounded-2xl bg-card shadow-sm ring-1 ring-border">
                 <ImagePlus className="size-7 text-primary" aria-hidden />
               </span>
-              <span className="text-sm font-semibold text-foreground">Agregá una foto</span>
+              <span className="text-sm font-semibold text-foreground">Agrega una foto</span>
               <span className="max-w-[220px] text-xs text-muted-foreground">
-                Sacala con el celular o subila. Después la dejamos profesional con IA.
+                Sácala con el celular o súbela. Después la dejamos profesional con IA.
               </span>
             </motion.button>
           )}

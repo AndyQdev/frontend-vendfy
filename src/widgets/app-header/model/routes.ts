@@ -7,6 +7,7 @@ import {
   Radio,
   MessageSquareText,
   Megaphone,
+  BadgePercent,
   Package,
   ChartColumnBig,
   ReceiptText,
@@ -53,6 +54,8 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/orders", label: "Pedidos", icon: ClipboardList, badge: "pending-orders" },
   { href: "/sales", label: "Ventas", icon: ReceiptText },
   { href: "/products", label: "Productos", icon: Package },
+  // Las promociones, también pegadas a Productos: es rebajarlos, con página propia.
+  { href: "/promotions", label: "Promociones", icon: BadgePercent },
   // El Live va pegado a Productos: es otra forma de ponerlos a la venta.
   { href: "/live", label: "Modo Live", icon: Radio, match: "/live" },
   { href: "/inventory", label: "Inventario", icon: Layers },

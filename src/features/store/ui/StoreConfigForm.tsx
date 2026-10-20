@@ -1,5 +1,6 @@
+import { ElegirFuenteDolar } from "@/entities/exchange-rate/ui/dolar";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Sparkles } from "lucide-react";
+import { Save, Store as StoreIcon, Eye, Palette, Phone, Star, Globe, Settings, Plus, X, CheckCircle, Upload, Trash2, Sparkles, History } from "lucide-react";
 import { AiFieldButton } from "@/shared/ui/ai-field-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -12,6 +13,8 @@ import { useUpdateStore, useCreateStore } from "@/entities/store/api";
 import { StoreReviewsManager } from "./StoreReviewsManager";
 import { WebConTuIa } from "./WebConTuIa";
 import { DisenoTienda } from "./diseno/DisenoTienda";
+import { disenoDe, useBorradorDiseno } from "../model/borrador-diseno";
+import { subirImagenDeTienda } from "../model/subir-imagen-tienda";
 import { useCategories } from "@/entities/product/api";
 import { apiFetch } from "@/shared/api/client";
 import type { Store, StoreConfig } from "@/entities/store/model/types";
@@ -44,6 +47,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [seccionDiseno, setSeccionDiseno] = useState<'temas' | 'ia'>('temas');
+  const [pestana, setPestana] = useState("general");
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,7 +60,8 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
   // Para elegir a qué categoría lleva el botón de una imagen de portada.
   const { data: categoriasTienda = [] } = useCategories(store?.id || undefined);
 
-  useEffect(() => {
+  // Lo guardado, en el formulario. También es "Descartar cambios".
+  const cargarGuardado = () => {
     if (store) setFormData(store);
 
     // Extraer código de país y número del teléfono almacenado
@@ -68,7 +73,40 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
     } else {
       setPhoneNumber(storedPhone);
     }
-  }, [store]);
+  };
+  useEffect(() => cargarGuardado(), [store]);
+
+  // El diseño sin guardar sobrevive a salir de la pantalla (model/borrador-diseno.ts).
+  const borradorDiseno = useBorradorDiseno(
+    mode === "edit" ? store?.id : undefined,
+    disenoDe(store?.config),
+    disenoDe(formData.config),
+  );
+  const recuperarDiseno = () => {
+    const diseno = borradorDiseno.recuperar();
+    if (!diseno) return;
+    setFormData((prev) => ({ ...prev, config: { ...prev.config, ...diseno } }));
+    setIsEditing(true);
+    setSeccionDiseno("temas");
+    setPestana("design");
+  };
+  const descartarCambios = () => {
+    cargarGuardado();
+    setIsEditing(false);
+  };
+
+  // Cerrar o recargar la pestaña con cambios: el navegador pregunta. Navegar
+  // dentro del panel no se puede frenar con BrowserRouter; el diseño, igual,
+  // queda en el borrador.
+  useEffect(() => {
+    if (mode !== "edit" || !isEditing) return;
+    const alSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", alSalir);
+    return () => window.removeEventListener("beforeunload", alSalir);
+  }, [mode, isEditing]);
 
   // Context for AI buttons - all current store form values
   const storeAiContext = useMemo(() => ({
@@ -162,20 +200,6 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
       return response.data.url;
     }
 
-    throw new Error("Error al subir la imagen");
-  };
-
-  // Las imágenes de portada (Diseño) van a la carpeta de la tienda, no a la de
-  // productos: son de la configuración de la tienda y no se mezclan con el
-  // catálogo. Las sube quien puede editar la tienda.
-  const subirImagenDeTienda = async (file: File): Promise<string> => {
-    const datos = new FormData();
-    datos.append("image", file);
-    const response = await apiFetch<{ url: string; path: string }>("/api/store/upload-image", {
-      method: "POST",
-      body: datos
-    });
-    if (response.data?.url) return response.data.url;
     throw new Error("Error al subir la imagen");
   };
 
@@ -274,6 +298,11 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
               <span className="text-sm">Guardado exitosamente</span>
             </div>
           )}
+          {mode === "edit" && isEditing && !isSaving && (
+            <Button variant="ghost" onClick={descartarCambios}>
+              Descartar cambios
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={!isEditing || isSaving}>
             {isSaving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -306,8 +335,32 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
         </div>
       </Card> */}
 
+      {borradorDiseno.pendiente && (
+        <Card className="flex flex-wrap items-center gap-3 border-amber-500/40 bg-amber-500/10 p-4">
+          <History className="h-5 w-5 flex-none text-amber-600" />
+          <p className="min-w-0 flex-1 text-sm">
+            Tenés cambios de diseño sin guardar (
+            {new Date(borradorDiseno.pendiente.fecha).toLocaleString("es-BO", {
+              day: "numeric",
+              month: "long",
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+            ). ¿Los recuperás para seguir?
+          </p>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={borradorDiseno.descartar}>
+              Descartar
+            </Button>
+            <Button size="sm" onClick={recuperarDiseno}>
+              Recuperar
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Tabs */}
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs value={pestana} onValueChange={setPestana} className="w-full">
         <TabsList className={`grid w-full ${mode === "edit" && store?.id ? "grid-cols-5" : "grid-cols-4"}`}>
           <TabsTrigger value="general" className="text-xs md:text-sm">
             <Settings className="h-4 w-4 md:mr-2" />
@@ -412,6 +465,23 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                 </SelectContent>
               </Select>
             </div>
+
+            {(formData.config?.currency || "BOB") === "BOB" && (
+              <div className="space-y-2">
+                <div>
+                  <Label>Dólar</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Para comprar y cobrar en dólares. Se actualiza solo cada mañana, y en cada compra o cobro se puede
+                    corregir a mano.
+                  </p>
+                </div>
+                <ElegirFuenteDolar
+                  storeId={store?.id}
+                  valor={formData.config?.exchangeRate?.source ?? "bcb"}
+                  onCambio={(source) => handleConfigFieldChange("exchangeRate", { source })}
+                />
+              </div>
+            )}
 
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium">Configuración de Envío</h4>
@@ -551,6 +621,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
             <>
           <DisenoTienda
             slug={formData.slug}
+            storeId={mode === "edit" ? store?.id : undefined}
             rubro={formData.config?.category}
             onCambiarRubro={(rubro) => handleConfigFieldChange("category", rubro)}
             themeId={formData.config?.themeId}

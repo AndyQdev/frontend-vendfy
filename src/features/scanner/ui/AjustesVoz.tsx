@@ -1,6 +1,7 @@
+import { FRASES_FIJAS } from "../model/frases";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { AudioLines, Check, Play, Volume2, VolumeX } from "lucide-react";
+import { AudioLines, Check, Gauge, Mic, Play, Volume2, VolumeX } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -12,6 +13,7 @@ import {
   useHablando,
   usePreferenciasVoz,
   useVoces,
+  VELOCIDADES,
   type VozDisponible,
 } from "@/shared/voz";
 import { setSonidoActivo, sonidoActivo } from "../model/sonido";
@@ -36,8 +38,8 @@ export function AjustesVoz({ className, align = "end" }: { className?: string; a
     setPreferenciasVoz({ voz: v.id });
     setProbando(v.id);
     probarVoz(v.id, muestra(v));
-    // Los precios del comercio con la voz nueva, para que suenen al instante.
-    void precalentarVoz();
+    // Los precios del comercio y las frases fijas con la voz nueva, para que suenen al instante.
+    void precalentarVoz(FRASES_FIJAS);
   };
 
   return (
@@ -68,6 +70,46 @@ export function AjustesVoz({ className, align = "end" }: { className?: string; a
             </span>
             <Switch checked={prefs.precios} onCheckedChange={(v) => setPreferenciasVoz({ precios: v })} />
           </label>
+          <label className="flex cursor-pointer items-start gap-3">
+            <Mic className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Escuchar al dar de alta</span>
+              <span className="block text-xs text-muted-foreground">
+                Si el producto no está registrado, dime nombre, precio y cantidad y lo completo.
+              </span>
+            </span>
+            <Switch checked={prefs.escuchar} onCheckedChange={(v) => setPreferenciasVoz({ escuchar: v })} />
+          </label>
+          <div className="flex items-center gap-3">
+            <Gauge className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="flex-1 text-sm font-medium">Velocidad</span>
+            <div role="radiogroup" aria-label="Velocidad de la voz" className="flex rounded-lg bg-muted p-0.5">
+              {VELOCIDADES.map((o) => (
+                <button
+                  key={o.valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={prefs.velocidad === o.valor}
+                  onClick={() => {
+                    setPreferenciasVoz({ velocidad: o.valor });
+                    const v = data?.voces.find((x) => x.id === prefs.voz);
+                    if (v) {
+                      setProbando(v.id);
+                      probarVoz(v.id, muestra(v));
+                    }
+                  }}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    prefs.velocidad === o.valor
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {o.nombre}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="flex cursor-pointer items-start gap-3">
             <Volume2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <span className="min-w-0 flex-1">

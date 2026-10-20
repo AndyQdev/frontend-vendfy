@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/cn";
 import { hora, type EventoVenta } from "../../model/mensaje";
 import { BotonSecundario, FotoProducto, dinero } from "../piezas";
 
-const PAGO = { efectivo: "Efectivo", qr: "QR", tarjeta: "Tarjeta" } as const;
+const PAGO = { efectivo: "Efectivo", qr: "QR", tarjeta: "Tarjeta", dolares: "Dólares" } as const;
 
 /**
  * La venta cobrada, en el hilo del chat.
@@ -58,7 +58,18 @@ export function TarjetaVenta({
             {anulada ? "anulado" : venta.tipo === "delivery" ? "registrado" : venta.tipo === "cuotas" ? "registrada" : "cobrada"}
           </p>
           <p className="text-[13px] text-muted-foreground">
-            {venta.cliente} · {PAGO[venta.pago]}
+            {venta.cliente} · {PAGO[venta.pago] ?? venta.pago}
+            {/* En dólares: lo que dio, el dólar y qué hacer con la diferencia (vuelto o falta, en
+                Bs). Menos de 10 centavos de vuelto es el redondeo de cobrar lo justo: no se da. */}
+            {venta.pago === "dolares" && venta.dolares != null
+              ? ` $us ${dinero(venta.dolares)} a ${dinero(venta.dolar ?? 0)}${
+                  (venta.diferencia ?? 0) >= 0.1
+                    ? ` · vuelto Bs ${dinero(venta.diferencia!)}`
+                    : (venta.diferencia ?? 0) <= -0.01
+                      ? ` · faltan Bs ${dinero(-venta.diferencia!)} en efectivo`
+                      : ""
+                }`
+              : ""}
             {venta.tipo === "delivery" ? ` · envío Bs ${dinero(venta.envio ?? 0)} · queda pendiente de entrega` : ""}
             {venta.tipo === "cuotas" ? ` · pagó hoy Bs ${dinero(venta.inicial ?? 0)}, ${(venta.cuotas ?? 2) - 1} ${(venta.cuotas ?? 2) - 1 === 1 ? "cuota" : "cuotas"} más` : ""}
             {anulada && " · el stock volvió"}

@@ -17,6 +17,23 @@ export interface Opcion {
   descripcion?: string;
   /** Solo variantes de portada: cuántas imágenes necesita para poder elegirla. */
   minimoImagenes?: number;
+  /** Solo variantes de portada: los ajustes del carrusel que usa. */
+  ajustes?: AjustePortada[];
+  /** Solo variantes de portada: la cabecera "Sobre la portada" va transparente encima. */
+  cabeceraEncima?: boolean;
+}
+
+export type AjustePortada = "intervalo" | "transicion" | "flechas" | "puntos";
+
+/**
+ * Los ajustes que usa una variante de portada. Una tienda sin desplegar
+ * todavía no los declara: ahí se muestran como antes (todos, salvo en las que
+ * no pasan solas).
+ */
+export function ajustesDePortada(variante: Opcion | undefined): AjustePortada[] {
+  if (variante?.ajustes) return variante.ajustes;
+  if (variante && ["mosaico", "cinta"].includes(variante.id)) return [];
+  return ["intervalo", "transicion", "flechas", "puntos"];
 }
 
 export interface Muestra {

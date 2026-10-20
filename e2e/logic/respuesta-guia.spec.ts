@@ -56,6 +56,9 @@ test.describe("contestarle a la Guía", () => {
     expect(respuestaAGuia("con QR", faltaPago)).toMatchObject({ tipo: "pago", pago: "qr" });
     expect(respuestaAGuia("en efectivo", faltaPago)).toMatchObject({ pago: "efectivo" });
     expect(respuestaAGuia("tarjeta de débito", faltaPago)).toMatchObject({ pago: "tarjeta" });
+    expect(respuestaAGuia("en dólares", faltaPago)).toMatchObject({ pago: "dolares" });
+    // Con delivery o a cuotas no se ofrecen dólares: "en dólares" no contesta.
+    expect(respuestaAGuia("en dólares", MENSAJES.faltaPago(false))).toBeNull();
     // "sí" no es un método de pago: no se adivina.
     expect(respuestaAGuia("sí", faltaPago)).toBeNull();
   });

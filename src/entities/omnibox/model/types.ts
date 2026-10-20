@@ -289,6 +289,8 @@ export interface HerramientaGenerada {
 export interface CostoProducto {
   productId: string;
   ultimoCosto: number | null;
+  /** Lo último que se pagó en dólares, si alguna vez se compró en dólares. */
+  ultimoCostoUsd?: number | null;
   ultimoProveedor: string | null;
   costoPromedio: number | null;
 }
@@ -298,7 +300,12 @@ export interface CompraRegistrada {
   purchaseOrderId: string;
   referencia: string | null;
   proveedor: string | null;
+  /** En Bs, lo que quedó en la orden. */
   total: number;
+  /** Compra en dólares: lo pagado en dólares y el dólar usado. */
+  moneda?: "USD";
+  totalUsd?: number;
+  dolar?: number;
   unidades: number;
   /** La foto de la factura, si la compra salió de una foto. */
   adjunto?: string | null;
@@ -527,7 +534,11 @@ export interface VentaCobrada {
   orderId: string;
   numero: number;
   total: number;
-  pago: "efectivo" | "qr" | "tarjeta";
+  pago: "efectivo" | "qr" | "tarjeta" | "dolares";
+  /** Cobrado en dólares: cuántos dio, el dólar y la diferencia en Bs (> 0 vuelto, < 0 falta). */
+  dolares?: number;
+  dolar?: number;
+  diferencia?: number;
   cliente: string;
   /** "por-confirmar" si algo era a pedido y faltaba: no descontó stock. */
   estado: string;

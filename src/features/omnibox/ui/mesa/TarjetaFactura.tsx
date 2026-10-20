@@ -38,6 +38,8 @@ export function TarjetaFactura({
 }) {
   const e = p.entidades as Record<string, any>;
   const items = p.items ?? [];
+  // Las facturas de importadoras vienen en dólares: los costos se muestran como en el papel.
+  const signo = e.moneda === "USD" ? "$us" : "Bs";
   const resuelto = (it: ItemPedido) => Boolean(it.producto || it.agregados?.length || it.omitido);
   const pendientes = items.filter((it) => !resuelto(it)).length;
   const reconocidos = items.filter((it) => it.producto).length;
@@ -93,7 +95,7 @@ export function TarjetaFactura({
             {it.producto ? (
               <Resuelto imagen={it.producto.imagen} leido={it.texto}>
                 {it.cantidad} × {it.producto.nombre}
-                <Costo it={it} />
+                <Costo it={it} signo={signo} />
               </Resuelto>
             ) : it.omitido ? (
               <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -104,11 +106,12 @@ export function TarjetaFactura({
             ) : it.agregados?.length ? (
               <Resuelto imagen={undefined} leido={it.texto}>
                 Cargado a la compra
-                <Costo it={it} />
+                <Costo it={it} signo={signo} />
               </Resuelto>
             ) : (
               <RenglonPendiente
                 item={it}
+                signo={signo}
                 storeId={storeId}
                 onElegir={(o) => onElegirItem(i, o)}
                 onOmitir={() => onOmitirItem(i)}
@@ -121,9 +124,13 @@ export function TarjetaFactura({
   );
 }
 
-function Costo({ it }: { it: ItemPedido }) {
+function Costo({ it, signo }: { it: ItemPedido; signo: string }) {
   if (it.precio == null) return null;
-  return <span className="cifra ml-1.5 text-xs text-muted-foreground">a Bs {dinero(it.precio)} c/u</span>;
+  return (
+    <span className="cifra ml-1.5 text-xs text-muted-foreground">
+      a {signo} {dinero(it.precio)} c/u
+    </span>
+  );
 }
 
 function Resuelto({
@@ -153,11 +160,14 @@ function Resuelto({
 /** Un renglón dudoso o nuevo: elegir, crear, buscar con otro nombre o descartar. */
 function RenglonPendiente({
   item: it,
+  signo,
   storeId,
   onElegir,
   onOmitir,
 }: {
   item: ItemPedido;
+  /** "Bs" o "$us": la moneda de la factura. */
+  signo: string;
   storeId: string;
   onElegir: (o: ProductoOpcion) => void;
   onOmitir: () => void;
@@ -171,7 +181,7 @@ function RenglonPendiente({
         <div className="min-w-0">
           <p className="truncate text-[13px] font-semibold uppercase tracking-wide">{it.texto}</p>
           <p className="cifra text-xs text-muted-foreground">
-            {it.cantidad} {it.precio != null ? `a Bs ${dinero(it.precio)} c/u` : "sin costo en la factura"} ·{" "}
+            {it.cantidad} {it.precio != null ? `a ${signo} ${dinero(it.precio)} c/u` : "sin costo en la factura"} ·{" "}
             <span className={dudoso ? "text-foreground" : "text-warning-soft-foreground"}>
               {dudoso ? "¿cuál de estos es?" : "no está en tu catálogo"}
             </span>

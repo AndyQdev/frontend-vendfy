@@ -4,6 +4,8 @@ import type {
   PurchaseOrder,
   CreatePurchaseOrderInput,
   PurchaseOrderQueryParams,
+  ResumenComprasProducto,
+  ItemRecibido,
 } from "../model/types";
 import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
 
@@ -14,8 +16,9 @@ export function usePurchaseOrders(params: PurchaseOrderQueryParams = {}) {
   if (params.order) searchParams.append("order", params.order);
   if (params.storeId) searchParams.append("storeId", params.storeId);
   if (params.status) searchParams.append("status", params.status);
+  if (params.productId) searchParams.append("productId", params.productId);
 
-  return useQuery<{ data: PurchaseOrder[]; countData: number }>({
+  return useQuery<{ data: PurchaseOrder[]; countData: number; resumen?: ResumenComprasProducto }>({
     queryKey: ["purchase-orders", params],
     queryFn: async () => {
       const response = await apiFetch<PurchaseOrder[]>(
@@ -24,6 +27,7 @@ export function usePurchaseOrders(params: PurchaseOrderQueryParams = {}) {
       return {
         data: response.data || [],
         countData: response.countData || 0,
+        ...(response.stats?.producto ? { resumen: response.stats.producto as ResumenComprasProducto } : {}),
       };
     },
   });
@@ -60,16 +64,26 @@ export function useCreatePurchaseOrder() {
 export function useConfirmPurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    /**
+     * Con `items` (lo contado al escanear la mercadería) la compra queda como
+     * llegó: lo que faltó sale, lo que sobró o no estaba pedido entra.
+     */
+    mutationFn: async (arg: string | { id: string; items?: ItemRecibido[]; exchangeRate?: number }) => {
+      const { id, items, exchangeRate } =
+        typeof arg === "string" ? { id: arg, items: undefined, exchangeRate: undefined } : arg;
+      // En compras en dólares, `exchangeRate` es el dólar al que se pagó al
+      // recibir, si no es el de cuando se registró.
+      const body = { ...(items && { items }), ...(exchangeRate && { exchangeRate }) };
       const response = await apiFetch<PurchaseOrder>(
         `/api/purchase-order/${id}/confirm`,
-        { method: "PATCH" }
+        { method: "PATCH", ...(Object.keys(body).length > 0 && { body }) }
       );
       return response.data as PurchaseOrder;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       qc.invalidateQueries({ queryKey: ["purchase-order"] });
+      qc.invalidateQueries({ queryKey: ["product-scan"] });
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
       qc.invalidateQueries({ queryKey: ["movement-kpis"] });

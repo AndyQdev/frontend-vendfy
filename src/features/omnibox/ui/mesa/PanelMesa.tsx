@@ -300,7 +300,8 @@ export function PanelMesa({
               producto={mesa.producto}
               storeId={storeId}
               mesa={mesa.abierta as TipoMesa}
-              onAgregar={(cantidad, costo, costoAnterior) => {
+              compra={mesa.compra}
+              onAgregar={(cantidad, costo, costoAnterior, costoAnteriorUsd) => {
                 if (esVenta) {
                   despachar({ tipo: "agregarVenta", producto: mesa.producto!, cantidad });
                 } else {
@@ -310,6 +311,7 @@ export function PanelMesa({
                     cantidad,
                     costo: costo ?? 0,
                     costoAnterior: costoAnterior ?? null,
+                    costoAnteriorUsd: costoAnteriorUsd ?? null,
                   });
                 }
                 // Directo a lo que se está armando: se ve que entró y el total,
@@ -333,6 +335,7 @@ export function PanelMesa({
           <CompraBorrador
             compra={mesa.compra}
             despachar={despachar}
+            storeId={storeId}
             onRegistrar={onRegistrarCompra}
             registrando={registrando}
             error={errorCompra}

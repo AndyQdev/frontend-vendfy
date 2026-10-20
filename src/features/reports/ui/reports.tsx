@@ -29,6 +29,8 @@ import {
   useReportFinancialComparison,
 } from "../api";
 import type { ReportQueryParams } from "../model/types";
+import { ReporteProducto } from "./reporte-producto";
+import { frasesReporte, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 
 export function Reports() {
   const [period, setPeriod] = useState("7days");
@@ -56,6 +58,11 @@ export function Reports() {
   const financialComparison = useReportFinancialComparison(queryParams);
   const frequentCustomers = useReportFrequentCustomers(queryParams);
   const salesByDay = useReportSalesByDay(queryParams);
+
+  // Escanear un producto muestra sus estadísticas, con el mismo período.
+  const filtro = useFiltroEscaneado("Muestra las estadísticas de ese producto");
+  // "Reporte de Mermelada Arcor."
+  useVozAlFiltrar(filtro.producto, true, () => frasesReporte(filtro.producto!.nombre));
 
   const periods = [
     { value: "today", label: "Hoy" },
@@ -119,6 +126,15 @@ export function Reports() {
         </div>
       </div>
 
+      {filtro.producto ? (
+        <ReporteProducto
+          producto={filtro.producto}
+          params={queryParams}
+          periodoTexto={periodoTexto(period, dateRange)}
+          onQuitar={filtro.quitar}
+        />
+      ) : (
+      <>
       {/* Bloque 1: KPIs Principales */}
       {kpis.isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -191,8 +207,28 @@ export function Reports() {
           />
         )}
       </div>
+      </>
+      )}
     </div>
   );
+}
+
+/** El período elegido, para decirlo en una frase: "Vendiste 12 en los últimos 7 días". */
+function periodoTexto(period: string, rango: DateRange | undefined): string {
+  switch (period) {
+    case "today":
+      return "hoy";
+    case "30days":
+      return "en los últimos 30 días";
+    case "thisMonth":
+      return "este mes";
+    case "custom":
+      return rango?.from && rango?.to
+        ? `del ${format(rango.from, "d MMM", { locale: es })} al ${format(rango.to, "d MMM", { locale: es })}`
+        : "en los últimos 7 días";
+    default:
+      return "en los últimos 7 días";
+  }
 }
 
 function ChartSkeleton() {

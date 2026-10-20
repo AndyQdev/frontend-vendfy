@@ -42,8 +42,17 @@ import { OrderDetailsModal } from "./OrderDetails";
 import { DeliveryTrackingModal } from "./DeliveryTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
+import { ChipProductoEscaneado, frasesPedidos, textoVentas, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
 
 type DateFilter = "day" | "week" | "month" | "year";
+
+/** Cómo se dice el período del tablero en el resumen del producto escaneado. */
+const PERIODO: Record<DateFilter, string> = {
+  day: "Hoy",
+  week: "Esta semana",
+  month: "Este mes",
+  year: "Este año",
+};
 
 // Configuración de columnas del Kanban
 /** Los dos bordes de la pantalla, que en móvil pasan de columna al arrastrar. */
@@ -254,14 +263,26 @@ export default function OrdersTable() {
   // Determinar el storeId
   const storeId = selectedStore === "all" ? undefined : selectedStore?.id;
 
-  // Obtener todas las órdenes
-  const { data: ordersResponse, isLoading } = useOrders({
+  // Escanear un producto deja solo los pedidos que lo tienen, con su resumen.
+  // Con un pedido abierto, la lectura es suya (lo arma) o abre la hoja de
+  // siempre: no filtra el tablero que quedó detrás.
+  const filtro = useFiltroEscaneado("Muestra solo los pedidos con ese producto", !detailsModalOpen);
+
+  // Obtener todas las órdenes. Los mismos parámetros arman la clave que usa
+  // el arrastre para actualizar el tablero al instante.
+  const paramsPedidos = {
     limit: 200,
     offset: 0,
     order: sortOrder,
     ...(storeId && { storeId }),
     dateFilter,
-  });
+    ...(filtro.producto && { productId: filtro.producto.id }),
+  };
+  const { data: ordersResponse, isLoading, isFetching } = useOrders(paramsPedidos);
+  // "Mermelada Arcor. Está en tres pedidos." (los del período del tablero)
+  useVozAlFiltrar(filtro.producto, !isFetching, () =>
+    frasesPedidos(filtro.producto!.nombre, ordersResponse?.stats?.producto?.ventas ?? ordersResponse?.data?.length ?? 0),
+  );
 
   const allOrders = ordersResponse?.data || [];
 
@@ -473,8 +494,15 @@ export default function OrdersTable() {
     const order = allOrders.find((o) => o.id === orderId);
     if (!order || order.status === newStatus) return;
 
+    moverPedido(order, newStatus);
+  };
+
+  // Cambiar de estado: lo usa el arrastre y el "Pasar a…" del pedido armado.
+  const moverPedido = (order: Order, newStatus: OrderStatus) => {
+    const orderId = order.id;
+
     // Guardar el query key - DEBE coincidir con el queryKey de useOrders
-    const queryKey = ['orders', { limit: 200, offset: 0, order: sortOrder, ...(storeId && { storeId }), dateFilter }];
+    const queryKey = ['orders', paramsPedidos];
 
     // Snapshot del estado previo
     const previousData = queryClient.getQueryData(queryKey);
@@ -556,6 +584,17 @@ export default function OrdersTable() {
           </Button>
         </div>
       </div>
+
+      {filtro.producto && (
+        <ChipProductoEscaneado
+          nombre={filtro.producto.nombre}
+          imagen={filtro.producto.imagen}
+          cargando={isLoading}
+          resumen={textoVentas(ordersResponse?.stats?.producto, PERIODO[dateFilter], "pedido", allOrders.length)}
+          onQuitar={filtro.quitar}
+          quitarEtiqueta="Ver todos los pedidos"
+        />
+      )}
 
       {/* Tablero Kanban */}
       {isLoading ? (
@@ -714,6 +753,10 @@ export default function OrdersTable() {
         order={selectedOrder}
         open={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
+        onCambiarEstado={(order, status) => {
+          setDetailsModalOpen(false);
+          moverPedido(order, status);
+        }}
       />
 
       {/* Link del repartidor al pasar a "En camino" */}

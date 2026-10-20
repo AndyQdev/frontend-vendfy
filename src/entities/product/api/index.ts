@@ -252,3 +252,72 @@ export function useDeleteBrand() {
   });
 }
 
+
+// ─── Alta por voz (formulario del escáner) ──────────────────────────────────
+
+/** Lo que el formulario tiene ahora: el servidor devuelve solo lo que la frase cambia. */
+export interface FormularioAltaVoz {
+  nombre: string | null;
+  marca: string | null;
+  categoria: string | null;
+  precio: number | null;
+  cantidad: number | null;
+}
+
+export type CambiosAltaVoz = Partial<{
+  nombre: string;
+  marca: string;
+  categoria: string;
+  precio: number;
+  cantidad: number;
+}>;
+
+/** Lo último que preguntó la voz: con eso el servidor entiende un "veinte" o un "sí" a secas. */
+export type PreguntaAltaVoz = "alta" | "nombre" | "precio" | "precioYCantidad" | "cantidad" | "registrar";
+
+export interface ResultadoAltaVoz {
+  transcripcion: { texto: string; motor: string; ms: number };
+  cambios: CambiosAltaVoz;
+  /** Dijo lo que le costó, no a cuánto lo vende. */
+  soloCosto: boolean;
+  /** Solo asintió ("sí", "claro"). */
+  afirma: boolean;
+  /** Solo dijo que no ("no", "todavía no"). */
+  niega: boolean;
+  /** Pidió registrarlo ("regístralo", "dale de alta"). */
+  registrar: boolean;
+  /** Si preguntó algo, la respuesta corta. */
+  respuesta: string | null;
+  /** Campos que quiso decir pero no se entendieron: hay que pedir que los repita. */
+  dudas: Array<keyof FormularioAltaVoz>;
+  /** Repitió lo que ya estaba anotado. */
+  yaEstaba: boolean;
+  msInterpretar: number;
+}
+
+export async function altaPorVoz(params: {
+  audio: Blob;
+  storeId: string;
+  formulario: FormularioAltaVoz;
+  categorias: string[];
+  cantidadEs: "stock" | "compra";
+  pregunta: PreguntaAltaVoz | null;
+  historial: Array<{ tu: string; vendfy: string }>;
+}): Promise<ResultadoAltaVoz> {
+  const forma = new FormData();
+  forma.append("audio", params.audio, params.audio.type.includes("wav") ? "alta.wav" : "alta.webm");
+  forma.append("storeId", params.storeId);
+  // En multipart no viajan objetos: va como JSON.
+  forma.append(
+    "contexto",
+    JSON.stringify({
+      formulario: params.formulario,
+      categorias: params.categorias,
+      cantidadEs: params.cantidadEs,
+      pregunta: params.pregunta,
+      historial: params.historial,
+    }),
+  );
+  const r = await apiFetch<ResultadoAltaVoz>("/api/omnibox/voz/alta", { method: "POST", body: forma });
+  return r.data!;
+}

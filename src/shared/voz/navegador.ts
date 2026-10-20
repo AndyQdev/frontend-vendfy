@@ -37,14 +37,14 @@ export function vozDelNavegador(): SpeechSynthesisVoice | null {
 }
 
 /** Dice el texto y resuelve cuando termina (o enseguida si no hay voz). */
-export function decirConNavegador(texto: string): Promise<void> {
+export function decirConNavegador(texto: string, velocidad = 1.05): Promise<void> {
   if (!disponible() || !texto) return Promise.resolve();
   return new Promise((resolver) => {
     const u = new SpeechSynthesisUtterance(texto);
     const voz = vozDelNavegador();
     u.lang = voz?.lang ?? "es-419";
     if (voz) u.voice = voz;
-    u.rate = 1.05;
+    u.rate = Math.min(2, Math.max(1, velocidad));
     u.onend = () => resolver();
     u.onerror = () => resolver();
     window.speechSynthesis.speak(u);
