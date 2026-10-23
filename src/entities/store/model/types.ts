@@ -98,6 +98,8 @@ export interface AparienciaGuardada {
   hover?: string;
   /** 'normal' o 'foto': la foto del producto viaja de la tarjeta al detalle. */
   entrePaginas?: string;
+  /** 'ninguna', 'grano' o 'puntos': textura sobre el fondo de las secciones. */
+  textura?: string;
   anuncio?: { activo?: boolean; texto?: string; variante?: string };
   secciones?: SeccionGuardada[];
   portada?: {
@@ -106,5 +108,8 @@ export interface AparienciaGuardada {
     transicion?: string;
     flechas?: boolean;
     puntos?: boolean;
+    altura?: string;
+    oscurecer?: string;
+    alineacion?: string;
   };
 }

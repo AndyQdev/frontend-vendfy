@@ -376,7 +376,21 @@ export function EditorPortada({
         </div>
       )}
 
-      {ajustes.length > 0 && diapositivas.length > 1 && (
+      {(ajustes.includes("altura") || ajustes.includes("oscurecer") || ajustes.includes("alineacion")) && diapositivas.length > 0 && (
+        <div className="grid gap-3 rounded-lg bg-muted/40 p-3 sm:grid-cols-3">
+          {ajustes.includes("altura") && catalogo.opciones.alturasPortada && (
+            <AjusteLista etiqueta="Altura" valor={portada.altura} opciones={catalogo.opciones.alturasPortada} onChange={(altura) => onChange({ ...portada, altura })} />
+          )}
+          {ajustes.includes("oscurecer") && catalogo.opciones.oscurecer && (
+            <AjusteLista etiqueta="Oscurecer la foto" valor={portada.oscurecer} opciones={catalogo.opciones.oscurecer} onChange={(oscurecer) => onChange({ ...portada, oscurecer })} />
+          )}
+          {ajustes.includes("alineacion") && catalogo.opciones.alineaciones && (
+            <AjusteLista etiqueta="Texto" valor={portada.alineacion} opciones={catalogo.opciones.alineaciones} onChange={(alineacion) => onChange({ ...portada, alineacion })} />
+          )}
+        </div>
+      )}
+
+      {ajustes.some((x) => ["intervalo", "transicion", "flechas", "puntos"].includes(x)) && diapositivas.length > 1 && (
         <details className="group rounded-lg bg-muted/40">
           <summary className="cursor-pointer list-none p-3 text-sm font-medium marker:hidden">
             Cómo pasan las imágenes
@@ -434,6 +448,36 @@ export function EditorPortada({
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+function AjusteLista({
+  etiqueta,
+  valor,
+  opciones,
+  onChange,
+}: {
+  etiqueta: string;
+  valor: string;
+  opciones: Array<{ id: string; nombre: string }>;
+  onChange: (valor: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{etiqueta}</Label>
+      <Select value={valor} onValueChange={onChange}>
+        <SelectTrigger className="h-9">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {opciones.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.nombre}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

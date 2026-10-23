@@ -23,7 +23,7 @@ export interface Opcion {
   cabeceraEncima?: boolean;
 }
 
-export type AjustePortada = "intervalo" | "transicion" | "flechas" | "puntos";
+export type AjustePortada = "intervalo" | "transicion" | "flechas" | "puntos" | "altura" | "oscurecer" | "alineacion";
 
 /**
  * Los ajustes que usa una variante de portada. Una tienda sin desplegar
@@ -52,6 +52,15 @@ export interface TemaDelCatalogo {
   muestra: Muestra;
   paletas: Array<{ id: string; nombre: string; muestra: Muestra }>;
   aparienciaInicial: (Omit<AparienciaGuardada, "secciones"> & { secciones?: Array<Partial<SeccionGuardada> & { tipo: string }> }) | null;
+  /** Combinaciones completas por rubro ("Estilos listos"). Una tienda sin desplegar no las trae. */
+  estilos?: EstiloListo[];
+}
+
+export interface EstiloListo {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  apariencia: Omit<AparienciaGuardada, "secciones"> & { secciones?: Array<Partial<SeccionGuardada> & { tipo: string }> };
 }
 
 export interface SeccionDelCatalogo {
@@ -78,6 +87,11 @@ export interface CatalogoTemas {
     transiciones: Opcion[];
     intervalos: number[];
     variantesAnuncio: Opcion[];
+    // Opcionales: una tienda sin desplegar todavía no las sirve.
+    texturas?: Opcion[];
+    alturasPortada?: Opcion[];
+    oscurecer?: Opcion[];
+    alineaciones?: Opcion[];
     secciones: SeccionDelCatalogo[];
     maxDiapositivas: number;
     largos: { titulo: number; texto: number; boton: number; anuncio: number };
@@ -119,6 +133,7 @@ export function aparienciaEfectiva(guardada: AparienciaGuardada | undefined, tem
     hover: valor("hover", o.hovers),
     // Con una tienda vieja (catálogo sin la lista) no rompe: queda "normal".
     entrePaginas: valor("entrePaginas", o.entrePaginas ?? []) ?? "normal",
+    textura: (g.textura ?? i.textura ?? "ninguna") as string,
     anuncio: {
       activo: g.anuncio?.activo ?? false,
       texto: g.anuncio?.texto ?? "",
@@ -131,6 +146,9 @@ export function aparienciaEfectiva(guardada: AparienciaGuardada | undefined, tem
       transicion: g.portada?.transicion ?? i.portada?.transicion ?? "fundido",
       flechas: g.portada?.flechas ?? i.portada?.flechas ?? true,
       puntos: g.portada?.puntos ?? i.portada?.puntos ?? true,
+      altura: g.portada?.altura ?? i.portada?.altura ?? "alta",
+      oscurecer: g.portada?.oscurecer ?? i.portada?.oscurecer ?? "medio",
+      alineacion: g.portada?.alineacion ?? i.portada?.alineacion ?? "izquierda",
     },
   };
 }

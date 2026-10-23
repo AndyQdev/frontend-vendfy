@@ -283,6 +283,45 @@ export function DisenoTienda({
           <>
             <AsistenteIa />
 
+            {tema.estilos && tema.estilos.length > 0 && (
+              <Card className="space-y-2 p-4">
+                <p className="text-sm font-semibold">Estilos listos</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {tema.estilos.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => {
+                        // Conserva lo que cuesta cargar: las imágenes y el anuncio.
+                        onCambiarApariencia({
+                          ...e.apariencia,
+                          secciones: undefined,
+                          anuncio: efectiva.anuncio,
+                          portada: { ...e.apariencia.portada, diapositivas: efectiva.portada.diapositivas },
+                          ...(e.apariencia.secciones ? { secciones: e.apariencia.secciones as SeccionGuardada[] } : {}),
+                        });
+                        toast.success(`Estilo ${e.nombre} aplicado. Guardá para publicarlo.`);
+                      }}
+                      className="rounded-lg border border-border p-2 text-left transition-colors hover:border-primary/60"
+                    >
+                      {(() => {
+                        const m = tema.paletas.find((p) => p.id === e.apariencia.paleta)?.muestra;
+                        return m ? (
+                          <span className="mb-1.5 flex h-5 overflow-hidden rounded border border-black/5">
+                            <span className="flex-[3]" style={{ background: m.fondo }} />
+                            <span className="flex-[2]" style={{ background: m.primario }} />
+                            <span className="flex-1" style={{ background: m.acento }} />
+                          </span>
+                        ) : null;
+                      })()}
+                      <span className="block text-xs font-medium">{e.nombre}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{e.descripcion}</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             <div className="space-y-2">
               <Seccion
                 id="colores"
@@ -317,6 +356,11 @@ export function DisenoTienda({
                     ))}
                   </div>
                 </Fila>
+                {o.texturas && (
+                  <Fila etiqueta="Textura del fondo">
+                    <Opciones opciones={o.texturas} valor={efectiva.textura} onChange={(textura) => actualizar({ textura })} columnas={3} />
+                  </Fila>
+                )}
                 <Fila etiqueta="Tipografía">
                   <Opciones opciones={o.tipografias} valor={efectiva.tipografia} onChange={(tipografia) => actualizar({ tipografia })} />
                 </Fila>
