@@ -119,23 +119,33 @@ export default function Caja() {
 
   // Construir array de categorías con iconos y conteos
   const CATEGORIES = useMemo(() => {
-    // Categoría "Todos" con conteo total de productos
-    const totalProductCount = backendCategories.reduce((sum, cat) => sum + (cat.productCount || 0), 0);
-    const allCategory = { 
-      id: 'all', 
-      name: "Todos", 
+    // "Todos" suma solo las principales: el conteo de una principal ya
+    // incluye el de sus subcategorías, y sumar todas contaba esos dos veces.
+    const totalProductCount = backendCategories
+      .filter((cat) => !cat.parentId)
+      .reduce((sum, cat) => sum + (cat.productCount || 0), 0);
+    const allCategory = {
+      id: 'all',
+      name: "Todos",
       icon: Grid3x3,
       productCount: totalProductCount
     };
-    
-    const mappedCategories = backendCategories.map((cat: any) => ({
-      id: cat.id,
-      name: cat.name,
-      icon: getCategoryIcon(cat.name, cat.icon),
-      productCount: cat.productCount || 0
-    }));
+
+    // Las principales siempre; las subcategorías, solo las de la principal
+    // elegida (o la de la subcategoría elegida). Con todas a la vista, la fila
+    // de la caja se volvía una lista larga de "Cables", "Cargadores"…
+    const elegida = backendCategories.find((cat) => cat.id === selectedCategory);
+    const ramaAbierta = elegida ? elegida.parentId || elegida.id : null;
+    const mappedCategories = backendCategories
+      .filter((cat: any) => !cat.parentId || cat.parentId === ramaAbierta)
+      .map((cat: any) => ({
+        id: cat.id,
+        name: cat.name,
+        icon: getCategoryIcon(cat.name, cat.icon),
+        productCount: cat.productCount || 0
+      }));
     return [allCategory, ...mappedCategories];
-  }, [backendCategories]);
+  }, [backendCategories, selectedCategory]);
   // La venta en curso vive fuera de la pantalla: se puede cargar escaneando
   // desde cualquier lado y no se pierde al navegar.
   const [cart, setCart] = useVentaEnCurso();

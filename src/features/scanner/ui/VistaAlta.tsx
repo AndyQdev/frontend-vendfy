@@ -11,6 +11,7 @@ import {
   type CambiosAltaVoz,
 } from "@/entities/product/api";
 import type { FichaIa, ResultadoEscaneo } from "@/entities/product/model/escaneo";
+import { etiquetaCategoria } from "@/entities/product/model/categorias";
 import { NOMBRE_FUENTE_CATALOGO } from "@/entities/product/model/escaneo";
 import { ApiError } from "@/shared/api/client";
 import { Button } from "@/shared/ui/button";
@@ -181,20 +182,24 @@ export function VistaAlta({
     }
   }, [ia]);
 
-  // La categoría que propone la IA, con el nombre que el comercio ya usa si coincide.
+  // La categoría que propone la IA, con el nombre que el comercio ya usa si
+  // coincide. Una subcategoría se muestra con su ruta ("Accesorios ›
+  // Cargadores"), y se reconoce también por su nombre suelto.
   useEffect(() => {
     if (!categoria || tocado.current.has("categoria")) return;
-    const igual = categorias.find((c) => {
-      const a = normal(c.name);
-      const b = normal(categoria);
-      return a === b || a.includes(b) || b.includes(a);
-    });
-    if (igual && igual.name !== categoria) setCategoria(igual.name);
+    const b = normal(categoria);
+    const igual =
+      categorias.find((c) => normal(etiquetaCategoria(c)) === b) ??
+      categorias.find((c) => {
+        const a = normal(c.name);
+        return a === b || a.includes(b) || b.includes(a);
+      });
+    if (igual && etiquetaCategoria(igual) !== categoria) setCategoria(etiquetaCategoria(igual));
   }, [categoria, categorias]);
 
   const marcaExistente = useMemo(() => marcas.find((m) => normal(m.name) === normal(marca)), [marcas, marca]);
   const categoriaExistente = useMemo(
-    () => categorias.find((c) => normal(c.name) === normal(categoria)),
+    () => categorias.find((c) => normal(etiquetaCategoria(c)) === normal(categoria)),
     [categorias, categoria],
   );
 
@@ -356,7 +361,7 @@ export function VistaAlta({
         cantidad: v.stock,
       };
     },
-    categorias: categorias.map((c) => c.name),
+    categorias: categorias.map((c) => etiquetaCategoria(c)),
     cantidadEs: enCompra ? "compra" : "stock",
     aplicar: aplicarVoz,
     registrar: () => enviarRef.current() === true,
@@ -574,7 +579,7 @@ export function VistaAlta({
                 />
                 <datalist id="escaner-categorias">
                   {categorias.map((c) => (
-                    <option key={c.id} value={c.name} />
+                    <option key={c.id} value={etiquetaCategoria(c)} />
                   ))}
                 </datalist>
                 {categoria.trim() && !categoriaExistente && (

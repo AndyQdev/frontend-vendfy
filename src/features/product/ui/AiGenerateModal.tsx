@@ -81,7 +81,16 @@ interface AiGenerateModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const DEFAULT_IMAGE = "https://static.vecteezy.com/system/resources/previews/005/723/771/non_2x/photo-album-icon-image-symbol-or-no-image-flat-design-on-a-white-background-vector.jpg";
+/**
+ * La clave con la que se compara una categoría: minúsculas y el separador de
+ * subcategoría unificado. La IA puede escribir "Accesorios > Cargadores" y la
+ * base devuelve "Accesorios › Cargadores": son la misma.
+ */
+function claveCategoria(nombre: string): string {
+  return nombre.toLowerCase().replace(/\s*(?:›|»|>)\s*/g, " › ").trim();
+}
+
+const DEFAULT_IMAGE ="https://static.vecteezy.com/system/resources/previews/005/723/771/non_2x/photo-album-icon-image-symbol-or-no-image-flat-design-on-a-white-background-vector.jpg";
 
 export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
   const { selectedStore } = useStore();
@@ -180,11 +189,11 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
       }
 
       // Detect new categories con su ícono (el primero que mande la IA por categoría)
-      const catLower = categories.map(c => c.toLowerCase());
+      const catLower = categories.map(claveCategoria);
       const newCatsMap = new Map<string, NewCategory>();
       for (const p of allProducts) {
         if (!p.categoryName) continue;
-        const lower = p.categoryName.toLowerCase();
+        const lower = claveCategoria(p.categoryName);
         if (catLower.includes(lower) || newCatsMap.has(lower)) continue;
         newCatsMap.set(lower, {
           name: p.categoryName,
@@ -243,11 +252,20 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
         }
       }
 
-      // 2. Get all categories to map names to IDs
-      const catResponse = await apiFetch<Array<{ id: string; name: string }>>("/api/category");
+      // 2. Get all categories to map names to IDs.
+      // Con `limit`: sin él el backend devuelve 10 y los productos de la
+      // categoría número once quedaban sin categoría. Se mapea por la ruta
+      // ("accesorios › cargadores", como la escribe la IA para una
+      // subcategoría) y por el nombre suelto; la ruta gana.
+      const catResponse = await apiFetch<Array<{ id: string; name: string; fullName?: string }>>(
+        "/api/category?limit=500",
+      );
       const allCategories = catResponse.data || [];
       for (const cat of allCategories) {
-        categoryMap[cat.name.toLowerCase()] = cat.id;
+        categoryMap[claveCategoria(cat.name)] ??= cat.id;
+      }
+      for (const cat of allCategories) {
+        if (cat.fullName) categoryMap[claveCategoria(cat.fullName)] = cat.id;
       }
 
       // 3. Create products batch - ensure price > 0 (backend requires positive)
@@ -258,7 +276,7 @@ export function AiGenerateModal({ open, onOpenChange }: AiGenerateModalProps) {
         price: p.price > 0 ? p.price : 1,
         initialStock: p.stockQuantity || 0,
         storeId,
-        categoryId: p.categoryName ? categoryMap[p.categoryName.toLowerCase()] : undefined,
+        categoryId: p.categoryName ? categoryMap[claveCategoria(p.categoryName)] : undefined,
         metadata: {
           tags: p.tags || [],
           specifications: p.specifications || {},

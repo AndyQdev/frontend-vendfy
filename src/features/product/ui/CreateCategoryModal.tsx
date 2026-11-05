@@ -13,7 +13,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { IconPicker } from "@/shared/ui/icon-picker";
 import { CategoryImageField } from "@/shared/ui/category-image-field";
-import { useCreateCategory, useUpdateCategory } from "@/entities/product/api";
+import { useCategories, useCreateCategory, useUpdateCategory } from "@/entities/product/api";
 import type { Category } from "@/entities/product/model/types";
 import { useAuth } from "@/app/providers/auth";
 import { toast } from "sonner";
@@ -22,11 +22,18 @@ interface CreateCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   category?: Category | null;
+  /**
+   * Para "Nueva subcategoría" desde la fila de una principal: es el ÚNICO
+   * camino para crear una subcategoría. Sin esto el modal crea siempre una
+   * categoría principal, sin preguntar dónde va.
+   */
+  parentIdInicial?: string | null;
 }
 
-export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategoryModalProps) {
+export function CreateCategoryModal({ isOpen, onClose, category, parentIdInicial }: CreateCategoryModalProps) {
   const { user } = useAuth();
   const isEditing = !!category;
+  const { data: categorias = [] } = useCategories();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -38,6 +45,13 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
 
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+
+  // La principal no se elige acá: al crear la fija el botón de la fila; al
+  // editar se queda donde está.
+  const parentId = isEditing ? category?.parentId ?? null : parentIdInicial ?? null;
+  const nombrePrincipal = parentId
+    ? categorias.find((c) => c.id === parentId)?.name ?? category?.parentName ?? null
+    : null;
 
   useEffect(() => {
     if (isOpen) {
@@ -93,14 +107,19 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
           description: formData.description || undefined,
           icon: formData.icon,
           imageUrl: formData.imageUrl ?? undefined,
+          parentId: parentId ?? undefined,
           userId: user.id,
         });
-        toast.success("Categoría creada");
+        toast.success(parentId ? "Subcategoría creada" : "Categoría creada");
       }
       onClose();
     } catch (error) {
       console.error("Error guardando categoría:", error);
-      toast.error(isEditing ? "Error al actualizar la categoría" : "Error al crear la categoría");
+      // El backend explica las reglas de los dos niveles ("ya es una
+      // subcategoría", "tiene subcategorías"): mostrarlo vale más que un
+      // "error al guardar".
+      const detalle = error instanceof Error && error.message ? error.message : null;
+      toast.error(detalle ?? (isEditing ? "Error al actualizar la categoría" : "Error al crear la categoría"));
     }
   };
 
@@ -112,7 +131,15 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
         <DialogHeader>
           <div className="flex items-center gap-2">
             <FolderPlus className="h-5 w-5 text-primary" />
-            <DialogTitle>{isEditing ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
+            <DialogTitle>
+              {isEditing
+                ? parentId
+                  ? "Editar subcategoría"
+                  : "Editar categoría"
+                : parentId
+                  ? "Nueva subcategoría"
+                  : "Nueva categoría"}
+            </DialogTitle>
           </div>
         </DialogHeader>
 
@@ -133,6 +160,17 @@ export function CreateCategoryModal({ isOpen, onClose, category }: CreateCategor
             />
             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
+
+          {nombrePrincipal && (
+            <p
+              data-testid="categoria-principal"
+              className="rounded-lg bg-muted px-3 py-2 text-[13px] text-muted-foreground"
+            >
+              {isEditing ? "Es una subcategoría de " : "Se crea dentro de "}
+              <span className="font-semibold text-foreground">{nombrePrincipal}</span>. En la tienda, elegir{" "}
+              {nombrePrincipal} muestra también estos productos.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label>Foto para la tienda web</Label>

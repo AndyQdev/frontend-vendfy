@@ -169,10 +169,14 @@ export default function CreateProduct() {
   useEffect(() => {
     if (!categoriaSugerida || formData.categoryId) return;
     const buscada = normalizar(categoriaSugerida);
-    const existente = categories.find((c) => {
-      const nombre = normalizar(c.name);
-      return nombre === buscada || nombre.includes(buscada) || buscada.includes(nombre);
-    });
+    // Con subcategorías la sugerencia puede venir con ruta ("Accesorios ›
+    // Cargadores"): primero la ruta exacta, después el nombre suelto.
+    const existente =
+      categories.find((c) => c.fullName && normalizar(c.fullName) === buscada) ??
+      categories.find((c) => {
+        const nombre = normalizar(c.name);
+        return nombre === buscada || nombre.includes(buscada) || buscada.includes(nombre);
+      });
     if (existente) {
       setFormData((prev) => ({ ...prev, categoryId: existente.id }));
       setCategoriaSugerida("");
@@ -869,7 +873,7 @@ export default function CreateProduct() {
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
-                        {category.name}
+                        {category.fullName || category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

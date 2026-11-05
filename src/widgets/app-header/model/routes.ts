@@ -11,7 +11,6 @@ import {
   Package,
   ChartColumnBig,
   ReceiptText,
-  Settings,
   Plug,
   Store,
   Tags,
@@ -70,10 +69,9 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/integrations", label: "Integraciones", icon: Plug },
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags },
   { href: "/stores", label: "Tienda", icon: Store, match: "/stores" },
-  { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
-// OJO: "Campañas", "Reportes" y "Configuración" apuntan hoy a pantallas
+// OJO: "Campañas" y "Reportes" apuntan hoy a pantallas
 // prácticamente vacías -un título y nada más-. Están en el carril a propósito,
 // para ver el conjunto y decidir el flujo; no son funcionalidad terminada.
 // Si se decide que alguna no va, se saca de acá y se borra su `pages/`.

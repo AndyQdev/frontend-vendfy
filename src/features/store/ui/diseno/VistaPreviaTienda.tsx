@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Home, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Clock, ExternalLink, Home, Monitor, Smartphone, Tablet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/button";
@@ -78,7 +78,10 @@ export function VistaPreviaTienda({
   onMenosMovimiento,
   dispositivo: elegido,
   onDispositivo,
+  plantilla,
 }: {
+  /** El nombre de la plantilla, para el pie. */
+  plantilla?: string;
   slug: string;
   themeId: string;
   apariencia: AparienciaGuardada | undefined;
@@ -182,12 +185,17 @@ export function VistaPreviaTienda({
 
   // El lugar disponible, para calcular cuánto achicar.
   const marco = useRef<HTMLDivElement>(null);
-  const [lugar, setLugar] = useState({ ancho: 0, alto: 0 });
+  const [lugar, setLugar] = useState({ ancho: 0, alto: 0, llena: false });
   useEffect(() => {
     const el = marco.current;
     if (!el) return;
-    // Alto: lo que queda de la ventana bajo la barra de la vista previa.
-    const medir = () => setLugar({ ancho: el.clientWidth, alto: Math.max(480, window.innerHeight - 120) });
+    // En pantallas grandes la columna tiene el alto de la ventana y el marco
+    // ocupa lo que queda (`xl:flex-1`): se mide él. Más angosto, el marco toma
+    // el alto que se le da acá, con lo que queda de la ventana bajo la barra.
+    const medir = () => {
+      const llena = window.matchMedia("(min-width: 1280px)").matches;
+      setLugar({ ancho: el.clientWidth, alto: llena ? el.clientHeight : Math.max(480, window.innerHeight - 160), llena });
+    };
     window.addEventListener("resize", medir);
     medir();
     const obs = new ResizeObserver(medir);
@@ -200,31 +208,40 @@ export function VistaPreviaTienda({
   // Achica para que entre a lo ancho y a lo alto: con una pantalla "real" de
   // alto, la portada a pantalla completa se ve como en el dispositivo (más
   // alto, la portada medía lo que midiera el iframe).
-  const escala = lugar.ancho ? Math.min(1, (lugar.ancho - 16) / ancho, (lugar.alto - 16) / alto) : 1;
+  const MARGEN = 32;
+  const escala = lugar.ancho ? Math.max(0.1, Math.min(1, (lugar.ancho - MARGEN) / ancho, (lugar.alto - MARGEN) / alto)) : 1;
   const altoReal = alto;
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold">Vista previa</p>
-          <p className="text-xs text-muted-foreground">Así queda con lo que elegiste. Se publica al guardar; desde acá no se hacen pedidos.</p>
+          <p className="text-base font-semibold">Vista previa de tu tienda</p>
+          <p className="text-xs text-muted-foreground">Así verán tus clientes los cambios. Desde acá no se hacen pedidos.</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
-          {DISPOSITIVOS.map((d) => (
-            <Button
-              key={d.id}
-              type="button"
-              variant={dispositivo === d.id ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setDispositivo(d.id)}
-              className="h-8 px-2.5"
-              aria-label={d.nombre}
-              title={d.nombre}
-            >
-              <d.icono className="h-4 w-4" />
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
+            <a href={`${URL_TIENDA}/${slug}`} target="_blank" rel="noopener noreferrer" title="Tu tienda publicada, en otra pestaña (sin lo que todavía no guardaste)">
+              <ExternalLink className="h-3.5 w-3.5" /> Ver tienda
+            </a>
+          </Button>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+            {DISPOSITIVOS.map((d) => (
+              <Button
+                key={d.id}
+                type="button"
+                variant={dispositivo === d.id ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setDispositivo(d.id)}
+                className="h-7 px-2.5"
+                aria-label={d.nombre}
+                aria-pressed={dispositivo === d.id}
+                title={d.nombre}
+              >
+                <d.icono className="h-4 w-4" />
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -241,13 +258,13 @@ export function VistaPreviaTienda({
 
       <div
         ref={marco}
-        className="relative overflow-hidden rounded-xl border border-border bg-muted/20"
-        style={{ height: Math.round(alto * escala) + 16 }}
+        className="relative overflow-hidden rounded-xl border border-border bg-muted/60 xl:min-h-0 xl:flex-1"
+        style={lugar.llena ? undefined : { height: Math.round(alto * escala) + MARGEN }}
       >
         {/* Ancho real del dispositivo, achicado con transform desde arriba al centro. */}
         <div
-          className="absolute left-1/2 top-2 origin-top"
-          style={{ width: ancho, height: altoReal, transform: `translateX(-50%) scale(${escala})` }}
+          className="absolute left-1/2 origin-top"
+          style={{ top: MARGEN / 2, width: ancho, height: altoReal, transform: `translateX(-50%) scale(${escala})` }}
         >
           <iframe
             ref={iframe}
@@ -257,6 +274,17 @@ export function VistaPreviaTienda({
             className="h-full w-full rounded-lg bg-white shadow-lg"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5" /> Los cambios aparecen acá al instante y se publican al guardar.
+        </span>
+        {plantilla && (
+          <span>
+            Plantilla: <span className="font-medium text-primary">{plantilla}</span>
+          </span>
+        )}
       </div>
     </div>
   );

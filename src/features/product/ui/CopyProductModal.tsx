@@ -523,7 +523,7 @@ export function CopyProductModal({
                         <SelectContent>
                           {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
-                              {category.name}
+                              {category.fullName || category.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

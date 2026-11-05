@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Tag, Layers } from "lucide-react";
+import { Fragment, useState } from "react";
+import { Plus, Edit, Trash2, Tag, Layers, CornerDownRight, FolderPlus, ChevronRight, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/button";
@@ -36,10 +36,11 @@ import {
   useDeleteCategory,
 } from "@/entities/product/api";
 import type { Brand, Category } from "@/entities/product/model/types";
+import { cantidadDeSubcategorias } from "@/entities/product/model/categorias";
 
 type DeleteTarget =
   | { kind: "brand"; id: string; name: string }
-  | { kind: "category"; id: string; name: string }
+  | { kind: "category"; id: string; name: string; subcategorias: number }
   | null;
 
 export function TaxonomiesPage() {
@@ -56,7 +57,24 @@ export function TaxonomiesPage() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [parentParaNueva, setParentParaNueva] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  // Las principales con subcategorías arrancan plegadas: con varias
+  // subcategorías por categoría, la lista desplegada se vuelve interminable.
+  const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
+  const alternar = (id: string) =>
+    setAbiertas((actual) => {
+      const siguiente = new Set(actual);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+  const idsCategorias = new Set(categories.map((c) => c.id));
+  // Una subcategoría se ve solo con su principal abierta (si la principal no
+  // vino en la lista, se muestra suelta para no esconderla).
+  const visibles = categories.filter(
+    (c) => !c.parentId || !idsCategorias.has(c.parentId) || abiertas.has(c.parentId),
+  );
 
   const openCreateBrand = () => {
     setEditingBrand(null);
@@ -68,10 +86,19 @@ export function TaxonomiesPage() {
   };
   const openCreateCategory = () => {
     setEditingCategory(null);
+    setParentParaNueva(null);
+    setCategoryModalOpen(true);
+  };
+  const openCreateSubcategory = (parent: Category) => {
+    setEditingCategory(null);
+    setParentParaNueva(parent.id);
+    // Que la nueva subcategoría se vea al guardarla.
+    setAbiertas((actual) => new Set(actual).add(parent.id));
     setCategoryModalOpen(true);
   };
   const openEditCategory = (category: Category) => {
     setEditingCategory(category);
+    setParentParaNueva(null);
     setCategoryModalOpen(true);
   };
 
@@ -147,39 +174,99 @@ export function TaxonomiesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
+                {visibles.map((category) => {
+                  const esHija = Boolean(category.parentId);
+                  const subcategorias = cantidadDeSubcategorias(categories, category.id);
+                  const abierta = abiertas.has(category.id);
+                  const directos = category.ownProductCount ?? 0;
+                  return (
+                  <Fragment key={category.id}>
+                  <TableRow className={esHija ? "bg-muted/30" : undefined}>
                     <TableCell>
                       {/* La foto si la hay, el icono si no: es la misma regla
                           que aplica la tienda web, y verla acá deja claro qué
                           va a mostrar el cliente. */}
-                      {category.imageUrl ? (
-                        <img
-                          src={category.imageUrl}
-                          alt=""
-                          className="h-10 w-10 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-                          <CategoryIcon name={category.icon} size={20} />
-                        </div>
-                      )}
+                      <div className={esHija ? "flex items-center gap-1.5 pl-2" : undefined}>
+                        {esHija && <CornerDownRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
+                        {category.imageUrl ? (
+                          <img
+                            src={category.imageUrl}
+                            alt=""
+                            className={esHija ? "h-8 w-8 rounded-lg object-cover" : "h-10 w-10 rounded-lg object-cover"}
+                          />
+                        ) : (
+                          <div
+                            className={`flex items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 ${esHija ? "h-8 w-8" : "h-10 w-10"}`}
+                          >
+                            <CategoryIcon name={category.icon} size={esHija ? 16 : 20} />
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{category.name}</div>
-                      {category.description && (
-                        <div className="text-xs text-muted-foreground line-clamp-1 max-w-[260px]">
-                          {category.description}
+                      {!esHija && subcategorias > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => alternar(category.id)}
+                          aria-expanded={abierta}
+                          aria-label={`${abierta ? "Plegar" : "Desplegar"} las subcategorías de ${category.name}`}
+                          className="group -my-1 flex items-center gap-1.5 rounded-md py-1 pr-2 text-left"
+                        >
+                          <ChevronRight
+                            aria-hidden
+                            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 ${abierta ? "rotate-90" : ""}`}
+                          />
+                          <span>
+                            <span className="block font-medium group-hover:underline underline-offset-4">{category.name}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {subcategorias} subcategoría{subcategorias === 1 ? "" : "s"}
+                            </span>
+                          </span>
+                        </button>
+                      ) : (
+                        // Sin flecha, corrido lo mismo que el nombre de las que
+                        // la tienen: así todos los nombres arrancan en la misma
+                        // línea. Una subcategoría, un escalón más adentro.
+                        <div className={esHija ? "pl-[38px]" : "pl-[22px]"}>
+                          <div className="font-medium">{category.name}</div>
+                          {category.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-1 max-w-[260px]">
+                              {category.description}
+                            </div>
+                          )}
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <Badge variant="secondary">
-                        {category.productCount ?? 0}
-                      </Badge>
+                      {/* Una principal cuenta también lo de sus subcategorías:
+                          es lo que muestra la tienda al elegirla. */}
+                      <div className="flex flex-col items-start gap-0.5">
+                        <Badge
+                          variant="secondary"
+                          title={
+                            subcategorias > 0
+                              ? `${directos} directamente en ${category.name}, el resto en sus subcategorías`
+                              : undefined
+                          }
+                        >
+                          {category.productCount ?? 0}
+                        </Badge>
+                        {subcategorias > 0 && <span className="text-[11px] text-muted-foreground">en total</span>}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {!esHija && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openCreateSubcategory(category)}
+                            aria-label={`Nueva subcategoría dentro de ${category.name}`}
+                            title="Nueva subcategoría"
+                          >
+                            <FolderPlus className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -197,6 +284,7 @@ export function TaxonomiesPage() {
                               kind: "category",
                               id: category.id,
                               name: category.name,
+                              subcategorias,
                             })
                           }
                           aria-label="Eliminar categoría"
@@ -206,7 +294,41 @@ export function TaxonomiesPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  {/* Los productos que están en la principal y en ninguna
+                      subcategoría (típicamente, los que ya estaban antes de
+                      crearlas). Van como un renglón más de la rama, para que
+                      se lea que son de esta categoría y que el total de
+                      arriba es la suma. En la tienda aparecen al elegir la
+                      principal ("Todo en …"). */}
+                  {!esHija && abierta && directos > 0 && (
+                    <TableRow className="bg-muted/30" data-testid="sin-subcategoria">
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 pl-2">
+                          <CornerDownRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 text-muted-foreground">
+                            <Package className="h-4 w-4" aria-hidden />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="pl-[38px]">
+                          <div className="font-medium text-muted-foreground">
+                            Directo en {category.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Sin subcategoría. En la tienda se ven al elegir {category.name}.
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant="outline">{directos}</Badge>
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -315,6 +437,7 @@ export function TaxonomiesPage() {
         isOpen={categoryModalOpen}
         onClose={() => setCategoryModalOpen(false)}
         category={editingCategory}
+        parentIdInicial={parentParaNueva}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
@@ -328,6 +451,13 @@ export function TaxonomiesPage() {
                 <>
                   Se eliminará <span className="font-semibold">"{deleteTarget.name}"</span>. Los
                   productos asociados no se borran pero perderán esta referencia.
+                  {deleteTarget.kind === "category" && deleteTarget.subcategorias > 0 && (
+                    <>
+                      {" "}
+                      Sus {deleteTarget.subcategorias} subcategoría{deleteTarget.subcategorias === 1 ? "" : "s"} pasan a
+                      ser categorías principales, con sus productos.
+                    </>
+                  )}
                 </>
               )}
             </AlertDialogDescription>

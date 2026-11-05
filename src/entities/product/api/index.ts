@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/shared/api/client";
 import type { Product, ProductsResponse, ProductQueryParams, Category, Brand } from "../model/types";
+import { ordenarEnArbol } from "../model/categorias";
 import type { ProductInput } from "../model/schema";
 import type { EnriquecimientoIa, ResultadoEscaneo } from "../model/escaneo";
 import { markOnboardingStep, ONBOARDING_STEPS } from "@/entities/user/api/onboarding";
@@ -82,8 +83,16 @@ export function useProduct(id: string | undefined) {
   });
 }
 
+/**
+ * Las categorías del comerciante, en orden de árbol (cada principal seguida de
+ * sus subcategorías).
+ *
+ * Con `limit` explícito: sin él el backend devuelve 10, y una categoría número
+ * once no aparecía en ningún selector del panel (ni en el formulario del
+ * producto ni en los filtros). Una lista de categorías no se pagina.
+ */
 export function useCategories(storeId?: string) {
-  const queryParams = new URLSearchParams();
+  const queryParams = new URLSearchParams({ limit: '500' });
   if (storeId && storeId !== 'all') {
     queryParams.append('storeId', storeId);
   }
@@ -91,11 +100,8 @@ export function useCategories(storeId?: string) {
   return useQuery<Category[]>({
     queryKey: ["categories", storeId],
     queryFn: async () => {
-      const url = queryParams.toString() 
-        ? `/api/category?${queryParams.toString()}` 
-        : '/api/category';
-      const response = await apiFetch<Category[]>(url);
-      return response.data || [];
+      const response = await apiFetch<Category[]>(`/api/category?${queryParams.toString()}`);
+      return ordenarEnArbol(response.data || []);
     }
   });
 }
@@ -191,7 +197,7 @@ export function useDeleteProduct() {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; description?: string; icon?: string | null; imageUrl?: string | null; userId: string }) => {
+    mutationFn: async (data: { name: string; description?: string; icon?: string | null; imageUrl?: string | null; parentId?: string | null; userId: string }) => {
       const response = await apiFetch<Category>("/api/category", { method: "POST", body: data });
       return response.data as Category;
     },
@@ -202,7 +208,7 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string; icon?: string | null; imageUrl?: string | null } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; description?: string; icon?: string | null; imageUrl?: string | null; parentId?: string | null } }) => {
       const response = await apiFetch<Category>(`/api/category/${id}`, { method: "PATCH", body: data });
       return response.data as Category;
     },

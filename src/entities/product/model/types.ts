@@ -19,7 +19,15 @@ export interface Category {
   icon?: string | null;
   /** Foto de la categoría para las vitrinas de la tienda web. */
   imageUrl?: string | null;
-  productCount?: number; // Conteo de productos de la categoría
+  /** Con subcategorías, una principal cuenta también los de sus subcategorías. */
+  productCount?: number;
+  /** Los que están en esta categoría directamente (sin sus subcategorías). */
+  ownProductCount?: number;
+  /** La principal, si es una subcategoría (Accesorios › Cargadores). Dos niveles como máximo. */
+  parentId?: string | null;
+  parentName?: string | null;
+  /** "Accesorios › Cargadores": para las listas donde "Cargadores" solo sería ambiguo. */
+  fullName?: string;
 }
 
 export interface StoreProductInfo {

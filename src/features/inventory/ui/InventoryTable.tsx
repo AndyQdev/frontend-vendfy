@@ -367,7 +367,7 @@ export default function InventoryTable() {
                   <SelectItem value="all">Todas las categorías</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                      {cat.fullName || cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

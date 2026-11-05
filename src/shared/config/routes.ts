@@ -11,5 +11,4 @@ export const routes = {
   inventory: "/inventory",
   customers: "/customers",
   reports: "/reports",
-  settings: "/settings"
 } as const;

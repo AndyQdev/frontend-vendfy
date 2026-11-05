@@ -26,7 +26,8 @@ type Portada = AparienciaEfectiva["portada"];
 
 /** A dónde puede llevar el botón de una imagen, además de "todos los productos". */
 export interface OpcionesDeDestino {
-  categorias: Array<{ id: string; name: string }>;
+  /** `fullName` es la ruta de una subcategoría ("Accesorios › Cargadores"). */
+  categorias: Array<{ id: string; name: string; fullName?: string }>;
   productos: Array<{ id: string; nombre: string }>;
   promociones: Array<{ slug: string; nombre: string; etiqueta: string | null }>;
 }
@@ -717,7 +718,7 @@ function DestinoDelBoton({
             <SelectContent>
               {destinos.categorias.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+                  {c.fullName || c.name}
                 </SelectItem>
               ))}
             </SelectContent>

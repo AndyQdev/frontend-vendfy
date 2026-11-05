@@ -19,7 +19,6 @@ import CustomersPage from "@/pages/customers";
 import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
-import SettingsPage from "@/pages/settings";
 import WhatsAppPage from "@/pages/whatsapp";
 import CampaignsPage from "@/pages/campaigns";
 import PromotionsPage from "@/pages/promotions";
@@ -93,7 +92,6 @@ export default function AppRouter() {
             <Route path="/stores/:id" element={<StoreConfigPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/movements" element={<MovementPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { SwitchTienda } from "@/features/product/ui/SwitchTienda";
@@ -60,6 +60,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+/**
+ * La grilla de tarjetas: más columnas que antes (hasta 6) con tarjetas más
+ * bajas. Con 4 columnas y la descripción adentro, una pantalla mostraba 4
+ * productos; así entran tres o cuatro filas.
+ */
+const GRILLA_PRODUCTOS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+const TAMANOS_GRILLA = [12, 24, 48];
+const TAMANOS_TABLA = [10, 5, 20, 50];
+const CLAVE_VISTA = "productos.vista";
+
 export function ProductsDataTable() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -81,7 +91,30 @@ export function ProductsDataTable() {
   /** Al abrir una ficha se recuerda esta lista para poder volver a ella. */
   const irAlProducto = useNavegarConRegreso();
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  // La vista elegida se recuerda: quien trabaja con fotos no quiere volver a
+  // la tabla cada vez que entra.
+  const [viewMode, setViewModeCrudo] = useState<"grid" | "list">(() => {
+    try {
+      return localStorage.getItem(CLAVE_VISTA) === "grid" ? "grid" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const setViewMode = (vista: "grid" | "list") => {
+    setViewModeCrudo(vista);
+    try {
+      localStorage.setItem(CLAVE_VISTA, vista);
+    } catch {
+      /* sin almacenamiento: la vista vale solo para esta visita */
+    }
+  };
+  // La grilla pagina en múltiplos de 6 (sus columnas: 2, 3 y 6 lo dividen),
+  // así la última fila no queda a medias; la tabla, en los de siempre.
+  const opcionesPorPagina = viewMode === "grid" ? TAMANOS_GRILLA : TAMANOS_TABLA;
+  useEffect(() => {
+    if (!opcionesPorPagina.includes(pageSize)) setFiltro("tam", opcionesPorPagina[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, pageSize]);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [currentImageIndexes, setCurrentImageIndexes] = useState<Record<string, number>>({});
   const [copyingProduct, setCopyingProduct] = useState<Product | null>(null);
@@ -278,7 +311,7 @@ export function ProductsDataTable() {
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
                 {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.id}>{cat.fullName || cat.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -323,18 +356,14 @@ export function ProductsDataTable() {
       {productsLoading ? (
         /* Skeleton Loader */
         viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={GRILLA_PRODUCTOS}>
             {[...Array(pageSize)].map((_, i) => (
               <div key={i} className="bg-card border rounded-lg overflow-hidden">
                 <div className="aspect-square bg-muted animate-pulse" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-muted rounded animate-pulse" />
+                <div className="p-2.5 space-y-2">
+                  <div className="h-3.5 bg-muted rounded animate-pulse" />
                   <div className="h-3 bg-muted rounded w-2/3 animate-pulse" />
-                  <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
-                  <div className="flex gap-2 mt-4">
-                    <div className="h-8 bg-muted rounded flex-1 animate-pulse" />
-                    <div className="h-8 w-8 bg-muted rounded animate-pulse" />
-                  </div>
+                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
                 </div>
               </div>
             ))}
@@ -487,11 +516,24 @@ export function ProductsDataTable() {
         )
       ) : viewMode === "grid" ? (
         /* GRID VIEW */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        // Tarjeta compacta: foto, nombre, categoría · marca y precio. La
+        // descripción se ve al editar; acá solo hacía cada tarjeta el doble de
+        // alta. Toda la tarjeta abre el producto; borrar va sobre la foto.
+        <div className={GRILLA_PRODUCTOS}>
           {products.map((product) => (
             <div
               key={product.id}
-              className="bg-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+              role="link"
+              tabIndex={0}
+              aria-label={`Editar ${product.name}`}
+              onClick={() => irAlProducto(`/products/${product.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  irAlProducto(`/products/${product.id}`);
+                }
+              }}
+              className="group/tarjeta cursor-pointer bg-card border rounded-lg overflow-hidden transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {/* Product Image Carousel */}
               <div className="aspect-square bg-muted relative group">
@@ -507,14 +549,24 @@ export function ProductsDataTable() {
                     {product.imageUrls.length > 1 && (
                       <>
                         <button
-                          onClick={() => handlePreviousImage(product.id, product.imageUrls!)}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                          type="button"
+                          aria-label="Foto anterior"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviousImage(product.id, product.imageUrls!);
+                          }}
+                          className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleNextImage(product.id, product.imageUrls!)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                          type="button"
+                          aria-label="Foto siguiente"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNextImage(product.id, product.imageUrls!);
+                          }}
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                           <ChevronRight className="h-4 w-4" />
                         </button>
@@ -541,67 +593,48 @@ export function ProductsDataTable() {
                   </div>
                 )}
 
-                {/* Featured Badge */}
-                {product.metadata?.isFeatured && (
-                  <Badge className="absolute top-2 right-2">
-                    Destacado
-                  </Badge>
-                )}
+                {/* Estados, apilados arriba a la izquierda: chicos, para no
+                    tapar la foto. Un producto escondido tiene que verse
+                    escondido también acá, o las tarjetas mentirían respecto
+                    de la tabla. */}
+                <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
+                  {product.metadata?.isFeatured && (
+                    <Badge className="h-5 px-1.5 text-[10px]">Destacado</Badge>
+                  )}
+                  {isSingleStoreView && product.visibleOnWeb === false && (
+                    <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+                      <EyeOff className="h-3 w-3" />
+                      Oculto
+                    </Badge>
+                  )}
+                </div>
 
-                {/* Un producto escondido tiene que verse escondido tambien
-                    aca, o la vista de tarjetas mentiria respecto de la tabla. */}
-                {isSingleStoreView && product.visibleOnWeb === false && (
-                  <Badge variant="secondary" className="absolute top-2 left-2 gap-1">
-                    <EyeOff className="h-3 w-3" />
-                    Oculto en la web
-                  </Badge>
-                )}
+                {/* Borrar: sobre la foto. Con mouse aparece al pasar por la
+                    tarjeta; en el celular está siempre. */}
+                <button
+                  type="button"
+                  aria-label={`Eliminar ${product.name}`}
+                  title="Eliminar"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(product.id, product.name);
+                  }}
+                  className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-destructive shadow-sm transition-opacity hover:bg-background [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/tarjeta:opacity-100 focus-visible:opacity-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
 
               {/* Product Info */}
-              <div className="p-4">
-                <h3 className="font-medium mb-1 truncate">{product.name}</h3>
-                {product.sku && (
-                  <p className="text-xs text-muted-foreground mb-2">SKU: {product.sku}</p>
-                )}
-                {product.description && (
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                    {product.description}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">
-                    {product.category?.name || "Sin categoría"}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {product.brand?.name || "Sin marca"}
-                  </span>
-                </div>
-
-                <div className="mb-3">
-                  {renderPrice(product)}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => irAlProducto(`/products/${product.id}`)}
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(product.id, product.name)}
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
-                </div>
+              <div className="p-2.5">
+                <h3 className="text-[13px] font-medium leading-snug line-clamp-2 min-h-[2.25rem]" title={product.name}>
+                  {product.name}
+                </h3>
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  {product.category?.name || "Sin categoría"}
+                  {product.brand?.name ? ` · ${product.brand.name}` : ""}
+                </p>
+                <div className="mt-1.5 text-sm">{renderPrice(product)}</div>
               </div>
             </div>
           ))}
@@ -843,7 +876,7 @@ export function ProductsDataTable() {
                 totalItems={totalProducts}
                 onPageChange={handlePageChange}
                 onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={[5, 10, 20, 50]}
+                pageSizeOptions={[...opcionesPorPagina].sort((a, b) => a - b)}
               />
             </div>
           )}
@@ -860,7 +893,7 @@ export function ProductsDataTable() {
             totalItems={totalProducts}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
-            pageSizeOptions={[5, 10, 20, 50]}
+            pageSizeOptions={[...opcionesPorPagina].sort((a, b) => a - b)}
           />
         </div>
       )}
