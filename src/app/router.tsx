@@ -22,6 +22,7 @@ import ReportsPage from "@/pages/reports";
 import WhatsAppPage from "@/pages/whatsapp";
 import CampaignsPage from "@/pages/campaigns";
 import PromotionsPage from "@/pages/promotions";
+import BitacoraPage from "@/pages/bitacora";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
@@ -96,6 +97,7 @@ export default function AppRouter() {
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/bitacora" element={<BitacoraPage />} />
 
             {/* Redirección por defecto al inicio */}
             <Route path="/" element={<Navigate to="/caja" replace />} />

@@ -5,6 +5,7 @@ import {
   House,
   Layers,
   Radio,
+  ScrollText,
   MessageSquareText,
   Megaphone,
   BadgePercent,
@@ -69,6 +70,8 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/integrations", label: "Integraciones", icon: Plug },
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags },
   { href: "/stores", label: "Tienda", icon: Store, match: "/stores" },
+  // Quién cambió qué: se consulta poco, va al final con lo de configuración.
+  { href: "/bitacora", label: "Bitácora", icon: ScrollText },
 ];
 
 // OJO: "Campañas" y "Reportes" apuntan hoy a pantallas
