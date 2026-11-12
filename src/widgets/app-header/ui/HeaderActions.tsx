@@ -2,6 +2,7 @@ import { Globe } from "lucide-react";
 
 import { useStore } from "@/app/providers/auth";
 import { useStore as useStoreQuery } from "@/entities/store/api";
+import { BotonReportar } from "@/features/beta";
 import { ModoEscaner } from "@/features/scanner";
 import { cn } from "@/shared/lib/cn";
 
@@ -51,6 +52,9 @@ export function HeaderActions({ className }: { className?: string }) {
     >
       {/* Qué hace la pistola en esta pantalla (solo si ya se usó una). */}
       <ModoEscaner />
+
+      {/* Solo aparece si la tienda está en una beta. */}
+      <BotonReportar />
 
       <NotificationsBell />
 

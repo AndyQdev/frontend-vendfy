@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 
 import { AppHeader } from "@/widgets/app-header";
+import { ConsentimientoBeta, EncuestaBeta } from "@/features/beta";
 import { AvisoInstalar } from "@/features/pwa";
 import { OnboardingChecklist } from "@/widgets/onboarding";
 import { HojaEscaneo, LaserEscaneo, ScannerProvider, VentaFlotante } from "@/features/scanner";
@@ -33,6 +34,10 @@ export default function LayoutShell() {
 
         <OnboardingChecklist />
         <AvisoInstalar />
+        {/* Pide aceptar la participación a las tiendas que están en una beta. */}
+        <ConsentimientoBeta />
+        {/* Y su encuesta (SUS + NPS) a las dos semanas y al cierre. */}
+        <EncuestaBeta />
       </div>
       <LaserEscaneo />
       <HojaEscaneo />
