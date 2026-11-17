@@ -58,6 +58,8 @@ export interface TemaDelCatalogo {
 
 export interface EstiloListo {
   id: string;
+  /** El grupo de la galería (`CatalogoTemas.gruposDeEstilos`). */
+  grupo?: string;
   nombre: string;
   descripcion: string;
   apariencia: Omit<AparienciaGuardada, "secciones"> & { secciones?: Array<Partial<SeccionGuardada> & { tipo: string }> };
@@ -76,19 +78,24 @@ export interface CatalogoTemas {
   temas: TemaDelCatalogo[];
   /** Cada rubro con sus plantillas, en orden: la primera es la sugerida. */
   rubros: Array<{ id: string; nombre: string; temas: string[] }>;
+  /** Los grupos de la galería de diseños listos, en orden. `rubros`: para cuáles se abre ya filtrada. */
+  gruposDeEstilos?: Array<{ id: string; nombre: string; rubros: readonly string[] }>;
   opciones: {
     tipografias: Opcion[];
     esquinas: Opcion[];
     cabeceras: Opcion[];
     entradas: Opcion[];
     hovers: Opcion[];
-    entrePaginas: Opcion[];
     fondos: Opcion[];
     transiciones: Opcion[];
     intervalos: number[];
     variantesAnuncio: Opcion[];
     // Opcionales: una tienda sin desplegar todavía no las sirve.
     texturas?: Opcion[];
+    esquinasBotones?: Opcion[];
+    esquinasFotos?: Opcion[];
+    tarjetas?: Opcion[];
+    pies?: Opcion[];
     alturasPortada?: Opcion[];
     oscurecer?: Opcion[];
     alineaciones?: Opcion[];
@@ -119,7 +126,7 @@ export function aparienciaEfectiva(guardada: AparienciaGuardada | undefined, tem
   const g = guardada ?? {};
   const i = tema.aparienciaInicial ?? {};
   const o = catalogo.opciones;
-  const valor = (campo: "tipografia" | "esquinas" | "cabecera" | "entrada" | "hover" | "entrePaginas", lista: Opcion[]) => {
+  const valor = (campo: "tipografia" | "esquinas" | "esquinasBotones" | "esquinasFotos" | "cabecera" | "tarjeta" | "pie" | "entrada" | "hover", lista: Opcion[]) => {
     const v = g[campo] ?? i[campo];
     return lista.some((x) => x.id === v) ? (v as string) : lista[0]?.id;
   };
@@ -128,11 +135,15 @@ export function aparienciaEfectiva(guardada: AparienciaGuardada | undefined, tem
     paleta: tema.paletas.some((p) => p.id === g.paleta) ? g.paleta! : i.paleta ?? tema.paletas[0]?.id ?? "",
     tipografia: valor("tipografia", o.tipografias),
     esquinas: valor("esquinas", o.esquinas),
+    // 'igual' = como las tarjetas: así se veía todo antes de separarlas.
+    esquinasBotones: valor("esquinasBotones", o.esquinasBotones ?? []) ?? "igual",
+    esquinasFotos: valor("esquinasFotos", o.esquinasFotos ?? []) ?? "igual",
     cabecera: valor("cabecera", o.cabeceras),
+    // Con una tienda sin desplegar (catálogo sin estas listas) quedan las de siempre.
+    tarjeta: valor("tarjeta", o.tarjetas ?? []) ?? "limpia",
+    pie: valor("pie", o.pies ?? []) ?? "columnas",
     entrada: valor("entrada", o.entradas),
     hover: valor("hover", o.hovers),
-    // Con una tienda vieja (catálogo sin la lista) no rompe: queda "normal".
-    entrePaginas: valor("entrePaginas", o.entrePaginas ?? []) ?? "normal",
     textura: (g.textura ?? i.textura ?? "ninguna") as string,
     anuncio: {
       activo: g.anuncio?.activo ?? false,

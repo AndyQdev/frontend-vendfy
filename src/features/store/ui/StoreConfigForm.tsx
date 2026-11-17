@@ -13,6 +13,17 @@ import { useUpdateStore, useCreateStore } from "@/entities/store/api";
 import { StoreReviewsManager } from "./StoreReviewsManager";
 import { WebConTuIa } from "./WebConTuIa";
 import { DisenoTienda } from "./diseno/DisenoTienda";
+
+/** Los mismos del alta de la tienda. */
+const RUBROS = [
+  { value: "tecnologia", label: "Tecnología" },
+  { value: "moda", label: "Moda" },
+  { value: "hogar", label: "Hogar" },
+  { value: "abarrotes", label: "Abarrotes" },
+  { value: "belleza", label: "Belleza" },
+  { value: "deportes", label: "Deportes" },
+  { value: "arte", label: "Arte" },
+];
 import { disenoDe, useBorradorDiseno } from "../model/borrador-diseno";
 import { subirImagenDeTienda } from "../model/subir-imagen-tienda";
 import { useCategories } from "@/entities/product/api";
@@ -21,6 +32,8 @@ import type { Store, StoreConfig } from "@/entities/store/model/types";
 import { toast } from "sonner";
 import { LocationPicker } from "@/shared/ui/LocationPicker";
 import { useNavigate } from "react-router-dom";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 interface StoreConfigFormProps {
   store?: Store;
@@ -41,6 +54,7 @@ const emptyStore: Store = {
 
 export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigFormProps) {
   const navigate = useNavigate();
+  const puedeGuardar = useAcceso().puede(PERMISO.GESTIONAR_TIENDAS);
   const [formData, setFormData] = useState<Store>(store || emptyStore);
   const [isEditing, setIsEditing] = useState(mode === "create");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -303,7 +317,10 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
               Descartar cambios
             </Button>
           )}
-          <Button onClick={handleSave} disabled={!isEditing || isSaving}>
+          {!puedeGuardar ? (
+            <span className="text-xs text-muted-foreground">Solo lectura: tu rol no puede cambiar la tienda.</span>
+          ) : null}
+          <Button onClick={handleSave} disabled={!puedeGuardar || !isEditing || isSaving}>
             {isSaving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
@@ -445,6 +462,25 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                 rows={4}
                 placeholder="Describe tu tienda..."
               />
+            </div>
+
+            <div>
+              <Label htmlFor="rubro">Rubro</Label>
+              <Select
+                value={formData.config?.category || ""}
+                onValueChange={(value) => handleConfigFieldChange("category", value)}
+              >
+                <SelectTrigger id="rubro">
+                  <SelectValue placeholder="Elegí el rubro de tu tienda" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RUBROS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -622,13 +658,15 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
           <DisenoTienda
             slug={formData.slug}
             storeId={mode === "edit" ? store?.id : undefined}
+            nombre={formData.name}
             rubro={formData.config?.category}
-            onCambiarRubro={(rubro) => handleConfigFieldChange("category", rubro)}
             themeId={formData.config?.themeId}
             apariencia={formData.config?.apariencia}
             categorias={categoriasTienda}
             onCambiarTema={(themeId) => handleConfigFieldChange("themeId", themeId)}
             onCambiarApariencia={(apariencia) => handleConfigFieldChange("apariencia", apariencia)}
+            onCambiarTitulo={(titulo) => handleConfigChange("branding", "heroTitle", titulo)}
+            onCambiarNosotros={(texto) => handleConfigFieldChange("aboutUs", texto)}
             subirImagen={subirImagenDeTienda}
           />
             </>

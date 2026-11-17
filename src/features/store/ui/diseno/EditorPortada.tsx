@@ -95,6 +95,12 @@ const PROPORCIONES: Record<string, Record<Pantalla, number>> = {
   completa: { escritorio: 1.6, movil: 0.55 },
   dividida: { escritorio: 1, movil: 1 },
   cinta: { escritorio: 0.7, movil: 0.7 },
+  // La caja grande del bento (8 de 12 columnas por 556 px); en el celular, a lo ancho con 360 px de alto.
+  "bento-hero": { escritorio: 1.45, movil: 1 },
+  // Mismo alto que "Pantalla completa".
+  "vitrina-interactiva": { escritorio: 1.6, movil: 0.55 },
+  // La foto encajada en la grilla, en 16:10 en todas las pantallas.
+  tipografica: { escritorio: 1.6, movil: 1.6 },
 };
 
 /**

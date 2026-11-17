@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useBrands, useCategories } from "@/entities/product/api";
+import { etiquetaCategoria } from "@/entities/product/model/categorias";
 import { useEnriquecimientoIa } from "@/features/scanner";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/cn";
@@ -219,17 +220,20 @@ function FormularioNuevo({
   const marca = ficha?.marca ?? s?.marca ?? null;
   const categoria = ficha?.categoria ?? null;
   const marcaExistente = useMemo(() => (marca ? marcas.find((m) => normal(m.name) === normal(marca)) : undefined), [marcas, marca]);
-  const categoriaExistente = useMemo(
-    () =>
-      categoria
-        ? categorias.find((c) => {
-            const a = normal(c.name);
-            const b = normal(categoria);
-            return a === b || a.includes(b) || b.includes(a);
-          })
-        : undefined,
-    [categorias, categoria],
-  );
+  const categoriaExistente = useMemo(() => {
+    if (!categoria) return undefined;
+    const b = normal(categoria);
+    // Primero la exacta (por nombre o por ruta) y recién después la parecida:
+    // las categorías vienen en árbol, y "Jabones" no tiene que quedar en
+    // "Cuidado personal" por aparecer antes en la lista.
+    return (
+      categorias.find((c) => normal(c.name) === b || normal(etiquetaCategoria(c)) === b) ??
+      categorias.find((c) => {
+        const a = normal(c.name);
+        return a.includes(b) || b.includes(a);
+      })
+    );
+  }, [categorias, categoria]);
   const foto = ia?.imagenUrl ?? s?.imagenUrl ?? null;
 
   const precioNumero = numero(precio);
@@ -253,7 +257,7 @@ function FormularioNuevo({
     } as DatosNuevo);
   };
 
-  const detalle = [marca, categoriaExistente?.name ?? categoria].filter(Boolean).join(" · ");
+  const detalle = [marca, categoriaExistente ? etiquetaCategoria(categoriaExistente) : categoria].filter(Boolean).join(" · ");
 
   return (
     <Tarjeta estado="escaneo-nuevo" hora={hora}>

@@ -92,13 +92,20 @@ export interface SeccionGuardada {
 export interface AparienciaGuardada {
   paleta?: string;
   tipografia?: string;
+  /** Tarjetas y cajas. */
   esquinas?: string;
+  /** Botones, filtros y buscador; 'igual' = como las tarjetas. */
+  esquinasBotones?: string;
+  /** Fotos sueltas; 'igual' = como las tarjetas. */
+  esquinasFotos?: string;
   cabecera?: string;
+  /** Diseño de la tarjeta de producto: 'limpia', 'enmarcada', 'superpuesta' o 'minimal'. */
+  tarjeta?: string;
+  /** Diseño del pie: 'columnas', 'minimal' o 'marca'. */
+  pie?: string;
   entrada?: string;
   hover?: string;
-  /** 'normal' o 'foto': la foto del producto viaja de la tarjeta al detalle. */
-  entrePaginas?: string;
-  /** 'ninguna', 'grano' o 'puntos': textura sobre el fondo de las secciones. */
+  /** Textura sobre el fondo de las secciones ('ninguna', 'grano', 'puntos', 'cuadricula'…). */
   textura?: string;
   anuncio?: { activo?: boolean; texto?: string; variante?: string };
   secciones?: SeccionGuardada[];

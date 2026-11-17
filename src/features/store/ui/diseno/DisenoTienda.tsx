@@ -1,22 +1,32 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
+  BadgeCheck,
   Check,
+  ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  FolderTree,
   Image as ImageIcon,
   Info,
-  Layers,
   LayoutGrid,
   LayoutList,
-  LayoutTemplate,
+  ListOrdered,
   Loader2,
+  MessageSquare,
+  PanelBottom,
   PanelTop,
   Palette,
   Play,
-  Sparkles,
+  Shapes,
+  ShoppingBag,
+  Star,
+  Tag,
+  Users,
   Wand2,
   type LucideIcon,
 } from "lucide-react";
@@ -26,9 +36,10 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Switch } from "@/shared/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import type { AparienciaGuardada, SeccionGuardada } from "@/entities/store/model/types";
-import { aparienciaEfectiva, ajustesDePortada, useCatalogoTemas, type Muestra, type Opcion } from "../../model/catalogo-temas";
+import { aparienciaEfectiva, ajustesDePortada, useCatalogoTemas, type EstiloListo, type Muestra, type Opcion } from "../../model/catalogo-temas";
+import { catalogoParaIa } from "../../model/diseno-ia";
+import { AsistenteIa, ESTADO_INICIAL_IA, type DestinosDeTextos, type EstadoAsistenteIa } from "./AsistenteIa";
 import { EditorPortada } from "./EditorPortada";
 import { VistaPreviaTienda, type Dispositivo, type FocoVistaPrevia } from "./VistaPreviaTienda";
 import { useProducts } from "@/entities/product/api";
@@ -41,10 +52,44 @@ import type { ProductoElegible } from "@/features/promotions/ui/SelectorProducto
 /** Separación de las tres columnas con los bordes de la pantalla, en px. */
 const MARGEN_PANTALLA = 16;
 
-/** Lo que se puede editar, uno a la vez en la columna del medio. */
-type IdPanel = "plantillas" | "estilos" | "colores" | "cabecera" | "portada" | "secciones" | "tarjetas" | "movimiento";
+/**
+ * Simple: elegir un diseño listo, los colores y la letra, para que la primera
+ * configuración sea rápida y no abrume. Avanzado: el menú completo. Se recuerda
+ * en este navegador; la primera vez abre el simple.
+ */
+type Modo = "simple" | "avanzado";
+const CLAVE_MODO = "vendfy:diseno-modo";
+
+/**
+ * Lo que se puede editar, uno a la vez en la columna del medio.
+ *
+ * Cada cosa se configura en un solo lugar:
+ * - Estilo general: lo que afecta a toda la tienda.
+ * - Estructura: lo que se repite en todas las páginas.
+ * - Página de inicio: "Organizar secciones" solo ordena y prende o apaga; cada
+ *   sección tiene su pantalla (`seccion:<tipo>`), todas con la misma plantilla
+ *   (`panelDeSeccion`). La lista sale del catálogo de la tienda: una sección
+ *   nueva aparece sola.
+ */
+type PanelFijo = "inicio" | "colores" | "formas" | "tarjetas" | "movimiento" | "cabecera" | "pie" | "organizar";
+type IdPanel = PanelFijo | `seccion:${string}`;
+
+const ICONO_DE_SECCION: Record<string, LucideIcon> = {
+  portada: ImageIcon,
+  promociones: Tag,
+  categorias: FolderTree,
+  destacados: Star,
+  beneficios: BadgeCheck,
+  catalogo: ShoppingBag,
+  resenas: MessageSquare,
+  nosotros: Users,
+};
 
 interface ItemMenu {
+  /** Una sección del inicio: va con sangría bajo "Organizar secciones". */
+  seccion?: boolean;
+  /** Apagada: se ve atenuada. */
+  oculta?: boolean;
   id: IdPanel;
   icono: LucideIcon;
   titulo: string;
@@ -61,8 +106,10 @@ interface ItemMenu {
  * todo el ancho de la pantalla (salen del ancho máximo del panel): con la
  * vista previa al lado, los 1600px del resto del panel quedan chicos.
  *
- * La plantilla se elige en dos pasos, rubro y después plantilla del rubro:
- * con muchos diseños, una grilla con todos no se puede recorrer.
+ * Hay una sola plantilla y dos modos (`Modo`). El simple es lo primero que se
+ * ve: la galería de diseños listos (agrupada por tipo de negocio, con "Armar
+ * con IA"), los colores y la letra. El avanzado es el menú completo de tres
+ * columnas; los dos editan la misma apariencia.
  *
  * El comerciante elige entre opciones cerradas (las que sirve la tienda en
  * `/api/temas`), nunca colores ni tamaños sueltos: así ninguna combinación se
@@ -72,26 +119,36 @@ interface ItemMenu {
 export function DisenoTienda({
   slug,
   storeId,
+  nombre,
   rubro,
   themeId,
   apariencia,
   categorias,
-  onCambiarRubro,
   onCambiarTema,
   onCambiarApariencia,
+  onCambiarTitulo,
+  onCambiarNosotros,
   subirImagen,
 }: {
   slug: string;
+  /** El nombre de la tienda: contexto para "Armar con IA". */
+  nombre?: string;
   /** La tienda, para sus promociones, productos e imágenes con IA. */
   storeId?: string;
-  /** `config.category`: filtra las plantillas que se ofrecen. */
+  /** `config.category`: con qué grupo abre la galería de diseños listos. */
   rubro: string | undefined;
-  onCambiarRubro: (rubro: string) => void;
   themeId: string | undefined;
   apariencia: AparienciaGuardada | undefined;
   categorias: Array<{ id: string; name: string; fullName?: string }>;
   onCambiarTema: (themeId: string) => void;
   onCambiarApariencia: (apariencia: AparienciaGuardada) => void;
+  /**
+   * Los textos que no viven en la apariencia: el título de la tienda
+   * (`config.branding.heroTitle`, el de la portada sin imágenes) y "Nosotros"
+   * (`config.aboutUs`). Sin ellos, "Armar con IA" no ofrece esos textos.
+   */
+  onCambiarTitulo?: (titulo: string) => void;
+  onCambiarNosotros?: (texto: string) => void;
   subirImagen: (archivo: File) => Promise<string>;
 }) {
   const { data: catalogo, isLoading, isError } = useCatalogoTemas();
@@ -106,6 +163,29 @@ export function DisenoTienda({
   // edita es lo que se está viendo. La tablet ve las de computadora.
   const [dispositivo, setDispositivo] = useState<Dispositivo>("escritorio");
   const [panel, setPanel] = useState<IdPanel>("colores");
+  const [modo, setModoCrudo] = useState<Modo>(() => {
+    try {
+      return localStorage.getItem(CLAVE_MODO) === "avanzado" ? "avanzado" : "simple";
+    } catch {
+      return "simple";
+    }
+  });
+  const setModo = (m: Modo) => {
+    setModoCrudo(m);
+    try {
+      localStorage.setItem(CLAVE_MODO, m);
+    } catch {
+      // Sin almacenamiento (ventana privada): el modo dura solo esta visita.
+    }
+  };
+  // El grupo elegido en la galería de diseños listos; sin elegir, el del rubro.
+  const [grupoElegido, setGrupoElegido] = useState<string | null>(null);
+  // Lo que se le contó a la IA y lo que propuso: sigue ahí al volver de otro panel.
+  const [asistenteIa, setAsistenteIa] = useState<EstadoAsistenteIa>(ESTADO_INICIAL_IA);
+  // La IA tarda: cuando contesta se aplica con lo que haya en pantalla en ese
+  // momento (una imagen subida mientras tanto no se pierde), no con lo que
+  // había al pedir.
+  const aplicarDisenoActual = useRef<(d: EstiloListo["apariencia"]) => void>(() => {});
   const [pestanaPortada, setPestanaPortada] = useState<"diseno" | "contenido">("diseno");
   const enfocar = (destino: string, extra: Omit<FocoVistaPrevia, "destino" | "clave"> = {}) =>
     setFoco({ destino, ...extra, clave: Date.now() });
@@ -143,23 +223,42 @@ export function DisenoTienda({
   }
 
   const tema = catalogo.temas.find((t) => t.id === themeId) ?? catalogo.temas[0];
-  const rubroActual = catalogo.rubros.find((r) => r.id === rubro);
-  const plantillasDelRubro = (rubroActual?.temas ?? [])
-    .map((id) => catalogo.temas.find((t) => t.id === id))
-    .filter((t): t is (typeof catalogo.temas)[number] => Boolean(t));
-  // Al cambiar de rubro, si la plantilla actual no es de ese rubro, se pasa a
-  // la primera que ofrece (como hacía el panel antes).
-  const cambiarRubro = (id: string) => {
-    onCambiarRubro(id);
-    const delRubro = catalogo.rubros.find((r) => r.id === id)?.temas ?? [];
-    if (!delRubro.includes(tema.id) && delRubro[0]) onCambiarTema(delRubro[0]);
-  };
   const efectiva = aparienciaEfectiva(apariencia, tema, catalogo);
   const o = catalogo.opciones;
 
   // Se guarda la apariencia completa, no solo lo tocado: así lo que se ve en
   // la vista previa es exactamente lo que queda guardado.
-  const actualizar = (cambio: Partial<AparienciaGuardada>) => onCambiarApariencia({ ...efectiva, ...cambio });
+  // Una tienda que tenía una plantilla que ya no existe pasa a la actual al
+  // primer cambio (la tienda pública ya la muestra así).
+  const fijarPlantilla = () => {
+    if (themeId !== tema.id) onCambiarTema(tema.id);
+  };
+  const actualizar = (cambio: Partial<AparienciaGuardada>) => {
+    fijarPlantilla();
+    onCambiarApariencia({ ...efectiva, ...cambio });
+  };
+
+  // Un diseño completo (uno listo o el que armó la IA) reemplaza todo menos lo
+  // que cuesta cargar: las imágenes de la portada y el anuncio. Queda de
+  // borrador en la vista previa.
+  const aplicarDiseno = (d: EstiloListo["apariencia"]) => {
+    fijarPlantilla();
+    onCambiarApariencia({
+      ...d,
+      secciones: undefined,
+      anuncio: efectiva.anuncio,
+      portada: { ...d.portada, diapositivas: efectiva.portada.diapositivas },
+      ...(d.secciones ? { secciones: d.secciones as SeccionGuardada[] } : {}),
+    });
+    enfocar("portada");
+  };
+  aplicarDisenoActual.current = aplicarDiseno;
+
+  // La galería de diseños listos: grupos en el orden del catálogo, solo los
+  // que tienen algún diseño. Abre en el grupo del rubro de la tienda.
+  const estilos = tema.estilos ?? [];
+  const gruposDeEstilos = (catalogo.gruposDeEstilos ?? []).filter((g) => estilos.some((e) => e.grupo === g.id));
+  const grupoActivo = grupoElegido ?? gruposDeEstilos.find((g) => rubro && g.rubros.includes(rubro))?.id ?? "todos";
   const secciones = efectiva.secciones;
   const nombreDeSeccion = (tipo: string) => o.secciones.find((d) => d.tipo === tipo)?.nombre ?? tipo;
   const cambiarSeccion = (tipo: string, cambio: Partial<SeccionGuardada>) => {
@@ -174,6 +273,57 @@ export function DisenoTienda({
     if (lista[i + lado].activa) enfocar(lista[i + lado].tipo, { nombre: nombreDeSeccion(lista[i + lado].tipo) });
   };
   const verTarjetas = { nombre: "Las tarjetas de producto" };
+  const tituloDeSeccion = (tipo: string) => (tipo === "portada" ? "Portada principal" : nombreDeSeccion(tipo));
+  const abrirSeccion = (tipo: string) => {
+    setPanel(`seccion:${tipo}`);
+    if (secciones.find((s) => s.tipo === tipo)?.activa) enfocar(tipo, { nombre: tituloDeSeccion(tipo) });
+  };
+  /**
+   * De dónde sale lo que muestra una sección y, si hoy no tiene nada, por qué
+   * no se ve. Los enlaces abren en otra pestaña: salir de acá perdería los
+   * cambios sin guardar.
+   */
+  const datosDeSeccion = (tipo: string): { origen?: string; falta?: string; enlace?: { href: string; texto: string } } => {
+    const cuantos = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+    switch (tipo) {
+      case "promociones": {
+        const vigentes = promociones.filter((p) => p.estado !== "inactiva").length;
+        return {
+          origen: `Muestra tus promociones vigentes. Tenés ${cuantos(vigentes, "promoción activa", "promociones activas")}.`,
+          falta: vigentes === 0 ? "No tenés promociones activas: esta sección no se ve hasta que crees una." : undefined,
+          enlace: { href: "/promotions", texto: "Ir a Promociones" },
+        };
+      }
+      case "categorias":
+        return {
+          origen: `Muestra las categorías principales que tienen productos. Tenés ${cuantos(categorias.length, "categoría", "categorías")} en total, contando subcategorías.`,
+          falta: categorias.length === 0 ? "Todavía no creaste categorías: esta sección no se ve." : undefined,
+          enlace: { href: "/products/taxonomies", texto: "Editar categorías" },
+        };
+      case "destacados": {
+        const destacados = productos.filter((p) => p.metadata?.isFeatured).length;
+        return {
+          origen: "Muestra los productos que marcaste como destacados.",
+          // Con 100 o más productos la lista de acá viene cortada: no se afirma que falten.
+          falta: destacados === 0 && productos.length < 100 ? "No marcaste ningún producto como destacado: esta sección no se ve." : undefined,
+          enlace: { href: "/products", texto: "Ir a Productos" },
+        };
+      }
+      case "catalogo":
+        return { origen: "Muestra todos tus productos publicados, con buscador y filtros.", enlace: { href: "/products", texto: "Ir a Productos" } };
+      case "resenas":
+        return { origen: "Muestra las reseñas de tu tienda. Se administran en la pestaña Reseñas de esta misma pantalla." };
+      case "nosotros":
+        return { origen: 'Muestra el texto "Sobre nosotros", que se escribe en la pestaña General de esta misma pantalla. Sin texto, la sección no se ve.' };
+      case "beneficios":
+        return { origen: "Muestra los beneficios cargados en la configuración de la tienda. Sin beneficios, la sección no se ve." };
+      default:
+        return {};
+    }
+  };
+  // Lo que conviene saber del diseño de una sección antes de elegirlo.
+  const ayudaDeSeccion = (tipo: string) =>
+    tipo === "categorias" ? "Se muestran las categorías principales que tienen productos; una vacía no aparece." : undefined;
   const portada = secciones.find((s) => s.tipo === "portada");
   const defPortada = o.secciones.find((s) => s.tipo === "portada");
   const imagenesPortada = efectiva.portada.diapositivas.length;
@@ -226,7 +376,7 @@ export function DisenoTienda({
       return false;
     }
     actualizar({ portada: { ...efectiva.portada, diapositivas: [...actuales, d] } });
-    setPanel("portada");
+    setPanel("seccion:portada");
     setPestanaPortada("contenido");
     enfocar("portada", { nombre: "La portada" });
     return true;
@@ -267,87 +417,42 @@ export function DisenoTienda({
 
   // ---------------------------------------------------------------- el menú
 
+  const resumenDeSeccion = (s: SeccionGuardada) => {
+    const def = o.secciones.find((d) => d.tipo === s.tipo);
+    if (!def) return "";
+    if (s.tipo === "portada")
+      return `${varianteActual?.nombre ?? "—"} · ${imagenesPortada === 0 ? "sin imágenes" : `${imagenesPortada} ${imagenesPortada === 1 ? "imagen" : "imágenes"}`}`;
+    return def.variantes.length > 1 ? nombreDe(def.variantes, s.variante) : def.descripcion;
+  };
+
   const grupos: Array<{ titulo: string; items: ItemMenu[] }> = [
     {
-      titulo: "Empezar",
-      items: [
-        {
-          id: "plantillas",
-          icono: LayoutTemplate,
-          titulo: "Plantillas",
-          descripcion: "Elegí el rubro de tu tienda y después una de sus plantillas.",
-          resumen: tema.nombre,
-        },
-        ...(tema.estilos && tema.estilos.length > 0
-          ? [
-              {
-                id: "estilos" as const,
-                icono: Layers,
-                titulo: "Estilos listos",
-                descripcion: "Combinaciones ya armadas de colores, letras y portada. Un toque y se aplican.",
-                soloPersonalizable: true,
-              },
-            ]
-          : []),
-      ],
-    },
-    {
-      titulo: "Apariencia",
+      titulo: "Estilo general",
       items: [
         {
           id: "colores",
           icono: Palette,
-          titulo: "Colores y letras",
-          descripcion: "La paleta, la textura del fondo y la tipografía de toda la tienda.",
+          titulo: "Colores, letras y fondo",
+          descripcion: "La paleta, la tipografía y la textura del fondo de toda la tienda.",
           resumen: `${tema.paletas.find((p) => p.id === efectiva.paleta)?.nombre ?? "—"} · ${nombreDe(o.tipografias, efectiva.tipografia)}`,
           soloPersonalizable: true,
         },
         {
-          id: "cabecera",
-          icono: PanelTop,
-          titulo: "Encabezado",
-          descripcion: "La barra de arriba de tu tienda y la línea de anuncio.",
-          resumen: `${nombreDe(o.cabeceras, efectiva.cabecera)} · anuncio ${efectiva.anuncio.activo ? "prendido" : "apagado"}`,
-          soloPersonalizable: true,
-        },
-        ...(portada && defPortada
-          ? [
-              {
-                id: "portada" as const,
-                icono: ImageIcon,
-                titulo: "Portada principal",
-                descripcion: "La primera impresión de tu tienda. Mirá cómo queda mientras la editás.",
-                resumen: `${varianteActual?.nombre ?? "—"} · ${imagenesPortada === 0 ? "sin imágenes" : `${imagenesPortada} ${imagenesPortada === 1 ? "imagen" : "imágenes"}`}`,
-                soloPersonalizable: true,
-              },
-            ]
-          : []),
-      ],
-    },
-    {
-      titulo: "Contenido",
-      items: [
-        {
-          id: "secciones",
-          icono: LayoutList,
-          titulo: "Secciones",
-          descripcion: "Cuáles se ven en el inicio de tu tienda, en qué orden y con qué fondo.",
-          resumen: `${secciones.filter((s) => s.activa).length} de ${secciones.length} visibles`,
+          id: "formas",
+          icono: Shapes,
+          titulo: "Formas y esquinas",
+          descripcion: "Qué tan rectas o redondeadas son las tarjetas, los botones y las fotos.",
+          resumen: `Esquinas ${nombreDe(o.esquinas, efectiva.esquinas).toLowerCase()}`,
           soloPersonalizable: true,
         },
         {
           id: "tarjetas",
           icono: LayoutGrid,
-          titulo: "Tarjetas y botones",
-          descripcion: "La forma de las tarjetas de producto y los botones, y cómo responden al mouse.",
-          resumen: `Esquinas ${nombreDe(o.esquinas, efectiva.esquinas).toLowerCase()} · ${nombreDe(o.hovers, efectiva.hover)}`,
+          titulo: "Tarjeta de producto",
+          descripcion: "Cómo se ve cada producto en Destacados y en el catálogo, y cómo responde al mouse.",
+          resumen: `${o.tarjetas ? `${nombreDe(o.tarjetas, efectiva.tarjeta)} · ` : ""}${nombreDe(o.hovers, efectiva.hover)}`,
           soloPersonalizable: true,
         },
-      ],
-    },
-    {
-      titulo: "Experiencia",
-      items: [
         {
           id: "movimiento",
           icono: Wand2,
@@ -358,139 +463,231 @@ export function DisenoTienda({
         },
       ],
     },
+    {
+      titulo: "Estructura",
+      items: [
+        {
+          id: "cabecera",
+          icono: PanelTop,
+          titulo: "Encabezado",
+          descripcion: "La barra de arriba de tu tienda y la línea de anuncio. Se ven en todas las páginas.",
+          resumen: `${nombreDe(o.cabeceras, efectiva.cabecera)} · anuncio ${efectiva.anuncio.activo ? "prendido" : "apagado"}`,
+          soloPersonalizable: true,
+        },
+        ...(o.pies
+          ? [
+              {
+                id: "pie" as const,
+                icono: PanelBottom,
+                titulo: "Pie de página",
+                descripcion: "El cierre de todas las páginas. Muestra solo los datos de contacto que cargaste.",
+                resumen: nombreDe(o.pies, efectiva.pie),
+                soloPersonalizable: true,
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      titulo: "Página de inicio",
+      items: [
+        {
+          id: "organizar",
+          icono: ListOrdered,
+          titulo: "Organizar secciones",
+          descripcion: "Qué bloques se ven en el inicio y en qué orden. Tocá uno para configurarlo.",
+          resumen: `${secciones.filter((s) => s.activa).length} de ${secciones.length} visibles`,
+          soloPersonalizable: true,
+        },
+        // En el orden en que la tienda las muestra.
+        ...secciones.flatMap((s): ItemMenu[] => {
+          const def = o.secciones.find((d) => d.tipo === s.tipo);
+          if (!def) return [];
+          return [
+            {
+              id: `seccion:${s.tipo}`,
+              icono: ICONO_DE_SECCION[s.tipo] ?? LayoutList,
+              titulo: tituloDeSeccion(s.tipo),
+              descripcion: s.tipo === "portada" ? "La primera impresión de tu tienda. Mirá cómo queda mientras la editás." : def.descripcion,
+              resumen: resumenDeSeccion(s),
+              soloPersonalizable: true,
+              seccion: true,
+              oculta: !s.activa,
+            },
+          ];
+        }),
+      ],
+    },
   ];
   const habilitado = (it: ItemMenu) => tema.personalizable || !it.soloPersonalizable;
   const todos = grupos.flatMap((g) => g.items.map((it) => ({ ...it, grupo: g.titulo })));
-  // Si lo elegido ya no está (otra plantilla, sin estilos…), se vuelve a Plantillas.
+  // Si lo elegido ya no está, se vuelve al primero.
   const actual = todos.find((it) => it.id === panel && habilitado(it)) ?? todos[0];
 
   // ---------------------------------------------------------- cada panel
 
-  const paneles: Record<IdPanel, () => ReactNode> = {
-    plantillas: () => (
-      <>
-        <Fila etiqueta="Rubro">
-          <Select value={rubro ?? ""} onValueChange={cambiarRubro}>
-            <SelectTrigger>
-              <SelectValue placeholder="Elegí el rubro" />
-            </SelectTrigger>
-            <SelectContent>
-              {catalogo.rubros.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Fila>
-        <Fila etiqueta="Plantilla">
-          <Select value={plantillasDelRubro.some((t) => t.id === tema.id) ? tema.id : ""} onValueChange={onCambiarTema} disabled={!rubroActual}>
-            <SelectTrigger>
-              <SelectValue placeholder={rubroActual ? "Elegí una plantilla" : "Primero elegí el rubro"} />
-            </SelectTrigger>
-            <SelectContent>
-              {plantillasDelRubro.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.nombre}
-                  {t.personalizable ? " ✦ personalizable" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Fila>
-        <div className="flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-2.5">
-          <div className="w-24 flex-none overflow-hidden rounded-md border border-border">
-            <Miniatura muestra={tema.muestra} />
-          </div>
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-sm font-semibold">
-              {tema.nombre}
-              {tema.personalizable && <Sparkles className="h-3.5 w-3.5 text-primary" aria-label="Personalizable" />}
-            </p>
-            <p className="text-xs text-muted-foreground">{tema.descripcion}</p>
-          </div>
+  const selectorDePaletas = () => (
+        <div className="grid grid-cols-2 gap-2">
+          {tema.paletas.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => actualizar({ paleta: p.id })}
+              className={`rounded-xl border p-2 text-left transition-all ${
+                efectiva.paleta === p.id ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <span className="flex h-9 overflow-hidden rounded-md border border-black/5">
+                <span className="flex-[3]" style={{ background: p.muestra.fondo }} />
+                <span className="flex-[2]" style={{ background: p.muestra.superficie }} />
+                <span className="flex-[2]" style={{ background: p.muestra.primario }} />
+                <span className="flex-1" style={{ background: p.muestra.acento }} />
+              </span>
+              <span className="mt-1.5 flex items-center justify-between text-xs font-medium">
+                {p.nombre}
+                {efectiva.paleta === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
+              </span>
+            </button>
+          ))}
         </div>
-        {!tema.personalizable ? (
-          <p className="flex gap-2.5 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <Sparkles className="mt-0.5 h-4 w-4 flex-none text-primary" />
+  );
+
+  const paneles: Record<PanelFijo, () => ReactNode> = {
+    inicio: () => {
+      const tarjeta = (e: (typeof estilos)[number]) => {
+        const m = tema.paletas.find((p) => p.id === e.apariencia.paleta)?.muestra;
+        const letra = o.tipografias.find((t) => t.id === e.apariencia.tipografia)?.nombre;
+        return (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => {
+              aplicarDiseno(e.apariencia);
+              toast.success(`Diseño ${e.nombre} aplicado. Miralo en la vista previa y guardá para publicarlo.`);
+            }}
+            className="rounded-xl border border-border p-2.5 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+          >
+            {m && (
+              <span className="mb-2 block overflow-hidden rounded-md border border-black/5">
+                <Miniatura muestra={m} />
+              </span>
+            )}
+            <span className="block text-xs font-semibold">{e.nombre}</span>
+            <span className="block text-[11px] text-muted-foreground">{e.descripcion}</span>
+            {letra && <span className="mt-1 block text-[10px] text-muted-foreground/80">Letra {letra.toLowerCase()}</span>}
+          </button>
+        );
+      };
+      const chip = (id: string, nombre: string) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => setGrupoElegido(id)}
+          aria-pressed={grupoActivo === id}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            grupoActivo === id ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50"
+          }`}
+        >
+          {nombre}
+        </button>
+      );
+      // Sin grupos (una tienda sin desplegar): todos juntos, como antes.
+      const visibles = gruposDeEstilos.filter((g) => grupoActivo === "todos" || g.id === grupoActivo);
+      const sinGrupo = estilos.filter((e) => !gruposDeEstilos.some((g) => g.id === e.grupo));
+
+      // Dónde va cada texto que propone la IA. El que no tiene dónde, no se ofrece.
+      const diapositivas = efectiva.portada.diapositivas;
+      const enPrimeraImagen = (cambio: { titulo?: string; texto?: string }) => {
+        actualizar({ portada: { ...efectiva.portada, diapositivas: diapositivas.map((d, i) => (i === 0 ? { ...d, ...cambio } : d)) } });
+        enfocar("portada", { nombre: "La portada" });
+      };
+      const destinosDeTextos: DestinosDeTextos = {
+        // Con imágenes, el título es el de la primera; sin ninguna, la portada
+        // muestra el título de la tienda.
+        tituloPortada: diapositivas.length
+          ? { etiqueta: "Título de la portada", donde: "En la primera imagen de la portada.", usar: (titulo) => enPrimeraImagen({ titulo }) }
+          : onCambiarTitulo && {
+              etiqueta: "Título de la portada",
+              donde: "Como título de tu tienda (Marca). Se ve en la tienda cuando guardes.",
+              usar: (titulo) => {
+                onCambiarTitulo(titulo);
+                toast.success("Título cambiado. Guardá para verlo en tu tienda.");
+              },
+            },
+        // Sin imágenes, debajo del título va la descripción de la tienda: no se pisa desde acá.
+        subtituloPortada: diapositivas.length
+          ? { etiqueta: "Texto de la portada", donde: "Debajo del título, en la primera imagen.", usar: (texto) => enPrimeraImagen({ texto }) }
+          : undefined,
+        anuncio: {
+          etiqueta: "Barra de anuncio",
+          donde: efectiva.anuncio.activo ? "Reemplaza el texto de tu barra de anuncio." : "Prende la barra de anuncio con este texto.",
+          usar: (texto) => {
+            actualizar({ anuncio: { ...efectiva.anuncio, activo: true, texto: texto.slice(0, o.largos.anuncio) } });
+            enfocar("cabecera", { nombre: "La barra de anuncio" });
+          },
+        },
+        nosotros: onCambiarNosotros && {
+          etiqueta: "Nosotros",
+          donde: "En la sección Nosotros de tu tienda. Se ve cuando guardes.",
+          usar: (texto) => {
+            onCambiarNosotros(texto);
+            toast.success("Texto de Nosotros cambiado. Guardá para verlo en tu tienda.");
+          },
+        },
+      };
+      return (
+        <>
+          <p className="flex gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
             <span>
-              <span className="font-medium text-foreground">{tema.nombre}</span> todavía no se personaliza: se ve tal
-              como está. Las plantillas con <Sparkles className="inline h-3.5 w-3.5 text-primary" /> te dejan elegir
-              colores, animaciones, imágenes de portada y secciones.
+              Un diseño cambia colores, letras, formas y secciones de una vez. Tus imágenes, textos y anuncio quedan.
+              Nada se publica hasta que guardes.
             </span>
           </p>
-        ) : (
-          <AsistenteIa />
-        )}
-      </>
-    ),
-
-    estilos: () => (
-      <div className="grid grid-cols-2 gap-2">
-        {(tema.estilos ?? []).map((e) => {
-          const m = tema.paletas.find((p) => p.id === e.apariencia.paleta)?.muestra;
-          return (
-            <button
-              key={e.id}
-              type="button"
-              onClick={() => {
-                // Conserva lo que cuesta cargar: las imágenes y el anuncio.
-                onCambiarApariencia({
-                  ...e.apariencia,
-                  secciones: undefined,
-                  anuncio: efectiva.anuncio,
-                  portada: { ...e.apariencia.portada, diapositivas: efectiva.portada.diapositivas },
-                  ...(e.apariencia.secciones ? { secciones: e.apariencia.secciones as SeccionGuardada[] } : {}),
-                });
-                toast.success(`Estilo ${e.nombre} aplicado. Guardá para publicarlo.`);
-              }}
-              className="rounded-xl border border-border p-2.5 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
-            >
-              {m && (
-                <span className="mb-2 flex h-10 overflow-hidden rounded-md border border-black/5">
-                  <span className="flex-[3]" style={{ background: m.fondo }} />
-                  <span className="flex-[2]" style={{ background: m.primario }} />
-                  <span className="flex-1" style={{ background: m.acento }} />
-                </span>
-              )}
-              <span className="block text-xs font-semibold">{e.nombre}</span>
-              <span className="block text-[11px] text-muted-foreground">{e.descripcion}</span>
-            </button>
-          );
-        })}
-      </div>
-    ),
+          {gruposDeEstilos.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {chip("todos", "Todos")}
+              {gruposDeEstilos.map((g) => chip(g.id, g.nombre))}
+            </div>
+          )}
+          {visibles.map((g) => (
+            <div key={g.id} className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.nombre}</p>
+              <div className="grid grid-cols-2 gap-2">{estilos.filter((e) => e.grupo === g.id).map(tarjeta)}</div>
+            </div>
+          ))}
+          {grupoActivo === "todos" && sinGrupo.length > 0 && <div className="grid grid-cols-2 gap-2">{sinGrupo.map(tarjeta)}</div>}
+          {tema.personalizable && (
+            <AsistenteIa
+              storeId={storeId}
+              estado={asistenteIa}
+              onEstado={setAsistenteIa}
+              armarPedido={() => ({
+                catalogo: catalogoParaIa(catalogo, tema),
+                contexto: {
+                  nombre,
+                  rubro,
+                  imagenesPortada: diapositivas.length,
+                  categorias: categorias.slice(0, 12).map((c) => c.name),
+                  productos: productos.slice(0, 12).map((p) => p.name),
+                },
+              })}
+              onAplicar={(d) => aplicarDisenoActual.current(d)}
+              destinos={destinosDeTextos}
+            />
+          )}
+        </>
+      );
+    },
 
     colores: () => (
       <>
         <Fila etiqueta="Paleta" ayuda="Armadas para que todo se lea bien.">
-          <div className="grid grid-cols-2 gap-2">
-            {tema.paletas.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => actualizar({ paleta: p.id })}
-                className={`rounded-xl border p-2 text-left transition-all ${
-                  efectiva.paleta === p.id ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border hover:border-primary/50"
-                }`}
-              >
-                <span className="flex h-9 overflow-hidden rounded-md border border-black/5">
-                  <span className="flex-[3]" style={{ background: p.muestra.fondo }} />
-                  <span className="flex-[2]" style={{ background: p.muestra.superficie }} />
-                  <span className="flex-[2]" style={{ background: p.muestra.primario }} />
-                  <span className="flex-1" style={{ background: p.muestra.acento }} />
-                </span>
-                <span className="mt-1.5 flex items-center justify-between text-xs font-medium">
-                  {p.nombre}
-                  {efectiva.paleta === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
-                </span>
-              </button>
-            ))}
-          </div>
+          {selectorDePaletas()}
         </Fila>
         {o.texturas && (
           <Fila etiqueta="Textura del fondo">
-            <Opciones opciones={o.texturas} valor={efectiva.textura} onChange={(textura) => actualizar({ textura })} columnas={3} />
+            <Opciones opciones={o.texturas} valor={efectiva.textura} onChange={(textura) => actualizar({ textura })} />
           </Fila>
         )}
         <Fila etiqueta="Tipografía">
@@ -552,8 +749,182 @@ export function DisenoTienda({
       </>
     ),
 
-    portada: () =>
-      portada && defPortada ? (
+    pie: () =>
+      o.pies ? (
+        <Fila etiqueta="Diseño del pie" ayuda="El mismo en todas las páginas. Muestra solo los datos de contacto que cargaste.">
+          <Opciones
+            opciones={o.pies}
+            valor={efectiva.pie}
+            onChange={(pie) => {
+              actualizar({ pie });
+              enfocar("pie", { nombre: "El pie de página" });
+            }}
+          />
+        </Fila>
+      ) : null,
+
+    organizar: () => (
+      <>
+        <ul className="divide-y divide-border rounded-xl border border-border">
+          {secciones.map((s, i) => {
+            const def = o.secciones.find((d) => d.tipo === s.tipo)!;
+            const sinDatos = s.activa ? datosDeSeccion(s.tipo).falta : undefined;
+            return (
+              <li key={s.tipo} className="flex items-center gap-2 p-3">
+                <div className="flex flex-col">
+                  <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === 0} onClick={() => moverSeccion(i, -1)} aria-label={`Subir ${def.nombre}`}>
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === secciones.length - 1} onClick={() => moverSeccion(i, 1)} aria-label={`Bajar ${def.nombre}`}>
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => abrirSeccion(s.tipo)}
+                  className={`group flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted ${s.activa ? "" : "opacity-60"}`}
+                  title={`Configurar ${tituloDeSeccion(s.tipo)}`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{tituloDeSeccion(s.tipo)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {s.activa ? resumenDeSeccion(s) : "Oculta"}
+                      {sinDatos && <span className="text-amber-600 dark:text-amber-400"> · sin datos: tus clientes no la ven</span>}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 flex-none text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </button>
+                <Switch
+                  checked={s.activa}
+                  disabled={def.fija}
+                  onCheckedChange={(activa) => cambiarSeccion(s.tipo, { activa })}
+                  aria-label={`Mostrar ${def.nombre}`}
+                />
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Acá solo se ordena y se prende o apaga. Para cambiar cómo se ve una sección, tocala: se abre su pantalla. A una
+          sección sin datos tus clientes no la ven aunque esté prendida; acá, en la vista previa, se muestra con contenido de
+          ejemplo.
+        </p>
+      </>
+    ),
+
+    tarjetas: () => (
+      <>
+        {o.tarjetas && (
+          <Fila
+            etiqueta="Diseño de la tarjeta"
+            ayuda={`Cómo se ven los productos en Destacados y en el catálogo.${
+              secciones.find((s) => s.tipo === "catalogo")?.variante === "menu"
+                ? " Tu catálogo está en Lista rápida: ahí las tarjetas son siempre horizontales."
+                : ""
+            }`}
+          >
+            <Opciones
+              opciones={o.tarjetas}
+              valor={efectiva.tarjeta}
+              onChange={(tarjeta) => {
+                actualizar({ tarjeta });
+                enfocar("tarjetas", verTarjetas);
+              }}
+            />
+          </Fila>
+        )}
+        <Fila
+          etiqueta="Al pasar el mouse por un producto"
+          ayuda={
+            efectiva.hover === "ninguno"
+              ? undefined
+              : `En computadora, sobre las tarjetas de Destacados y Productos (en el celular no hay mouse).${
+                  efectiva.hover === "segunda-foto" ? " Solo cambian los productos con dos fotos o más." : ""
+                }`
+          }
+        >
+          <Opciones
+            opciones={o.hovers}
+            valor={efectiva.hover}
+            onChange={(hover) => {
+              actualizar({ hover });
+              if (hover !== "ninguno") enfocar("tarjetas", { ...verTarjetas, aviso: "Pasá el mouse por una tarjeta" });
+            }}
+          />
+        </Fila>
+      </>
+    ),
+
+    formas: () => (
+      <>
+        <p className="text-xs text-muted-foreground">Valen para toda la tienda: el inicio, el detalle del producto, el carrito y el pedido.</p>
+        <Fila etiqueta={o.esquinasBotones ? "Esquinas de tarjetas y cajas" : "Esquinas"}>
+          <Opciones
+            opciones={o.esquinas}
+            valor={efectiva.esquinas}
+            onChange={(esquinas) => {
+              actualizar({ esquinas });
+              enfocar("tarjetas", verTarjetas);
+            }}
+            columnas={3}
+          />
+        </Fila>
+        {o.esquinasBotones && (
+          <Fila etiqueta="Esquinas de botones y filtros" ayuda="Los botones de compra, los filtros del catálogo y el buscador.">
+            <Opciones
+              opciones={o.esquinasBotones}
+              valor={efectiva.esquinasBotones}
+              onChange={(esquinasBotones) => {
+                actualizar({ esquinasBotones });
+                enfocar("catalogo", { nombre: "Los botones y filtros" });
+              }}
+              columnas={3}
+            />
+          </Fila>
+        )}
+        {o.esquinasFotos && (
+          <Fila etiqueta="Esquinas de las fotos" ayuda="Las fotos sueltas: la de la tarjeta Limpia o Editorial, las miniaturas y la de Nosotros.">
+            <Opciones
+              opciones={o.esquinasFotos}
+              valor={efectiva.esquinasFotos}
+              onChange={(esquinasFotos) => {
+                actualizar({ esquinasFotos });
+                enfocar("tarjetas", verTarjetas);
+              }}
+              columnas={3}
+            />
+          </Fila>
+        )}
+      </>
+    ),
+
+    movimiento: () => (
+      <>
+        <p className="text-xs text-muted-foreground">Si el celular del cliente pide menos movimiento, no se muestran.</p>
+        {menosMovimiento && (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+            Tu computadora tiene las animaciones apagadas, por eso en la vista previa no se mueve nada. Tus clientes que
+            las tienen prendidas sí las ven. Para verlas acá, en Windows: Configuración → Accesibilidad → Efectos
+            visuales → Efectos de animación.
+          </p>
+        )}
+        <Fila etiqueta="Al aparecer">
+          <Opciones
+            opciones={o.entradas}
+            valor={efectiva.entrada}
+            onChange={(entrada) => {
+              actualizar({ entrada });
+              // Se repite con lo que está a la vista; lo demás, al bajar.
+              if (entrada !== "ninguna") enfocar("", { aviso: "Bajá en la vista previa: así aparecen las secciones" });
+            }}
+          />
+        </Fila>
+      </>
+    ),
+  };
+
+  const panelDePortada = () =>
+    portada && defPortada ? (
         <>
           <div role="tablist" aria-label="Qué editar de la portada" className="grid grid-cols-2 rounded-xl bg-muted/60 p-1">
             {(
@@ -638,132 +1009,142 @@ export function DisenoTienda({
             />
           )}
         </>
-      ) : null,
+      ) : null;
 
-    secciones: () => (
+  /**
+   * La pantalla de una sección: siempre las mismas partes, en el mismo orden
+   * (visible, diseño, fondo, de dónde sale lo que muestra). La portada suma su
+   * editor de imágenes.
+   */
+  const panelDeSeccion = (tipo: string) => {
+    const s = secciones.find((x) => x.tipo === tipo);
+    const def = o.secciones.find((d) => d.tipo === tipo);
+    if (!s || !def) return null;
+    const datos = datosDeSeccion(tipo);
+    return (
       <>
-        <ul className="divide-y divide-border rounded-xl border border-border">
-          {secciones.map((s, i) => {
-            const def = o.secciones.find((d) => d.tipo === s.tipo)!;
-            return (
-              <li key={s.tipo} className={`space-y-2 p-3 ${s.activa ? "" : "opacity-60"}`}>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col">
-                    <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === 0} onClick={() => moverSeccion(i, -1)} aria-label={`Subir ${def.nombre}`}>
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === secciones.length - 1} onClick={() => moverSeccion(i, 1)} aria-label={`Bajar ${def.nombre}`}>
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{def.nombre}</p>
-                    <p className="truncate text-xs text-muted-foreground">{def.descripcion}</p>
-                  </div>
-                  <Switch
-                    checked={s.activa}
-                    disabled={def.fija}
-                    onCheckedChange={(activa) => cambiarSeccion(s.tipo, { activa })}
-                    aria-label={`Mostrar ${def.nombre}`}
-                  />
-                </div>
-                {s.activa && (
-                  <div className="grid grid-cols-2 gap-2 pl-8">
-                    {def.variantes.length > 1 && s.tipo !== "portada" ? (
-                      <Elegir valor={s.variante} opciones={def.variantes} onChange={(variante) => cambiarSeccion(s.tipo, { variante })} />
-                    ) : (
-                      <span />
-                    )}
-                    {s.tipo !== "portada" && (
-                      <Elegir valor={s.fondo} opciones={o.fondos} prefijo="Fondo: " onChange={(fondo) => cambiarSeccion(s.tipo, { fondo })} />
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <p className="text-xs text-muted-foreground">
-          Una sección sin datos no aparece aunque esté prendida: por ejemplo, Destacados si no marcaste ningún producto
-          como destacado.
-        </p>
-      </>
-    ),
-
-    tarjetas: () => (
-      <>
-        <Fila etiqueta="Esquinas">
-          <Opciones
-            opciones={o.esquinas}
-            valor={efectiva.esquinas}
-            onChange={(esquinas) => {
-              actualizar({ esquinas });
-              enfocar("tarjetas", verTarjetas);
-            }}
-            columnas={3}
-          />
-        </Fila>
-        <Fila
-          etiqueta="Al pasar el mouse por un producto"
-          ayuda={
-            efectiva.hover === "ninguno"
-              ? undefined
-              : `En computadora, sobre las tarjetas de Destacados y Productos (en el celular no hay mouse).${
-                  efectiva.hover === "segunda-foto" ? " Solo cambian los productos con dos fotos o más." : ""
-                }`
-          }
+        <button
+          type="button"
+          onClick={() => setPanel("organizar")}
+          className="-mt-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
         >
-          <Opciones
-            opciones={o.hovers}
-            valor={efectiva.hover}
-            onChange={(hover) => {
-              actualizar({ hover });
-              if (hover !== "ninguno") enfocar("tarjetas", { ...verTarjetas, aviso: "Pasá el mouse por una tarjeta" });
-            }}
+          <ArrowLeft className="h-3.5 w-3.5" /> Organizar secciones
+        </button>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+          <div>
+            <p className="text-sm font-medium">{def.fija ? "Siempre visible" : s.activa ? "Visible en el inicio" : "Oculta"}</p>
+            <p className="text-xs text-muted-foreground">
+              {def.fija ? "El catálogo no se puede apagar: es donde se compra." : "El orden se cambia en Organizar secciones."}
+            </p>
+          </div>
+          <Switch
+            checked={s.activa}
+            disabled={def.fija}
+            onCheckedChange={(activa) => cambiarSeccion(tipo, { activa })}
+            aria-label={`Mostrar ${def.nombre}`}
           />
-        </Fila>
-      </>
-    ),
-
-    movimiento: () => (
-      <>
-        <p className="text-xs text-muted-foreground">Si el celular del cliente pide menos movimiento, no se muestran.</p>
-        {menosMovimiento && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
-            Tu computadora tiene las animaciones apagadas, por eso en la vista previa no se mueve nada. Tus clientes que
-            las tienen prendidas sí las ven. Para verlas acá, en Windows: Configuración → Accesibilidad → Efectos
-            visuales → Efectos de animación.
-          </p>
+        </div>
+        {datos.falta && s.activa && (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">{datos.falta}</p>
         )}
-        <Fila etiqueta="Al aparecer">
-          <Opciones
-            opciones={o.entradas}
-            valor={efectiva.entrada}
-            onChange={(entrada) => {
-              actualizar({ entrada });
-              // Se repite con lo que está a la vista; lo demás, al bajar.
-              if (entrada !== "ninguna") enfocar("", { aviso: "Bajá en la vista previa: así aparecen las secciones" });
-            }}
-          />
-        </Fila>
-        {o.entrePaginas && (
-          <Fila etiqueta="Al abrir un producto" ayuda="En Chrome, Edge y Safari. En los demás navegadores abre normal.">
-            <Opciones opciones={o.entrePaginas} valor={efectiva.entrePaginas} onChange={(entrePaginas) => actualizar({ entrePaginas })} />
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => enfocar("abrir-producto", verTarjetas)}>
-              <Play className="h-3.5 w-3.5" /> Probar: abrir un producto
-            </Button>
-          </Fila>
+        {tipo === "portada" ? (
+          panelDePortada()
+        ) : (
+          <>
+            {def.variantes.length > 1 && (
+              <Fila etiqueta="Diseño" ayuda={ayudaDeSeccion(tipo)}>
+                <Opciones opciones={def.variantes} valor={s.variante} onChange={(variante) => cambiarSeccion(tipo, { variante })} />
+              </Fila>
+            )}
+            <Fila etiqueta="Fondo">
+              <Opciones opciones={o.fondos} valor={s.fondo} onChange={(fondo) => cambiarSeccion(tipo, { fondo })} columnas={3} />
+            </Fila>
+            <div className="space-y-1.5 rounded-xl border border-dashed border-border p-3 text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">Contenido</p>
+              <p>{datos.origen}</p>
+              {datos.enlace && (
+                <a
+                  href={datos.enlace.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                >
+                  {datos.enlace.texto} <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          </>
         )}
       </>
-    ),
+    );
   };
+
+  // La vista previa: la tercera columna del avanzado y la segunda del simple.
+  const vistaPrevia = (
+      <Card className="flex min-h-0 flex-col p-4 lg:sticky lg:top-[calc(var(--alto-header)+0.75rem)] lg:self-start xl:static xl:self-stretch">
+        {slug ? (
+          <VistaPreviaTienda
+            slug={slug}
+            themeId={tema.id}
+            apariencia={tema.personalizable ? efectiva : undefined}
+            foco={foco}
+            onMenosMovimiento={setMenosMovimiento}
+            dispositivo={dispositivo}
+            onDispositivo={setDispositivo}
+            plantilla={tema.nombre}
+          />
+        ) : (
+          <p className="p-2 text-sm text-muted-foreground">La vista previa aparece cuando la tienda tiene dirección (slug).</p>
+        )}
+      </Card>
+  );
+  const anchoCompleto = { width: anchoVentana - 2 * MARGEN_PANTALLA, marginLeft: `calc(50% - ${anchoVentana / 2 - MARGEN_PANTALLA}px)` };
+
+  if (modo === "simple") {
+    return (
+      <div
+        style={anchoCompleto}
+        className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] xl:h-[calc(100dvh-var(--alto-header)-1.5rem)] xl:min-h-[640px] xl:grid-rows-[minmax(0,1fr)]">
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <div className="border-b border-border px-5 pb-4 pt-5">
+            <h2 className="text-xl font-semibold tracking-tight">Diseñá tu tienda</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Tres pasos y listo. Todo se ve en la vista previa antes de guardar.</p>
+          </div>
+          <div className="min-h-0 flex-1 space-y-8 overflow-y-auto p-5">
+            <Paso numero={1} titulo="Elegí un diseño" ayuda="Un punto de partida armado para tu tipo de negocio.">
+              {paneles.inicio()}
+            </Paso>
+            <Paso numero={2} titulo="Colores" ayuda="Armados para que todo se lea bien.">
+              {selectorDePaletas()}
+            </Paso>
+            <Paso numero={3} titulo="Letra">
+              <Opciones opciones={o.tipografias} valor={efectiva.tipografia} onChange={(tipografia) => actualizar({ tipografia })} />
+            </Paso>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+            <span className="text-xs text-muted-foreground">Formas, encabezado, secciones y animaciones:</span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 flex-none gap-1 text-xs font-semibold"
+              onClick={() => setModo("avanzado")}
+            >
+              Personalizar a fondo <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </Card>
+        {vistaPrevia}
+      </div>
+    );
+  }
 
   return (
     <>
       {/* Tres columnas en pantallas grandes, con el alto de la ventana: cada
           una baja por su cuenta. Más angosto, el menú pasa arriba en una fila. */}
       <div
-        style={{ width: anchoVentana - 2 * MARGEN_PANTALLA, marginLeft: `calc(50% - ${anchoVentana / 2 - MARGEN_PANTALLA}px)` }}
+        style={anchoCompleto}
         className="grid gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] xl:h-[calc(100dvh-var(--alto-header)-1.5rem)] xl:min-h-[640px] xl:grid-cols-[240px_minmax(0,420px)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
         {/* ---- 1. Qué personalizar */}
         <Card className="flex min-h-0 flex-col p-2 lg:col-span-2 xl:col-span-1 xl:overflow-y-auto xl:p-4">
@@ -771,6 +1152,13 @@ export function DisenoTienda({
             <h2 className="text-lg font-semibold tracking-tight">Personalizá tu web</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Elegí qué querés modificar</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setModo("simple")}
+            className="mb-2 flex flex-none items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Volver al modo simple
+          </button>
           <nav aria-label="Qué personalizar" className="flex gap-1 overflow-x-auto xl:flex-col xl:gap-3 xl:overflow-visible">
             {grupos.map((g) => (
               <div key={g.titulo} className="flex gap-1 xl:flex-col xl:gap-0.5">
@@ -782,17 +1170,20 @@ export function DisenoTienda({
                     <button
                       key={it.id}
                       type="button"
-                      onClick={() => setPanel(it.id)}
+                      onClick={() => (it.id.startsWith("seccion:") ? abrirSeccion(it.id.slice("seccion:".length)) : setPanel(it.id))}
                       disabled={!libre}
                       aria-current={activo ? "page" : undefined}
                       title={libre ? it.resumen : `${tema.nombre} no se personaliza`}
-                      className={`relative flex flex-none items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 xl:py-2.5 ${
-                        activo ? "bg-primary/10 font-semibold text-primary" : "text-foreground/80 hover:bg-muted"
-                      }`}
+                      className={`relative flex flex-none items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        it.seccion ? "xl:ml-3 xl:py-1.5 xl:text-[13px]" : "xl:py-2.5"
+                      } ${activo ? "bg-primary/10 font-semibold text-primary" : it.oculta ? "text-muted-foreground/60 hover:bg-muted" : "text-foreground/80 hover:bg-muted"}`}
                     >
                       {activo && <span aria-hidden className="absolute -left-4 bottom-1.5 top-1.5 hidden w-[3px] rounded-r-full bg-primary xl:block" />}
                       <it.icono className="h-4 w-4 flex-none" />
-                      <span className="flex-1 text-left">{it.titulo}</span>
+                      <span className="flex-1 text-left">
+                        {it.titulo}
+                        {it.oculta && <span className="ml-1 text-[11px] font-normal">(oculta)</span>}
+                      </span>
                       <ChevronRight className={`hidden h-4 w-4 flex-none xl:block ${activo ? "text-primary" : "text-muted-foreground/60"}`} />
                     </button>
                   );
@@ -821,7 +1212,7 @@ export function DisenoTienda({
             <p className="mt-1 text-xs text-muted-foreground">{actual.descripcion}</p>
           </div>
           <div key={actual.id} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-            {paneles[actual.id]()}
+            {actual.id.startsWith("seccion:") ? panelDeSeccion(actual.id.slice("seccion:".length)) : paneles[actual.id as PanelFijo]()}
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
             <span className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -842,23 +1233,7 @@ export function DisenoTienda({
           </div>
         </Card>
 
-        {/* ---- 3. La vista previa */}
-        <Card className="flex min-h-0 flex-col p-4 lg:sticky lg:top-[calc(var(--alto-header)+0.75rem)] lg:self-start xl:static xl:self-stretch">
-          {slug ? (
-            <VistaPreviaTienda
-              slug={slug}
-              themeId={tema.id}
-              apariencia={tema.personalizable ? efectiva : undefined}
-              foco={foco}
-              onMenosMovimiento={setMenosMovimiento}
-              dispositivo={dispositivo}
-              onDispositivo={setDispositivo}
-              plantilla={tema.nombre}
-            />
-          ) : (
-            <p className="p-2 text-sm text-muted-foreground">La vista previa aparece cuando la tienda tiene dirección (slug).</p>
-          )}
-        </Card>
+        {vistaPrevia}
       </div>
 
       {storeId && (
@@ -881,22 +1256,21 @@ export function DisenoTienda({
 
 const nombreDe = (lista: Opcion[], id: string) => lista.find((x) => x.id === id)?.nombre ?? id;
 
-/** Arma la configuración a partir de lo que cuenta el comerciante. Las imágenes con IA se crean en la portada. */
-function AsistenteIa() {
+/** Un paso numerado del modo simple. */
+function Paso({ numero, titulo, ayuda, children }: { numero: number; titulo: string; ayuda?: string; children: ReactNode }) {
   return (
-    <div className="space-y-2 rounded-xl border border-purple-200 bg-purple-50/50 p-3 dark:border-purple-800 dark:bg-purple-900/10">
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" /> Armar con IA
-        </p>
-        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-          Próximamente
+    <section className="space-y-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+          {numero}
         </span>
+        <div>
+          <h3 className="text-sm font-semibold">{titulo}</h3>
+          {ayuda && <p className="text-xs text-muted-foreground">{ayuda}</p>}
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Contale cómo es tu tienda y la IA elige los colores, la tipografía, la portada y las secciones por vos.
-      </p>
-    </div>
+      {children}
+    </section>
   );
 }
 
@@ -962,24 +1336,6 @@ function Opciones({
         );
       })}
     </div>
-  );
-}
-
-function Elegir({ valor, opciones, onChange, prefijo = "" }: { valor: string; opciones: Opcion[]; onChange: (v: string) => void; prefijo?: string }) {
-  return (
-    <Select value={valor} onValueChange={onChange}>
-      <SelectTrigger className="h-8 text-xs">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {opciones.map((op) => (
-          <SelectItem key={op.id} value={op.id}>
-            {prefijo}
-            {op.nombre}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 

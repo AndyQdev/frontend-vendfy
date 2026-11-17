@@ -29,12 +29,11 @@ const MENSAJE_LISTA = "vendfy:vista-previa-lista";
 const MENSAJE_APARIENCIA = "vendfy:apariencia";
 const MENSAJE_RUTA = "vendfy:ruta";
 const MENSAJE_ENFOCAR = "vendfy:enfocar";
-const MENSAJE_ABRIR_PRODUCTO = "vendfy:abrir-producto";
 const MENSAJE_NO_ESTA = "vendfy:no-esta";
 
 /**
  * Lo que la vista previa tiene que mostrar. `destino`: el tipo de una sección,
- * `cabecera`, `tarjetas`, `abrir-producto` o vacío (solo el aviso). `clave`
+ * `cabecera`, `tarjetas` o vacío (solo el aviso). `clave`
  * cambia en cada pedido, aunque se repita el destino.
  */
 export interface FocoVistaPrevia {
@@ -156,10 +155,7 @@ export function VistaPreviaTienda({
     if (!foco) return;
     const t = setTimeout(() => {
       if (!lista.current) return;
-      const mensaje =
-        foco.destino === "abrir-producto"
-          ? { tipo: MENSAJE_ABRIR_PRODUCTO }
-          : { tipo: MENSAJE_ENFOCAR, destino: foco.destino, aviso: foco.aviso };
+      const mensaje = { tipo: MENSAJE_ENFOCAR, destino: foco.destino, aviso: foco.aviso };
       iframe.current?.contentWindow?.postMessage(mensaje, ORIGEN_TIENDA);
     }, 400);
     return () => clearTimeout(t);

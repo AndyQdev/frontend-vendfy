@@ -49,14 +49,15 @@ import type { Store, StoreConfig } from "@/entities/store/model/types";
 
 const TOTAL_STEPS = 3;
 
+// Hay una sola plantilla (Vitrina); el diseño se elige después, en Diseño.
 const CATEGORIES = [
-  { value: "tecnologia", label: "Tecnología", theme: "modern" },
-  { value: "moda", label: "Moda", theme: "elegante" },
-  { value: "hogar", label: "Hogar", theme: "minimal" },
-  { value: "abarrotes", label: "Abarrotes", theme: "minimal" },
-  { value: "belleza", label: "Belleza", theme: "classic" },
-  { value: "deportes", label: "Deportes", theme: "darkmode" },
-  { value: "arte", label: "Arte", theme: "creative" },
+  { value: "tecnologia", label: "Tecnología", theme: "vitrina" },
+  { value: "moda", label: "Moda", theme: "vitrina" },
+  { value: "hogar", label: "Hogar", theme: "vitrina" },
+  { value: "abarrotes", label: "Abarrotes", theme: "vitrina" },
+  { value: "belleza", label: "Belleza", theme: "vitrina" },
+  { value: "deportes", label: "Deportes", theme: "vitrina" },
+  { value: "arte", label: "Arte", theme: "vitrina" },
 ];
 
 const CURRENCIES = [
@@ -855,12 +856,7 @@ function Step2({
             <SelectValue placeholder="Elige un tema" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="modern">Modern · Tech moderno</SelectItem>
-            <SelectItem value="elegante">Elegante · Fashion sofisticado</SelectItem>
-            <SelectItem value="minimal">Minimal · Limpio y simple</SelectItem>
-            <SelectItem value="classic">Classic · Clásico elegante</SelectItem>
-            <SelectItem value="darkmode">Dark Mode · Oscuro deportivo</SelectItem>
-            <SelectItem value="creative">Creative · Artístico</SelectItem>
+            <SelectItem value="vitrina">Vitrina · Moderna, para cualquier rubro</SelectItem>
           </SelectContent>
         </Select>
       </div>
