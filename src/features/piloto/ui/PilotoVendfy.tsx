@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Loader2, Mic, Send, Square, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Ear, EarOff, Loader2, Mic, Send, Square, X } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
+import { alAtajoGlobal } from "@/shared/nativo";
 import { Button } from "@/shared/ui/button";
 
 import { usePiloto, type FasePiloto } from "../lib/estado";
 import { useConductorPiloto } from "../model/use-piloto";
+import { useManosLibres } from "../model/use-manos-libres";
 import { FocoPiloto } from "./FocoPiloto";
 
 const ESTADO: Record<FasePiloto, string> = {
@@ -73,7 +75,11 @@ function Orbe({ fase, nivel }: { fase: FasePiloto; nivel: React.MutableRefObject
  */
 export function PilotoVendfy() {
   const e = usePiloto();
-  const { activar, escribir, detener, nivel } = useConductorPiloto();
+  const conductor = useConductorPiloto();
+  const { activar, escribir, detener, nivel } = conductor;
+  // Manos libres: el oído escucha "Oye Vendfy" sin mandar nada hasta oírla.
+  const manos = useManosLibres(conductor);
+  const esperaPalabra = manos.activo && manos.estado === "escuchando";
   const location = useLocation();
   const navigate = useNavigate();
   const [texto, setTexto] = useState("");
@@ -88,7 +94,12 @@ export function PilotoVendfy() {
       atajo.current();
     };
     window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
+    // En la app de Windows, F9 llega también desde cualquier otro programa.
+    const quitar = alAtajoGlobal(() => atajo.current());
+    return () => {
+      window.removeEventListener("keydown", tecla);
+      quitar();
+    };
   }, []);
 
   // En el asistente ya hay un campo para hablar: el botón taparía el suyo.
@@ -108,26 +119,61 @@ export function PilotoVendfy() {
       <FocoPiloto />
       <AnimatePresence>
         {!e.abierto && !enAsistente && (
-          <motion.button
+          <motion.div
             key="lanzador"
-            type="button"
-            onClick={activar}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
             transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            aria-label="Hablarle a Vendfy (F9)"
-            data-testid="piloto-lanzador"
-            className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-40 flex items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-1.5 pr-3 text-sm font-semibold text-foreground shadow-float transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-40 flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-float"
           >
-            <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground">
-              <Mic className="size-4" aria-hidden />
-            </span>
-            Vendfy
-            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
-              F9
-            </kbd>
-          </motion.button>
+            <button
+              type="button"
+              onClick={activar}
+              aria-label="Hablarle a Vendfy (F9)"
+              data-testid="piloto-lanzador"
+              className="flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="relative grid size-8 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Mic className="size-4" aria-hidden />
+                {esperaPalabra && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-success" aria-hidden />}
+              </span>
+              <span className="text-left leading-tight">
+                <span className="block">Vendfy</span>
+                {esperaPalabra && <span className="block text-[11px] font-medium text-muted-foreground">Di «Oye Vendfy»</span>}
+              </span>
+              <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
+                F9
+              </kbd>
+            </button>
+            <button
+              type="button"
+              onClick={manos.alternar}
+              aria-pressed={manos.activo}
+              aria-label={manos.activo ? "Apagar manos libres" : "Prender manos libres: escuchar «Oye Vendfy»"}
+              title={
+                manos.estado === "sin-permiso"
+                  ? "Sin permiso para el micrófono"
+                  : manos.activo
+                    ? "Manos libres prendido: di «Oye Vendfy»"
+                    : "Manos libres: escuchar «Oye Vendfy»"
+              }
+              data-testid="piloto-manos-libres"
+              data-estado={manos.estado}
+              className={cn(
+                "grid size-9 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                manos.activo ? "bg-success-soft text-success-soft-foreground" : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {manos.estado === "cargando" ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : manos.activo ? (
+                <Ear className="size-4" aria-hidden />
+              ) : (
+                <EarOff className="size-4" aria-hidden />
+              )}
+            </button>
+          </motion.div>
         )}
 
         {e.abierto && (
@@ -143,7 +189,10 @@ export function PilotoVendfy() {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 24, opacity: 0, scale: 0.97 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-float"
+            // Por encima de las hojas y diálogos de la pantalla (en el celular la Caja
+            // abre el carrito en una hoja modal): sin esto la tarjeta quedaba tapada y
+            // sin poder tocarse, porque el modal le quita los toques a todo lo demás.
+            className="pointer-events-auto fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-[80] w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-3 text-card-foreground shadow-float"
           >
             <header className="flex items-center gap-3">
               <button

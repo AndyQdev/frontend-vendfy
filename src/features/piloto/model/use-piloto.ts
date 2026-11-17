@@ -7,6 +7,7 @@ import type { Propuesta } from "@/entities/omnibox/model/types";
 import { ventaEnCurso } from "@/entities/order";
 import { useEscucha } from "@/features/scanner/model/escucha";
 import { apiFetch } from "@/shared/api/client";
+import { traerAlFrente } from "@/shared/nativo";
 import { formatMoney } from "@/shared/lib/money";
 import { callarVoz, decirFrases, preferenciasVoz, type FraseVoz } from "@/shared/voz";
 
@@ -80,6 +81,8 @@ export function useConductorPiloto() {
     /** El producto nuevo que se está llenando. */
     borrador: null as BorradorPiloto | null,
     preguntoStock: false,
+    /** Oyó "Oye Vendfy" y espera lo que se dijo después (del oído). */
+    esperaComando: false,
     /** Cada vez que lo llaman empieza un turno nuevo; lo que quedó de antes se descarta. */
     turno: 0,
     cierre: null as ReturnType<typeof setTimeout> | null,
@@ -660,7 +663,55 @@ export function useConductorPiloto() {
     }
   };
 
+  /**
+   * El oído oyó "Oye Vendfy": se abre ya ("Te escucho…") mientras sigue
+   * juntando lo que se dice. Si estaba hablando, se calla (como Siri); si
+   * estaba cobrando o guardando, no se interrumpe.
+   */
+  const alOirPalabra = () => {
+    const e = estadoPiloto();
+    if (e.fase === "pensando" || e.fase === "trabajando") return;
+    cancelarCierre();
+    callarVoz();
+    escucha.detener();
+    ctx.current.turno++;
+    ctx.current.esperaComando = true;
+    ctx.current.pendiente = null;
+    // Con Vendfy minimizado o detrás de otro programa (app de Windows/Android): al frente.
+    traerAlFrente();
+    setPiloto({ abierto: true, fase: "escuchando", dicho: null, linea: "Te escucho…", pregunta: null, foco: null, tabla: null, irAlAsistente: false });
+  };
+
+  /** Lo dicho después de la palabra (con la palabra adelante: el servidor la confirma). */
+  const oirConPalabra = async (wav: Blob) => {
+    if (!ctx.current.esperaComando) return;
+    ctx.current.esperaComando = false;
+    const turno = ctx.current.turno;
+    const tienda = ctx.current.storeId;
+    if (!tienda) return decir("Primero elige una tienda.");
+    setPiloto({ fase: "pensando", linea: null });
+    try {
+      const r = await entenderVoz(wav, tienda, lineasDeContexto(), true);
+      if (!vigente(turno)) return;
+      // Falsa alarma: no era "Oye Vendfy" (la tele, "oye, vendí…"). Se cierra sin decir nada.
+      if (r.palabra === false) {
+        cerrarPiloto();
+        return;
+      }
+      const texto = r.transcripcion.texto?.trim();
+      if (!texto) {
+        await decir("¿Sí? Dime.");
+        return escucharRespuesta(turno);
+      }
+      setPiloto({ dicho: texto });
+      await atender(turno, texto, async () => r.propuesta);
+    } catch (e) {
+      await fallo(turno, e);
+    }
+  };
+
   const detener = () => {
+    ctx.current.esperaComando = false;
     ctx.current.turno++;
     ctx.current.quiereCobrar = false;
     ctx.current.pendiente = null;
@@ -676,5 +727,5 @@ export function useConductorPiloto() {
   ultima.current = escucha;
   useEffect(() => () => ultima.current.detener(), []);
 
-  return { activar, escribir, detener, nivel: escucha.nivel, estadoEscucha: escucha.estado };
+  return { activar, escribir, detener, alOirPalabra, oirConPalabra, nivel: escucha.nivel, estadoEscucha: escucha.estado };
 }

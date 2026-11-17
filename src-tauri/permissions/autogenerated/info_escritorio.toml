@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-info-escritorio"
+description = "Enables the info_escritorio command without any pre-configured scope."
+commands.allow = ["info_escritorio"]
+
+[[permission]]
+identifier = "deny-info-escritorio"
+description = "Denies the info_escritorio command without any pre-configured scope."
+commands.deny = ["info_escritorio"]

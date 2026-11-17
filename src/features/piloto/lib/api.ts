@@ -7,12 +7,19 @@ import type { LineaContexto, Propuesta } from "@/entities/omnibox/model/types";
  * y se entiende en una sola llamada. El audio llega del detector de voz (VAD)
  * como WAV de 16 kHz: solo lo hablado, sin los silencios.
  */
-export async function entenderVoz(wav: Blob, storeId: string, lineas: LineaContexto[]): Promise<RespuestaVoz> {
+export async function entenderVoz(
+  wav: Blob,
+  storeId: string,
+  lineas: LineaContexto[],
+  conPalabra = false,
+): Promise<RespuestaVoz & { palabra?: boolean }> {
   const forma = new FormData();
   forma.append("audio", wav, "piloto.wav");
   forma.append("storeId", storeId);
   forma.append("contexto", JSON.stringify({ venta: { lineas } }));
-  const r = await apiFetch<RespuestaVoz>("/api/omnibox/voz", { method: "POST", body: forma });
+  // Viene del oído: el audio empieza con "Oye Vendfy" y el servidor la verifica.
+  if (conPalabra) forma.append("palabra", "1");
+  const r = await apiFetch<RespuestaVoz & { palabra?: boolean }>("/api/omnibox/voz", { method: "POST", body: forma });
   return r.data!;
 }
 

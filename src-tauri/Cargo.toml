@@ -1,0 +1,28 @@
+[package]
+name = "vendfy-escritorio"
+version = "0.1.0"
+description = "Vendfy para Windows: el panel con manos libres («Oye Vendfy»), F9 global y la bandeja del reloj"
+authors = ["Vendfy"]
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "vendfy_escritorio"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.5" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.12.6", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -16,7 +16,8 @@ import { API_URL, PUERTO_APP } from "./e2e/helpers/env";
  */
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: "**/logic/**",
+  // Las de voz usan un micrófono simulado: van con playwright.voz.config.ts.
+  testIgnore: ["**/logic/**", "**/voz/**"],
 
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -46,7 +47,7 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: "e2e/.auth/session.json" },
       dependencies: ["setup"],
       // Un testIgnore de proyecto reemplaza al global: hay que repetir logic.
-      testIgnore: [/movil\.spec\.ts/, /[\\/]logic[\\/]/],
+      testIgnore: [/movil\.spec\.ts/, /[\\/]logic[\\/]/, /[\\/]voz[\\/]/],
     },
     {
       name: "telefono",

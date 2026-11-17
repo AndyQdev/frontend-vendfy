@@ -98,7 +98,7 @@ export function FocoPiloto() {
   const medio = desde ? (desde.x + hasta.x) / 2 : 0;
 
   return createPortal(
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-[60]">
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-[75]">
       {flecha && desde && (
         <svg className="absolute inset-0 h-full w-full overflow-visible">
           <defs>
