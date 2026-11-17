@@ -53,6 +53,7 @@ export function ResumenCobro({
       <div
         role="radiogroup"
         aria-label="Método de pago"
+        data-piloto="caja:pago"
         className={cn("grid gap-1.5", metodos.length === 4 ? "grid-cols-4" : "grid-cols-3")}
       >
         {metodos.map((m) => {
@@ -79,7 +80,7 @@ export function ResumenCobro({
         })}
       </div>
 
-      <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3 dark:bg-muted/20">
+      <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3 dark:bg-muted/20" data-piloto="caja:total">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>
             Subtotal <span className="cifra text-foreground">{formatMoney(subtotal)}</span>
@@ -115,6 +116,7 @@ export function ResumenCobro({
         size="lg"
         onClick={onFinalizar}
         disabled={deshabilitado}
+        data-piloto="caja:cobrar"
       >
         Finalizar Venta
       </Button>

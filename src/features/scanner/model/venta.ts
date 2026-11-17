@@ -25,13 +25,15 @@ export function agregarAVenta(r: ResultadoEscaneo, tiendaId: string | null): Res
   const tienda = producto ? tiendaParaVender(r, tiendaId) : null;
   if (!producto || !tienda?.inventoryId) return { ok: false, motivo: "sin_tienda", tienda };
 
-  const yaEnVenta = ventaEnCurso().find((i) => i.id === tienda.inventoryId)?.quantity ?? 0;
+  // La misma fila aunque la haya cargado el piloto (que la guarda por storeProductId).
+  const fila = ventaEnCurso().find((i) => i.id === tienda.inventoryId || i.storeProductId === tienda.storeProductId);
+  const yaEnVenta = fila?.quantity ?? 0;
   if (tienda.stock <= yaEnVenta) {
     return { ok: false, motivo: tienda.stock <= 0 ? "agotado" : "sin_mas", tienda };
   }
 
   const item: ItemVenta = {
-    id: tienda.inventoryId,
+    id: fila?.id ?? tienda.inventoryId,
     storeProductId: tienda.storeProductId,
     name: producto.name,
     price: tienda.price,

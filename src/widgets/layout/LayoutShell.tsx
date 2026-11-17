@@ -8,6 +8,7 @@ import { ConsentimientoBeta, EncuestaBeta } from "@/features/beta";
 import { AvisoInstalar } from "@/features/pwa";
 import { OnboardingChecklist } from "@/widgets/onboarding";
 import { HojaEscaneo, LaserEscaneo, ScannerProvider, VentaFlotante } from "@/features/scanner";
+import { PilotoVendfy } from "@/features/piloto";
 
 /**
  * El marco de todas las pantallas del panel: header arriba, contenido abajo.
@@ -74,6 +75,8 @@ export default function LayoutShell() {
       <LaserEscaneo />
       <HojaEscaneo />
       <VentaFlotante />
+      {/* "Vendfy": manejar el panel hablando (botón abajo a la izquierda o F9). */}
+      <PilotoVendfy />
     </ScannerProvider>
   );
 }

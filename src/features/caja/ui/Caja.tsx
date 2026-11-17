@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { AjustesVoz, agregarAVenta, frasesCaja, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
-import { useVentaEnCurso } from "@/entities/order";
+import { totalesVenta, useVentaEnCurso, ventaEnCurso } from "@/entities/order";
 import { decirFrases } from "@/shared/voz";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { Input } from "@/shared/ui/input";
@@ -73,6 +73,9 @@ import { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { cuentaEnDolares, leerMonto } from "@/entities/exchange-rate/ui/cobro-dolares";
 import { ResumenCobro } from "./ResumenCobro";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCobrar } from "@/entities/omnibox/api";
+import { registrarCaja, type PagoPiloto } from "@/features/piloto";
 
 // Helper: prioriza el icono guardado en BD; si no hay, infiere por nombre
 const getCategoryIcon = (name: string, iconName?: string | null): LucideIcon => {
@@ -103,6 +106,9 @@ const PAYMENT_METHODS = [
 
 /** Cobrar en dólares: solo en ventas rápidas de tiendas en Bs. */
 const PAGO_DOLARES = { id: 'usd', name: 'Dólares', icon: DollarSign };
+
+/** El método como lo nombra el piloto → el id del botón de la Caja. */
+const ID_DE_PAGO: Record<PagoPiloto, string> = { efectivo: 'cash', qr: 'qr', tarjeta: 'card', dolares: 'usd' };
 
 export default function Caja() {
   // Ref para el observador de intersección
@@ -269,6 +275,7 @@ export default function Caja() {
       page.data.map((inventory: any) => ({
         id: inventory.id,
         storeProductId: inventory.storeProductId, // ID del StoreProduct
+        productId: inventory.product.id as string | undefined,
         name: inventory.product.name,
         price: inventory.product.price || 0,
         stock: inventory.stockQuantity,
@@ -341,12 +348,13 @@ export default function Caja() {
   const addToCart = useCallback((product: typeof allProducts[0]) => {
     if (product.stock === 0) return;
 
-    const existingItem = cart.find(item => item.id === product.id);
+    // También la fila que cargó el piloto por voz (la guarda por storeProductId).
+    const existingItem = cart.find(item => item.id === product.id || item.storeProductId === product.storeProductId);
     
     if (existingItem) {
       if (existingItem.quantity < product.stock) {
         setCart(cart.map(item =>
-          item.id === product.id
+          item.id === existingItem.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         ));
@@ -355,6 +363,7 @@ export default function Caja() {
       setCart([...cart, {
         id: product.id,
         storeProductId: product.storeProductId, // Guardar storeProductId
+        productId: product.productId,
         name: product.name,
         price: product.price,
         quantity: 1,
@@ -482,6 +491,63 @@ export default function Caja() {
   useEffect(() => {
     if (paymentMethod === 'usd' && !metodosPago.some((m) => m.id === 'usd')) setPaymentMethod('cash');
   }, [metodosPago, paymentMethod]);
+
+  // ─── Piloto ("Oye Vendfy") ──────────────────────────────────────────────
+  // Mientras la Caja está en pantalla, el piloto elige el pago y el cliente y
+  // cobra como si tocaran el botón. Sin cliente elegido cobra a consumidor
+  // final, igual que el asistente: por voz nadie busca un cliente para un chicle.
+  const queryClient = useQueryClient();
+  const cobrarPiloto = useCobrar();
+  const paraPiloto = useRef({ selectedClient, metodosPago, dolar, usdRecibido, saleType, selectedStore });
+  paraPiloto.current = { selectedClient, metodosPago, dolar, usdRecibido, saleType, selectedStore };
+  useEffect(
+    () =>
+      registrarCaja({
+        setPago: (pago, recibidoUsd) => {
+          const id = ID_DE_PAGO[pago];
+          if (!paraPiloto.current.metodosPago.some((m) => m.id === id)) return false;
+          setPaymentMethod(id);
+          if (pago === 'dolares' && recibidoUsd) setUsdRecibido(String(recibidoUsd));
+          return true;
+        },
+        setCliente: (id, nombre) => setSelectedClient({ id, name: nombre } as Customer),
+        // El carrito se lee de la venta en curso: el piloto lo acaba de cargar y la
+        // pantalla quizá todavía no se volvió a dibujar.
+        total: () => totalesVenta(ventaEnCurso()).total,
+        cobrar: async (pago) => {
+          const c = paraPiloto.current;
+          const lista = ventaEnCurso();
+          if (!lista.length) return { ok: false, error: 'La venta está vacía.' };
+          if (!c.selectedStore || c.selectedStore === 'all') return { ok: false, error: 'Primero elige una tienda.' };
+          if (c.saleType !== 'quick') {
+            return { ok: false, error: 'La Caja está en venta con delivery o a cuotas: esa termínala tocando.' };
+          }
+          if (pago === 'dolares' && !c.dolar.valor) return { ok: false, error: 'Falta el tipo de cambio del dólar.' };
+          try {
+            const r = await cobrarPiloto.mutateAsync({
+              storeId: c.selectedStore.id,
+              lineas: lista.map((i) => ({ storeProductId: i.storeProductId, cantidad: i.quantity, precio: i.price })),
+              clienteId: c.selectedClient?.id ?? null,
+              pago,
+              ...(pago === 'dolares' ? { dolar: c.dolar.valor!, recibidoUsd: leerMonto(c.usdRecibido) } : {}),
+            });
+            setCart([]);
+            setSelectedClient(null);
+            setUsdRecibido('');
+            setPaymentMethod('cash');
+            // El stock que se ve en la grilla cambió.
+            queryClient.invalidateQueries({ queryKey: ['inventory-infinite'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            const d = r.diferencia ?? 0;
+            return { ok: true, total: r.total, numero: r.numero, pago, vuelto: d > 0 ? d : null, falta: d < 0 ? -d : null };
+          } catch (error) {
+            return { ok: false, error: error instanceof Error ? error.message : 'No se pudo cobrar.' };
+          }
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // Crear nuevo cliente
   const handleCreateClient = async (data: { name: string; phone: string }) => {

@@ -860,3 +860,43 @@
     }
   }
 }
+
+/* ─── Piloto ("Oye Vendfy") ────────────────────────────────────────────────
+   Marca lo que está tocando en la pantalla: un marco que late y una flecha
+   punteada desde la tarjeta de Vendfy. Fuera de @layer: van por atributo. */
+.piloto-foco {
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px hsl(var(--primary)),
+    0 0 0 6px hsl(var(--primary) / 0.18),
+    0 12px 32px -10px hsl(var(--primary) / 0.5);
+  animation: piloto-late 1.6s ease-in-out infinite;
+  animation-duration: 1.6s !important;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+.piloto-foco[data-presiona="true"] {
+  animation: piloto-presiona 0.5s ease-in-out infinite;
+  animation-duration: 0.5s !important;
+}
+@keyframes piloto-late {
+  0%, 100% { box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 5px hsl(var(--primary) / 0.2), 0 12px 32px -10px hsl(var(--primary) / 0.5); }
+  50% { box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 11px hsl(var(--primary) / 0.08), 0 12px 32px -10px hsl(var(--primary) / 0.5); }
+}
+@keyframes piloto-presiona {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.96); }
+}
+.piloto-flecha {
+  stroke-dasharray: 6 6;
+  animation: piloto-flecha 0.9s linear infinite;
+  animation-duration: 0.9s !important;
+}
+@keyframes piloto-flecha {
+  to { stroke-dashoffset: -12; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piloto-foco,
+  .piloto-flecha {
+    animation: none !important;
+  }
+}

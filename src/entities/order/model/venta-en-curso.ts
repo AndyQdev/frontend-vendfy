@@ -11,6 +11,8 @@ export interface ItemVenta {
   /** Fila de inventario (stock en una tienda). */
   id: string;
   storeProductId: string;
+  /** El producto: con él, "sacá la coca" o "que sean 3" encuentran la fila. */
+  productId?: string;
   name: string;
   price: number;
   quantity: number;
