@@ -22,7 +22,6 @@ import ReportsPage from "@/pages/reports";
 import WhatsAppPage from "@/pages/whatsapp";
 import CampaignsPage from "@/pages/campaigns";
 import PromotionsPage from "@/pages/promotions";
-import BitacoraPage from "@/pages/bitacora";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
@@ -33,6 +32,8 @@ import PurchaseDetailPage from "@/pages/purchases/detail";
 import VendfyLoader from "@/shared/loading/VendfyLoader";
 import { OnboardingGuard } from "./guards/OnboardingGuard";
 import { OmniboxPage } from "@/features/omnibox/ui/OmniboxPage";
+import EquipoPage from "@/pages/equipo";
+import { PrimeraRuta } from "./guards/PrimeraRuta";
 
 function Protected() {
   const { user, isLoading } = useAuth();
@@ -97,16 +98,16 @@ export default function AppRouter() {
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
-            <Route path="/bitacora" element={<BitacoraPage />} />
+            <Route path="/equipo" element={<EquipoPage />} />
 
-            {/* Redirección por defecto al inicio */}
-            <Route path="/" element={<Navigate to="/caja" replace />} />
+            {/* Redirección por defecto: la primera pantalla que puede usar */}
+            <Route path="/" element={<PrimeraRuta />} />
           </Route>
         </Route>
       </Route>
 
       {/* Redirección para rutas no encontradas */}
-      <Route path="*" element={<Navigate to="/caja" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

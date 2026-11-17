@@ -28,6 +28,8 @@ import {
 import { MessageBubble, TypingBubble } from "./MessageBubble";
 import { ModelPicker } from "./ModelPicker";
 import { Composer } from "./Composer";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 export function ChatView({
   storeId,
@@ -62,6 +64,8 @@ export function ChatView({
 }) {
   const endRef = useRef<HTMLDivElement>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  // Ver las conversaciones no es lo mismo que responderlas o quitarle el chat al agente.
+  const puedeResponder = useAcceso().puede(PERMISO.GESTIONAR_WHATSAPP);
 
   const isSandbox = isSandboxPhone(conversation.contactPhone);
   const humanControl = conversation.aiPaused;
@@ -156,7 +160,7 @@ export function ChatView({
           </Button>
         )}
 
-        {!isSandbox && (
+        {!isSandbox && puedeResponder && (
           <Button
             variant={humanControl ? "outline" : "default"}
             size="sm"
@@ -246,7 +250,13 @@ export function ChatView({
         )}
       </div>
 
-      <Composer disabled={loading} sending={sending} onSend={onSend} storeId={storeId} />
+      {puedeResponder ? (
+        <Composer disabled={loading} sending={sending} onSend={onSend} storeId={storeId} />
+      ) : (
+        <p className="shrink-0 border-t border-border/60 px-4 py-3 text-center text-xs text-muted-foreground">
+          Tu rol puede leer las conversaciones, pero no responderlas.
+        </p>
+      )}
 
       <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
         <AlertDialogContent>

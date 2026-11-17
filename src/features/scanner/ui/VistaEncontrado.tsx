@@ -28,6 +28,8 @@ import {
 } from "@/shared/ui/responsive-dialog";
 import { useHablando } from "@/shared/voz";
 import { aparece, BarrasVoz, escalonado, ImagenProducto, PrecioAnimado } from "./piezas";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 /** Cómo se lee el stock de un vistazo. */
 function nivelStock(t: TiendaDelProducto) {
@@ -91,7 +93,10 @@ export function VistaEncontrado({
   const deEste = venta.find((i) => i.id === inventarioParaVender)?.quantity ?? 0;
   const unidades = venta.reduce((s, i) => s + i.quantity, 0);
   const total = venta.reduce((s, i) => s + i.price * i.quantity, 0);
-  const sePuedeVender = !!inventarioParaVender;
+  // Cada botón pide lo suyo: vender, comprar o editar el producto.
+  const { puede } = useAcceso();
+  const puedeVender = puede(PERMISO.GESTIONAR_PEDIDOS);
+  const sePuedeVender = !!inventarioParaVender && puedeVender;
 
   // Enter agrega otra unidad: escanear, Enter, escanear, Enter…
   useEffect(() => {
@@ -291,15 +296,19 @@ export function VistaEncontrado({
       </ResponsiveDialogBody>
 
       <ResponsiveDialogFooter>
-        <Button variant="ghost" onClick={onEditar}>
-          <Pencil aria-hidden />
-          Editar
-        </Button>
-        <Button variant="outline" onClick={onComprar}>
-          <Truck aria-hidden />
-          Comprar
-        </Button>
-        {deEste > 0 ? (
+        {puede(PERMISO.GESTIONAR_PRODUCTOS) ? (
+          <Button variant="ghost" onClick={onEditar}>
+            <Pencil aria-hidden />
+            Editar
+          </Button>
+        ) : null}
+        {puede(PERMISO.GESTIONAR_INVENTARIO) ? (
+          <Button variant="outline" onClick={onComprar}>
+            <Truck aria-hidden />
+            Comprar
+          </Button>
+        ) : null}
+        {!puedeVender ? null : deEste > 0 ? (
           <Button variant="outline" onClick={onIrACobrar}>
             Cobrar {formatMoney(total)}
             <ArrowRight aria-hidden />
@@ -310,13 +319,13 @@ export function VistaEncontrado({
             Cobrar ahora
           </Button>
         )}
-        <Button onClick={onAgregar} disabled={!sePuedeVender} className="relative">
+        {puedeVender ? <Button onClick={onAgregar} disabled={!sePuedeVender} className="relative">
           {deEste > 0 ? <Plus aria-hidden /> : <ShoppingCart aria-hidden />}
           {deEste > 0 ? "Agregar otro" : "Agregar a la venta"}
           <kbd className="ml-1 hidden items-center rounded border border-primary-foreground/30 px-1 text-[10px] font-medium opacity-80 md:inline-flex">
             <CornerDownLeft className="size-3" aria-hidden />
           </kbd>
-        </Button>
+        </Button> : null}
       </ResponsiveDialogFooter>
     </motion.div>
   );

@@ -27,6 +27,7 @@ import {
   ScanLine,
   ChevronLeft,
   ChevronRight,
+  CornerDownRight,
   User,
   Apple,
   Milk,
@@ -63,6 +64,8 @@ import { useInfiniteInventory } from "@/entities/inventory/api";
 import { useCategories } from "@/entities/product/api";
 import { useCreateOrder, OrderType } from "@/entities/order";
 import { useStore } from "@/app/providers/auth";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
@@ -106,6 +109,9 @@ export default function Caja() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { selectedStore } = useStore();
+  // Lo que el rol o el plan no permiten no se ofrece (el backend igual lo frena).
+  const { puede, tiene } = useAcceso();
+  const conCuotas = tiene("cuotas_delivery");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -131,13 +137,12 @@ export default function Caja() {
       productCount: totalProductCount
     };
 
-    // Las principales siempre; las subcategorías, solo las de la principal
-    // elegida (o la de la subcategoría elegida). Con todas a la vista, la fila
-    // de la caja se volvía una lista larga de "Cables", "Cargadores"…
-    const elegida = backendCategories.find((cat) => cat.id === selectedCategory);
-    const ramaAbierta = elegida ? elegida.parentId || elegida.id : null;
+    // Solo las principales: las subcategorías de la elegida van en su propia
+    // fila, debajo (`subcategorias`). Mezcladas en esta, una subcategoría se
+    // veía como una categoría más al lado de su principal.
+    const ids = new Set(backendCategories.map((cat) => cat.id));
     const mappedCategories = backendCategories
-      .filter((cat: any) => !cat.parentId || cat.parentId === ramaAbierta)
+      .filter((cat: any) => !cat.parentId || !ids.has(cat.parentId))
       .map((cat: any) => ({
         id: cat.id,
         name: cat.name,
@@ -145,6 +150,17 @@ export default function Caja() {
         productCount: cat.productCount || 0
       }));
     return [allCategory, ...mappedCategories];
+  }, [backendCategories]);
+
+  // La principal abierta (la elegida, o la de la subcategoría elegida) y sus
+  // subcategorías, para la fila de abajo.
+  const { rama, subcategorias } = useMemo(() => {
+    const elegida = backendCategories.find((cat) => cat.id === selectedCategory);
+    const ramaId = elegida ? elegida.parentId || elegida.id : null;
+    return {
+      rama: backendCategories.find((cat) => cat.id === ramaId) ?? null,
+      subcategorias: ramaId ? backendCategories.filter((cat) => cat.parentId === ramaId) : [],
+    };
   }, [backendCategories, selectedCategory]);
   // La venta en curso vive fuera de la pantalla: se puede cargar escaneando
   // desde cualquier lado y no se pierde al navegar.
@@ -840,7 +856,8 @@ export default function Caja() {
                             ) : (
                               CATEGORIES.map((category) => {
                                 const Icon = category.icon;
-                                const isActive = selectedCategory === category.id;
+                                // Con una subcategoría elegida, su principal sigue marcada.
+                                const isActive = selectedCategory === category.id || rama?.id === category.id;
                                 const productCount = getProductCountByCategory(category.id);
 
                                 return (
@@ -893,7 +910,7 @@ export default function Caja() {
                             )}
 
                             {/* Card "+" para crear nueva categoría */}
-                            {!categoriesLoading && (
+                            {!categoriesLoading && puede(PERMISO.GESTIONAR_CATEGORIAS) && (
                               <Card
                                 className="shrink-0 w-[110px] sm:w-[140px] p-3 sm:p-4 cursor-pointer transition-all border-2 border-dashed border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-emerald-900/40 dark:hover:bg-emerald-950/20"
                                 onClick={() => setShowCategoryModal(true)}
@@ -926,6 +943,39 @@ export default function Caja() {
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                     </div>
+
+                    {/* Las subcategorías de la principal elegida, en un carrusel
+                        debajo. "Todos" es la principal entera (ya incluye las suyas). */}
+                    {rama && subcategorias.length > 0 && (
+                      <div className="w-full min-w-0 rounded-xl bg-foreground/[0.04] px-3 py-2.5">
+                        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <CornerDownRight className="h-3.5 w-3.5" />
+                          Subcategorías de {rama.name}
+                        </p>
+                        <div
+                          role="group"
+                          aria-label={`Subcategorías de ${rama.name}`}
+                          className="flex gap-2 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                        >
+                          {[{ id: rama.id, name: "Todos", productCount: rama.productCount }, ...subcategorias].map((sub: any) => {
+                            const activa = selectedCategory === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                aria-pressed={activa}
+                                onClick={() => setSelectedCategory(sub.id)}
+                                className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                                  activa ? "bg-primary/15 text-primary" : "bg-foreground/[0.06] text-foreground hover:bg-foreground/10"
+                                }`}
+                              >
+                                {sub.name} · {sub.productCount || 0}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                 </div>
 
             {/* Grid de productos */}
@@ -963,13 +1013,17 @@ export default function Caja() {
                             <p className="text-sm text-muted-foreground mb-5">
                               Aún no tienes productos en tu inventario. Crea tu primer producto para empezar a registrar ventas en la caja.
                             </p>
-                            <Button
-                              onClick={() => navigate("/products/create")}
-                              size="lg"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Crear mi primer producto
-                            </Button>
+                            {puede(PERMISO.GESTIONAR_PRODUCTOS) ? (
+                              <Button
+                                onClick={() => navigate("/products/create")}
+                                size="lg"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Crear mi primer producto
+                              </Button>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Cuando el negocio cargue productos, van a aparecer acá.</p>
+                            )}
                           </>
                         ) : (
                           <>
@@ -1103,11 +1157,12 @@ export default function Caja() {
                     <Zap className="h-3.5 w-3.5 mr-1.5" />
                     Rápida
                   </TabsTrigger>
-                  <TabsTrigger value="installment" className="text-xs px-2">
+                  {/* Cuotas y delivery dependen del plan: sin la función, la pestaña queda apagada. */}
+                  <TabsTrigger value="installment" className="text-xs px-2" disabled={!conCuotas} title={conCuotas ? undefined : "Tu plan no incluye cuotas ni delivery"}>
                     <Calendar className="h-3.5 w-3.5 mr-1.5" />
                     Cuota
                   </TabsTrigger>
-                  <TabsTrigger value="delivery" className="text-xs px-2">
+                  <TabsTrigger value="delivery" className="text-xs px-2" disabled={!conCuotas} title={conCuotas ? undefined : "Tu plan no incluye cuotas ni delivery"}>
                     <Truck className="h-3.5 w-3.5 mr-1.5" />
                     Delivery
                   </TabsTrigger>

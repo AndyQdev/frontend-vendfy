@@ -31,6 +31,8 @@ import {
   FilaTitulo,
   FilaDatos,
 } from "@/shared/ui/lista-tarjetas";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 interface Props {
   storeId: string;
@@ -95,6 +97,8 @@ function QueVende({
   guardar: (a: AdWithLink, valor: string) => void;
 }) {
   const { valor, esSugerencia } = datosDeFila(a);
+  // Decir qué vende cada anuncio es gestionar marketing; verlo, no.
+  const puedeVincular = useAcceso().puede(PERMISO.GESTIONAR_MARKETING);
 
   return (
     <>
@@ -102,7 +106,7 @@ function QueVende({
         <Select
           value={valor || undefined}
           onValueChange={(v) => guardar(a, v)}
-          disabled={guardando === a.id}
+          disabled={!puedeVincular || guardando === a.id}
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Sin definir" />

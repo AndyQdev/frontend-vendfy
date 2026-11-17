@@ -74,6 +74,8 @@ import {
   esSalida,
   MOVEMENT_TYPE_CONFIG,
 } from "@/entities/inventory/model/movimientos";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 // Se mudó a entities/inventory/model/envases; se re-exporta para no romper
 // importaciones existentes.
@@ -83,6 +85,8 @@ export { formatearCantidad };
 
 export default function InventoryTable() {
   const navigate = useNavigate();
+  const { puede } = useAcceso();
+  const puedeAjustar = puede(PERMISO.GESTIONAR_INVENTARIO);
 
   // Todo el estado de la lista vive en la dirección: volver, recargar o pasarle
   // el link a alguien deja la misma pantalla.
@@ -533,17 +537,17 @@ export default function InventoryTable() {
               icon={PackageIcon}
               title="Tu inventario está vacío"
               description="Cuando crees productos y registres compras, aparecerán aquí con su stock disponible. La forma correcta de cargar stock es desde Compras — así queda registrado en tus reportes."
-              primaryAction={{
+              primaryAction={puede(PERMISO.GESTIONAR_PRODUCTOS) ? {
                 label: "Crear producto",
                 icon: Plus,
                 onClick: () => navigate("/products/create"),
-              }}
-              secondaryAction={{
+              } : undefined}
+              secondaryAction={puedeAjustar ? {
                 label: "Registrar compra",
                 icon: TruckIcon,
                 variant: "outline",
                 onClick: () => navigate("/purchases/new"),
-              }}
+              } : undefined}
             />
           )
         ) : (
@@ -628,22 +632,26 @@ export default function InventoryTable() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Registrar compra"
-                          onClick={() => abrirAjuste(inventory, "envase", "in")}
-                        >
-                          <ShoppingCart className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Ajustar stock"
-                          onClick={() => abrirAjuste(inventory, "envase", "out")}
-                        >
-                          <ArrowUpDown className="h-4 w-4 text-orange-600" />
-                        </Button>
+                        {puedeAjustar ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Registrar compra"
+                              onClick={() => abrirAjuste(inventory, "envase", "in")}
+                            >
+                              <ShoppingCart className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Ajustar stock"
+                              onClick={() => abrirAjuste(inventory, "envase", "out")}
+                            >
+                              <ArrowUpDown className="h-4 w-4 text-orange-600" />
+                            </Button>
+                          </>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="sm"

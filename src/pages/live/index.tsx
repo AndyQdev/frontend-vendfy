@@ -11,6 +11,8 @@ import { useLives } from "@/entities/live/api";
 import { CrearLiveModal } from "@/features/live/ui/CrearLiveModal";
 import { CompartirLive } from "@/features/live/ui/CompartirLive";
 import type { LiveSession } from "@/entities/live/model/types";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 const ETIQUETA: Record<string, { texto: string; variant: any }> = {
   preparing: { texto: "Preparando", variant: "warning" },
@@ -27,6 +29,8 @@ const ETIQUETA: Record<string, { texto: string; variant: any }> = {
  * colas de postores al día siguiente.
  */
 export default function LivePage() {
+  // Ver lives alcanza para el historial; abrir uno nuevo pide gestionarlos.
+  const puedeCrear = useAcceso().puede(PERMISO.GESTIONAR_LIVE);
   const { selectedStore } = useStore();
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : "all";
 
@@ -49,10 +53,12 @@ export default function LivePage() {
           { value: vendidosTotales, label: "prendas vendidas" },
         ]}
         actions={
-          <Button onClick={() => setCrearAbierto(true)}>
-            <Plus className="h-4 w-4" />
-            <span className="ml-1">Nuevo Live</span>
-          </Button>
+          puedeCrear ? (
+            <Button onClick={() => setCrearAbierto(true)}>
+              <Plus className="h-4 w-4" />
+              <span className="ml-1">Nuevo Live</span>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -63,7 +69,7 @@ export default function LivePage() {
           icon={Radio}
           title="Todavía no hiciste ningún Live"
           description="Creá uno, sacale foto a lo que vas a vender y compartí el enlace. Las prendas entran al inventario en el momento."
-          primaryAction={{ label: "Crear mi primer Live", onClick: () => setCrearAbierto(true) }}
+          primaryAction={puedeCrear ? { label: "Crear mi primer Live", onClick: () => setCrearAbierto(true) } : undefined}
         />
       )}
 

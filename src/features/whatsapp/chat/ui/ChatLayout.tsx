@@ -14,6 +14,8 @@ import { useChat } from "../model/useChat";
 import { ConversationList } from "./ConversationList";
 import { ChatView } from "./ChatView";
 import type { ConfigTab } from "../../config/ui/WhatsAppConfigModal";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 /**
  * Card única a pantalla completa: cabecera con el estado del número y el
@@ -31,6 +33,7 @@ export function ChatLayout({
   loadingStatus?: boolean;
   onOpenConfig: (tab: ConfigTab) => void;
 }) {
+  const puedeConfigurar = useAcceso().puede(PERMISO.GESTIONAR_TIENDAS);
   const chat = useChat(storeId);
   const { selectedConversation, selectedPhone } = chat;
   const isSandbox = isSandboxPhone(selectedPhone);
@@ -88,14 +91,17 @@ export function ChatLayout({
               </span>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenConfig(connected ? "notifications" : "connection")}
-          >
-            <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Configurar</span>
-          </Button>
+          {/* Conectar el número, el agente y los avisos: es configurar la tienda. */}
+          {puedeConfigurar ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenConfig(connected ? "notifications" : "connection")}
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Configurar</span>
+            </Button>
+          ) : null}
         </div>
 
         {/* Aviso no bloqueante: el chat de prueba funciona igual */}

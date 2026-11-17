@@ -43,6 +43,8 @@ import { DeliveryTrackingModal } from "./DeliveryTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { ChipProductoEscaneado, frasesPedidos, textoVentas, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 type DateFilter = "day" | "week" | "month" | "year";
 
@@ -258,6 +260,10 @@ export default function OrdersTable() {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const navigate = useNavigate();
   const updateOrderMutation = useUpdateOrder();
+  // Ver pedidos alcanza para el tablero; moverlos de columna pide gestionarlos.
+  const { cumple } = useAcceso();
+  const puedeMover = cumple({ permisos: [PERMISO.GESTIONAR_PEDIDOS] });
+  const veNotificaciones = cumple({ permisos: [PERMISO.GESTIONAR_TIENDAS], funcion: "whatsapp" });
   const queryClient = useQueryClient();
 
   // Determinar el storeId
@@ -499,6 +505,10 @@ export default function OrdersTable() {
 
   // Cambiar de estado: lo usa el arrastre y el "Pasar a…" del pedido armado.
   const moverPedido = (order: Order, newStatus: OrderStatus) => {
+    if (!puedeMover) {
+      toast.error("Tu rol puede ver los pedidos, pero no cambiarlos de estado.");
+      return;
+    }
     const orderId = order.id;
 
     // Guardar el query key - DEBE coincidir con el queryKey de useOrders
@@ -573,15 +583,17 @@ export default function OrdersTable() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/whatsapp?config=notifications")}
-            className="gap-2 text-xs"
-          >
-            <Bell className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Notificaciones</span>
-          </Button>
+          {veNotificaciones ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/whatsapp?config=notifications")}
+              className="gap-2 text-xs"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Notificaciones</span>
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -753,10 +765,10 @@ export default function OrdersTable() {
         order={selectedOrder}
         open={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
-        onCambiarEstado={(order, status) => {
+        onCambiarEstado={puedeMover ? (order, status) => {
           setDetailsModalOpen(false);
           moverPedido(order, status);
-        }}
+        } : undefined}
       />
 
       {/* Link del repartidor al pasar a "En camino" */}

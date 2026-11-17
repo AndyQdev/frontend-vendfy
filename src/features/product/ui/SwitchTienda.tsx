@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Switch } from "@/shared/ui/switch";
 import { useSetProductStoreFlag } from "@/entities/product/api";
 import type { Product } from "@/entities/product/model/types";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 /**
  * Los interruptores por tienda de la tabla de productos.
@@ -65,6 +67,8 @@ export function SwitchTienda({
 }) {
   const cambiar = useSetProductStoreFlag();
   const textos = TEXTOS[campo];
+  // Mostrar u ocultar en la web, o vender a pedido, es editar el producto.
+  const editable = useAcceso().puede(PERMISO.GESTIONAR_PRODUCTOS);
 
   // Lo que se ve mientras el servidor responde. El interruptor tiene que
   // moverse en el momento en que se lo toca, no medio segundo después.
@@ -137,6 +141,7 @@ export function SwitchTienda({
         <Switch
           checked={visible}
           onCheckedChange={alternar}
+          disabled={!editable}
           aria-label={
             visible
               ? textos.accionOff(product.name)

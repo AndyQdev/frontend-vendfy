@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useStore } from "@/app/providers/auth";
+import { useAcceso } from "@/app/providers/acceso";
 import { usePendingOrdersCount } from "@/entities/order/api";
 import { cn } from "@/shared/lib/cn";
 
@@ -25,6 +26,10 @@ export function NavigationRail({ className }: { className?: string }) {
   const { pathname } = useLocation();
   const { selectedStore } = useStore();
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : null;
+
+  // Lo que su rol o su plan no permiten, ni aparece.
+  const { cumple } = useAcceso();
+  const rutas = NAV_ROUTES.filter((r) => !r.requiere || cumple(r.requiere));
 
   const active = activeRouteFor(pathname);
   const { railRef, canBack, canForward, scrollBy } = useRail(active?.href);
@@ -52,7 +57,7 @@ export function NavigationRail({ className }: { className?: string }) {
           "-mx-3 px-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
         )}
       >
-        {NAV_ROUTES.map((route) => (
+        {rutas.map((route) => (
           <RailItem
             key={route.href}
             route={route}

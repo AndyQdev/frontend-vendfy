@@ -37,6 +37,8 @@ import {
 } from "@/entities/product/api";
 import type { Brand, Category } from "@/entities/product/model/types";
 import { cantidadDeSubcategorias } from "@/entities/product/model/categorias";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 type DeleteTarget =
   | { kind: "brand"; id: string; name: string }
@@ -44,6 +46,10 @@ type DeleteTarget =
   | null;
 
 export function TaxonomiesPage() {
+  // Verlas alcanza para la lista; crear, editar y borrar piden gestionar cada una.
+  const { puede } = useAcceso();
+  const editaCategorias = puede(PERMISO.GESTIONAR_CATEGORIAS);
+  const editaMarcas = puede(PERMISO.GESTIONAR_MARCAS);
   const { data: brandsData, isLoading: brandsLoading } = useBrands();
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
 
@@ -143,10 +149,12 @@ export function TaxonomiesPage() {
                 Agrupan productos similares en tu tienda.
               </p>
             </div>
-            <Button size="sm" onClick={openCreateCategory}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Nueva
-            </Button>
+            {editaCategorias ? (
+              <Button size="sm" onClick={openCreateCategory}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                Nueva
+              </Button>
+            ) : null}
           </div>
 
           {categoriesLoading ? (
@@ -161,7 +169,7 @@ export function TaxonomiesPage() {
               title="Aún no tienes categorías"
               description="Crea tu primera categoría para organizar tus productos."
               actionLabel="Crear categoría"
-              onAction={openCreateCategory}
+              onAction={editaCategorias ? openCreateCategory : undefined}
             />
           ) : (
             <Table>
@@ -255,7 +263,7 @@ export function TaxonomiesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      {editaCategorias ? <div className="flex items-center justify-end gap-1">
                         {!esHija && (
                           <Button
                             size="icon"
@@ -291,7 +299,7 @@ export function TaxonomiesPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                      </div> : null}
                     </TableCell>
                   </TableRow>
                   {/* Los productos que están en la principal y en ninguna
@@ -346,10 +354,12 @@ export function TaxonomiesPage() {
                 Las empresas o fabricantes de tus productos.
               </p>
             </div>
-            <Button size="sm" onClick={openCreateBrand}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Nueva
-            </Button>
+            {editaMarcas ? (
+              <Button size="sm" onClick={openCreateBrand}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                Nueva
+              </Button>
+            ) : null}
           </div>
 
           {brandsLoading ? (
@@ -364,7 +374,7 @@ export function TaxonomiesPage() {
               title="Aún no tienes marcas"
               description="Agrega las marcas con las que trabajas."
               actionLabel="Crear marca"
-              onAction={openCreateBrand}
+              onAction={editaMarcas ? openCreateBrand : undefined}
             />
           ) : (
             <Table>
@@ -392,7 +402,7 @@ export function TaxonomiesPage() {
                         <Badge variant="secondary">{productCount}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        {editaMarcas ? <div className="flex items-center justify-end gap-1">
                           <Button
                             size="icon"
                             variant="ghost"
@@ -416,7 +426,7 @@ export function TaxonomiesPage() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                        </div> : null}
                       </TableCell>
                     </TableRow>
                   );
@@ -485,7 +495,8 @@ interface EmptyStateProps {
   title: string;
   description: string;
   actionLabel: string;
-  onAction: () => void;
+  /** Sin acción (no puede crear), el vacío no ofrece botón. */
+  onAction?: () => void;
 }
 
 function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: EmptyStateProps) {
@@ -496,10 +507,12 @@ function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: E
       </div>
       <p className="font-medium">{title}</p>
       <p className="text-sm text-muted-foreground mt-1 mb-4">{description}</p>
-      <Button size="sm" onClick={onAction}>
-        <Plus className="h-4 w-4 mr-1.5" />
-        {actionLabel}
-      </Button>
+      {onAction ? (
+        <Button size="sm" onClick={onAction}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }

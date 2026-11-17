@@ -23,6 +23,8 @@ import { useEditarPromocion, useEliminarPromocion, usePromociones } from "@/enti
 import type { EstadoPromocion, Promocion } from "@/entities/promotion/model/types";
 import { URL_TIENDA } from "@/features/store/model/catalogo-temas";
 import { PromocionForm } from "@/features/promotions/ui/PromocionForm";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 const ESTADO: Record<EstadoPromocion, { texto: string; variant: "success" | "info" | "secondary" | "outline" }> = {
   activa: { texto: "Activa", variant: "success" },
@@ -47,6 +49,8 @@ function vigencia(p: Promocion): string {
  * servidor al cobrar; acá se arman y se controlan.
  */
 export default function PromotionsPage() {
+  // Verlas alcanza para la lista y su enlace; crear, editar, pausar y borrar piden gestionar.
+  const puedeGestionar = useAcceso().puede(PERMISO.GESTIONAR_MARKETING);
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
 
@@ -111,10 +115,12 @@ export default function PromotionsPage() {
           { value: activas, label: "activas", tone: activas ? "success" : "default" },
         ]}
         actions={
-          <Button onClick={() => setFormulario({ abierto: true })}>
-            <Plus className="h-4 w-4" />
-            <span className="ml-1">Nueva promoción</span>
-          </Button>
+          puedeGestionar ? (
+            <Button onClick={() => setFormulario({ abierto: true })}>
+              <Plus className="h-4 w-4" />
+              <span className="ml-1">Nueva promoción</span>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -125,7 +131,7 @@ export default function PromotionsPage() {
           icon={BadgePercent}
           title="Todavía no tenés promociones"
           description="Elegí uno o varios productos, ponele un descuento y una fecha, y compartí su página. El precio rebajado se ve en la tienda y se cobra en el carrito."
-          primaryAction={{ label: "Crear mi primera promoción", onClick: () => setFormulario({ abierto: true }) }}
+          primaryAction={puedeGestionar ? { label: "Crear mi primera promoción", onClick: () => setFormulario({ abierto: true }) } : undefined}
         />
       )}
 
@@ -165,7 +171,7 @@ export default function PromotionsPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/30 px-4 py-2">
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Switch checked={p.activa} onCheckedChange={(v) => alternar(p, v)} aria-label={p.activa ? "Pausar" : "Activar"} />
+                <Switch checked={p.activa} disabled={!puedeGestionar} onCheckedChange={(v) => alternar(p, v)} aria-label={p.activa ? "Pausar" : "Activar"} />
                 {p.activa ? "Activa" : "Pausada"}
               </label>
               <div className="flex flex-wrap gap-1">
@@ -177,12 +183,16 @@ export default function PromotionsPage() {
                     <ExternalLink className="h-3.5 w-3.5" /> Ver en la tienda
                   </a>
                 </Button>
-                <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={() => setFormulario({ abierto: true, promocion: p })}>
-                  <Pencil className="h-3.5 w-3.5" /> Editar
-                </Button>
-                <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs text-destructive hover:text-destructive" onClick={() => setABorrar(p)}>
-                  <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                </Button>
+                {puedeGestionar ? (
+                  <>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={() => setFormulario({ abierto: true, promocion: p })}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs text-destructive hover:text-destructive" onClick={() => setABorrar(p)}>
+                      <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                    </Button>
+                  </>
+                ) : null}
               </div>
             </div>
           </Card>

@@ -59,6 +59,8 @@ import {
   ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 /**
  * La grilla de tarjetas: más columnas que antes (hasta 6) con tarjetas más
@@ -72,6 +74,8 @@ const CLAVE_VISTA = "productos.vista";
 
 export function ProductsDataTable() {
   const navigate = useNavigate();
+  // Crear, editar, duplicar y borrar: solo con permiso de gestionar productos.
+  const puedeEditar = useAcceso().puede(PERMISO.GESTIONAR_PRODUCTOS);
   const [searchParams] = useSearchParams();
   const isWelcome = searchParams.get("welcome") === "1";
   const { selectedStore } = useStore();
@@ -235,16 +239,18 @@ export function ProductsDataTable() {
             Gestiona tu catálogo de productos
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <ButtonMagic onClick={() => setAiModalOpen(true)} alwaysActive>
-            <Sparkles className="h-4 w-4" />
-            Crear con IA
-          </ButtonMagic>
-          <Button onClick={() => navigate("/products/create")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Crear Producto
-          </Button>
-        </div>
+        {puedeEditar ? (
+          <div className="flex items-center gap-3">
+            <ButtonMagic onClick={() => setAiModalOpen(true)} alwaysActive>
+              <Sparkles className="h-4 w-4" />
+              Crear con IA
+            </ButtonMagic>
+            <Button onClick={() => navigate("/products/create")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Crear Producto
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {/* Stats Cards - Para Inventario */}
@@ -467,17 +473,17 @@ export function ProductsDataTable() {
                 <span className="font-medium">tienda online</span>. Toma menos de 2 minutos.
               </>
             }
-            primaryAction={{
+            primaryAction={puedeEditar ? {
               label: "Crear mi primer producto",
               icon: Plus,
               onClick: () => navigate("/products/create"),
-            }}
-            secondaryAction={{
+            } : undefined}
+            secondaryAction={puedeEditar ? {
               label: "Crear con IA",
               icon: Sparkles,
               variant: "outline",
               onClick: () => setAiModalOpen(true),
-            }}
+            } : undefined}
             faqs={[
               {
                 icon: Barcode,
@@ -501,17 +507,17 @@ export function ProductsDataTable() {
             icon={Package}
             title="Aún no tienes productos"
             description="Crea tu primer producto para empezar a venderlo en caja y en tu tienda online."
-            primaryAction={{
+            primaryAction={puedeEditar ? {
               label: "Crear producto",
               icon: Plus,
               onClick: () => navigate("/products/create"),
-            }}
-            secondaryAction={{
+            } : undefined}
+            secondaryAction={puedeEditar ? {
               label: "Crear con IA",
               icon: Sparkles,
               variant: "outline",
               onClick: () => setAiModalOpen(true),
-            }}
+            } : undefined}
           />
         )
       ) : viewMode === "grid" ? (
@@ -740,7 +746,7 @@ export function ProductsDataTable() {
                     />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
+                    {puedeEditar ? <Button
                       variant="ghost"
                       size="icon"
                       title="Duplicar producto"
@@ -748,10 +754,10 @@ export function ProductsDataTable() {
                       className="hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
                       <Copy className="h-4 w-4" />
-                    </Button>
+                    </Button> : null}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
+                    {puedeEditar ? <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
@@ -771,7 +777,7 @@ export function ProductsDataTable() {
                           Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu> : null}
                   </TableCell>
                 </TableRow>
               ))}
@@ -803,7 +809,7 @@ export function ProductsDataTable() {
                       </span>
                     </div>
 
-                    <DropdownMenu>
+                    {puedeEditar ? <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
@@ -829,7 +835,7 @@ export function ProductsDataTable() {
                           Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu> : null}
                   </FilaAcciones>
                 }
               >

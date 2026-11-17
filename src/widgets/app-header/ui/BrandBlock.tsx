@@ -4,6 +4,7 @@ import { Building2, Check, ChevronsUpDown, Plus, Store as StoreIcon } from "luci
 
 import { useStore } from "@/app/providers/auth";
 import { useStores } from "@/entities/store/api";
+import { useAcceso } from "@/app/providers/acceso";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,10 @@ export function BrandBlock({ className }: { className?: string }) {
   const navigate = useNavigate();
   const { selectedStore, setSelectedStore } = useStore();
   const { data: stores = [], isLoading } = useStores();
+  // Un empleado ve solo sus sucursales: no abre tiendas nuevas y, si trabaja
+  // en algunas y no en todas, tampoco ve "todas" juntas.
+  const { acceso, esDueno } = useAcceso();
+  const verTodas = stores.length > 1 && !acceso?.sucursalesLimitadas;
 
   // Selección automática (heredada del selector del sidebar):
   //  1. Sin tienda elegida y con tiendas → la primera.
@@ -38,8 +43,8 @@ export function BrandBlock({ className }: { className?: string }) {
       setSelectedStore(stores[0]);
       return;
     }
-    if (stores.length === 1 && selectedStore === "all") setSelectedStore(stores[0]);
-  }, [stores, selectedStore, setSelectedStore]);
+    if (selectedStore === "all" && !verTodas) setSelectedStore(stores[0]);
+  }, [stores, selectedStore, setSelectedStore, verTodas]);
 
   const current =
     selectedStore && selectedStore !== "all" ? stores.find((s) => s.id === selectedStore.id) : undefined;
@@ -64,7 +69,7 @@ export function BrandBlock({ className }: { className?: string }) {
           Vendfy
         </span>
         <span className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-tinta-muted">
-          {sinTiendas ? "Creá tu tienda" : subtitle}
+          {sinTiendas ? (esDueno ? "Creá tu tienda" : "Sin sucursal asignada") : subtitle}
         </span>
       </span>
     </>
@@ -79,6 +84,10 @@ export function BrandBlock({ className }: { className?: string }) {
   );
 
   const feston = <span aria-hidden className="feston pointer-events-none absolute inset-x-4 top-full" />;
+
+  if (sinTiendas && !esDueno) {
+    return <div className={clasesBloque}>{cuerpo}{feston}</div>;
+  }
 
   if (sinTiendas) {
     return (
@@ -99,9 +108,9 @@ export function BrandBlock({ className }: { className?: string }) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" sideOffset={10} className="w-64">
-        <DropdownMenuLabel>Mis tiendas</DropdownMenuLabel>
+        <DropdownMenuLabel>{esDueno ? "Mis tiendas" : "Mis sucursales"}</DropdownMenuLabel>
 
-        {stores.length > 1 ? (
+        {verTodas ? (
           <>
             <StoreOption
               icon={Building2}
@@ -125,11 +134,15 @@ export function BrandBlock({ className }: { className?: string }) {
           />
         ))}
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate("/stores/new")}>
-          <Plus />
-          Agregar tienda
-        </DropdownMenuItem>
+        {esDueno ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate("/stores/new")}>
+              <Plus />
+              Agregar tienda
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

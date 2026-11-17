@@ -52,6 +52,8 @@ import {
   FilaDatos,
   FilaAcciones,
 } from "@/shared/ui/lista-tarjetas";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pendiente", variant: "outline" },
@@ -72,8 +74,11 @@ function MenuDeCompra({
   onConfirmar,
   onCancelar,
   onEliminar,
+  gestionar,
 }: {
   po: PurchaseOrder;
+  /** Sin permiso de gestionar inventario, el menú solo deja ver. */
+  gestionar: boolean;
   onVer: () => void;
   onConfirmar: () => void;
   onCancelar: () => void;
@@ -91,7 +96,7 @@ function MenuDeCompra({
           <Eye className="mr-2 h-4 w-4" />
           Ver Detalle
         </DropdownMenuItem>
-        {po.status === "pending" && (
+        {po.status === "pending" && gestionar && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onConfirmar}>
@@ -116,6 +121,8 @@ function MenuDeCompra({
 
 export function PurchaseOrdersTable() {
   const navigate = useNavigate();
+  // Registrar, confirmar, cancelar o borrar una compra mueve stock: gestionar inventario.
+  const puedeGestionar = useAcceso().puede(PERMISO.GESTIONAR_INVENTARIO);
   const { selectedStore } = useStore();
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : undefined;
   const [iaAbierto, setIaAbierto] = useState(false);
@@ -199,7 +206,7 @@ export function PurchaseOrdersTable() {
             Registra y gestiona tus compras por lote
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {puedeGestionar ? <div className="flex flex-wrap items-center gap-2">
           <ButtonMagic
             onClick={() => setIaAbierto(true)}
             disabled={!storeId}
@@ -213,7 +220,7 @@ export function PurchaseOrdersTable() {
             <Plus className="mr-2 h-4 w-4" />
             Nueva Compra
           </Button>
-        </div>
+        </div> : null}
       </div>
       {storeId && <CompraConIaModal open={iaAbierto} onOpenChange={setIaAbierto} storeId={storeId} />}
 
@@ -284,11 +291,11 @@ export function PurchaseOrdersTable() {
           icon={TruckIcon}
           title="Aún no registras compras"
           description="Cada vez que reabasteces, registra la compra aquí. Así actualizas el stock automáticamente y mantienes el control de costos para tus reportes."
-          primaryAction={{
+          primaryAction={puedeGestionar ? {
             label: "Registrar compra",
             icon: Plus,
             onClick: () => navigate("/purchases/new"),
-          }}
+          } : undefined}
           faqs={[
             {
               icon: PackageIcon,
@@ -357,6 +364,7 @@ export function PurchaseOrdersTable() {
                     <TableCell>
                       <MenuDeCompra
                         po={po}
+                        gestionar={puedeGestionar}
                         onVer={() => navigate(`/purchases/${po.id}`)}
                         onConfirmar={() => handleConfirm(po.id)}
                         onCancelar={() => handleCancel(po.id)}
@@ -383,10 +391,11 @@ export function PurchaseOrdersTable() {
                 acciones={
                   // Una compra que no está pendiente solo se puede ver, y eso
                   // ya es lo que hace tocar la tarjeta.
-                  po.status === "pending" ? (
+                  po.status === "pending" && puedeGestionar ? (
                     <FilaAcciones className="justify-between">
                       <MenuDeCompra
                         po={po}
+                        gestionar={puedeGestionar}
                         onVer={() => navigate(`/purchases/${po.id}`)}
                         onConfirmar={() => handleConfirm(po.id)}
                         onCancelar={() => handleCancel(po.id)}

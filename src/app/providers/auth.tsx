@@ -1,5 +1,6 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
 import { apiFetch } from "@/shared/api/client";
+import type { Acceso } from "@/shared/acceso/permisos";
 
 interface UserStoreRef {
   id: string;
@@ -19,7 +20,10 @@ interface User {
   };
   onboardingBasic?: boolean;
   onboardingSteps?: number[];
+  /** Las tiendas en que trabaja: todas las suyas, o las sucursales asignadas si es empleado. */
   stores?: UserStoreRef[];
+  /** Su negocio, su rol, sus permisos y el plan (ver useAcceso). */
+  acceso?: Acceso;
 }
 
 interface AuthResponse {
@@ -199,6 +203,12 @@ export function StoreProvider({ children }: PropsWithChildren) {
    */
   useEffect(() => {
     if (isLoading || !user) return;
+    // Quien trabaja en algunas sucursales no ve "todas": vuelve a una suya.
+    if (selectedStore === "all" && user.acceso?.sucursalesLimitadas) {
+      localStorage.removeItem("selectedStore");
+      setSelectedStoreState(null);
+      return;
+    }
     if (!selectedStore || selectedStore === "all") return;
 
     const propias = user.stores ?? [];

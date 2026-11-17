@@ -9,6 +9,8 @@ import {
 } from "@/entities/inventory/model/envases";
 import type { Inventory } from "@/entities/inventory/model/types";
 import type { AlcanceAjuste, DireccionAjuste } from "./AjusteStockDialog";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 type Abrir = (alcance: AlcanceAjuste, direccion: DireccionAjuste) => void;
 
@@ -65,6 +67,12 @@ function GrupoPaso({
   ancho?: string;
   tono?: string;
 }) {
+  // Sin permiso de ajustar stock, solo el número: los −/+ no se ofrecen.
+  const puedeAjustar = useAcceso().puede(PERMISO.GESTIONAR_INVENTARIO);
+  if (!puedeAjustar) {
+    return <span className={cn("inline-flex items-center px-1 text-sm font-semibold tabular-nums", tono ?? "text-foreground")}>{valor}</span>;
+  }
+
   const base = cn(
     // 28 px alcanzan con el mouse; con el dedo, no. En el teléfono sube a 40,
     // que es lo más grande que entra sin que la tarjeta crezca de más.

@@ -36,6 +36,8 @@ import {
   useConfigureIntegration,
   useDisconnectIntegration,
 } from "@/entities/integration/api";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 interface Props {
   provider: IntegrationProvider;
@@ -59,6 +61,8 @@ function diasParaVencer(expiresAt: string | null): number | null {
 
 export function IntegrationCard({ provider, storeId, connection }: Props) {
   const meta = PROVIDER_META[provider];
+  // Conectar o desconectar una cuenta de anuncios pide gestionar marketing.
+  const puedeGestionar = useAcceso().puede(PERMISO.GESTIONAR_MARKETING);
   const conectado = connection?.status === "connected";
 
   const [dataset, setDataset] = useState(connection?.datasetId ?? "");
@@ -174,7 +178,7 @@ export function IntegrationCard({ provider, storeId, connection }: Props) {
           </div>
         </div>
 
-        {meta.disponible &&
+        {meta.disponible && puedeGestionar &&
           (conectado ? (
             <Button
               variant="outline"
@@ -318,6 +322,7 @@ function CampoId({
   onGuardar: () => void;
   ayuda: string;
 }) {
+  const puedeGuardar = useAcceso().puede(PERMISO.GESTIONAR_MARKETING);
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
@@ -331,7 +336,7 @@ function CampoId({
         <Button
           variant="outline"
           onClick={onGuardar}
-          disabled={guardando || valor === guardado}
+          disabled={!puedeGuardar || guardando || valor === guardado}
         >
           {guardando ? (
             <Loader2 className="h-4 w-4 animate-spin" />

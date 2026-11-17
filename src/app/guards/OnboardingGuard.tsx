@@ -20,16 +20,20 @@ export function OnboardingGuard() {
     return <VendfyLoader theme={isDark ? "dark" : "light"} message="Cargando tu espacio..." />;
   }
 
+  // La guía la hace el dueño al armar su negocio. Un empleado entra a un
+  // negocio ya armado: nunca pasa por acá (sin sucursal asignada, el panel
+  // se lo dice en el selector de tienda).
+  const esEmpleado = user?.acceso ? !user.acceso.esDueno : false;
   const hasStore = (stores?.length ?? 0) > 0;
   const onboardingDone = user?.onboardingBasic === true;
-  const needsOnboarding = !hasStore || !onboardingDone;
+  const needsOnboarding = !esEmpleado && (!hasStore || !onboardingDone);
 
   if (needsOnboarding && !location.pathname.startsWith("/onboarding")) {
     return <Navigate to="/onboarding" replace />;
   }
 
   if (!needsOnboarding && location.pathname.startsWith("/onboarding")) {
-    return <Navigate to="/caja" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

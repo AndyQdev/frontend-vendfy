@@ -39,8 +39,12 @@ import { format } from "date-fns";
 import { CustomerFormModal } from "./CustomerFormModal";
 import { toast } from "sonner";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 export default function CustomersTable() {
+  // Ver clientes alcanza para la lista; crear, editar y borrar piden gestionar.
+  const puedeGestionar = useAcceso().puede(PERMISO.GESTIONAR_CLIENTES);
   // La búsqueda vive en la dirección: volver a la lista la conserva.
   const { filtros, borrador, setFiltro, limpiar } = useFiltrosUrl(
     { q: "", pagina: 1, tam: 10 },
@@ -90,6 +94,7 @@ export default function CustomersTable() {
   const handlePageSizeChange = (newPageSize: number) => setFiltro("tam", newPageSize);
 
   const handleCustomerClick = (customer: Customer) => {
+    if (!puedeGestionar) return;
     setCustomerToEdit(customer);
     setIsFormModalOpen(true);
   };
@@ -141,12 +146,14 @@ export default function CustomersTable() {
             Gestiona tu base de clientes
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Button onClick={handleCreateCustomer}>
-            <Plus className="w-4 h-4 mr-2" />
-            Crear Cliente
-          </Button>
-        </div>
+        {puedeGestionar ? (
+          <div className="flex items-center gap-4">
+            <Button onClick={handleCreateCustomer}>
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Cliente
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {/* Search */}
@@ -263,7 +270,7 @@ export default function CustomersTable() {
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
+                    {puedeGestionar ? <Button
                       variant="ghost"
                       size="icon"
                       onClick={(e) => handleDeleteClick(e, customer)}
@@ -271,7 +278,7 @@ export default function CustomersTable() {
                       className="hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900 dark:hover:text-red-100"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </Button> : null}
                   </TableCell>
                 </TableRow>
               ))

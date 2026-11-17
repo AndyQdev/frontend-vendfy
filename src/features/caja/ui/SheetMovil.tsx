@@ -1,6 +1,7 @@
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { useAcceso } from "@/app/providers/acceso";
 import { Label } from "@/shared/ui/label";
 import { Input } from "@/shared/ui/input";
 import {
@@ -100,6 +101,7 @@ export function SheetMovileCart({
   saleType,
   setSaleType,
 }: SheetMovileCartProps) {
+  const conCuotas = useAcceso().tiene("cuotas_delivery");
   return (
     <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
       <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
@@ -111,11 +113,12 @@ export function SheetMovileCart({
                 <Zap className="h-3.5 w-3.5 mr-1.5" />
                 Rápida
               </TabsTrigger>
-              <TabsTrigger value="installment" className="text-xs px-2">
+              {/* Cuotas y delivery dependen del plan: sin la función, la pestaña queda apagada. */}
+              <TabsTrigger value="installment" className="text-xs px-2" disabled={!conCuotas} title={conCuotas ? undefined : "Tu plan no incluye cuotas ni delivery"}>
                 <Calendar className="h-3.5 w-3.5 mr-1.5" />
                 Cuota
               </TabsTrigger>
-              <TabsTrigger value="delivery" className="text-xs px-2">
+              <TabsTrigger value="delivery" className="text-xs px-2" disabled={!conCuotas} title={conCuotas ? undefined : "Tu plan no incluye cuotas ni delivery"}>
                 <Truck className="h-3.5 w-3.5 mr-1.5" />
                 Delivery
               </TabsTrigger>

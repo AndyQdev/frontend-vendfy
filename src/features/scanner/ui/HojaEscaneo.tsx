@@ -31,6 +31,8 @@ import { CodigoDeBarras } from "./piezas";
 import { cn } from "@/shared/lib/cn";
 import { VistaAlta, type DatosAlta } from "./VistaAlta";
 import { VistaEncontrado } from "./VistaEncontrado";
+import { useAcceso } from "@/app/providers/acceso";
+import { PERMISO } from "@/shared/acceso/permisos";
 
 /** Los colores de la marca, para el confeti (canvas: no entiende variables CSS). */
 const COLORES_CONFETI = ["#06B6D4", "#0E7490", "#7DD3E3", "#16A36A", "#F59E0B"];
@@ -59,6 +61,8 @@ export function HojaEscaneo() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const crear = useCreateProduct();
+  // Un código que no está en el catálogo se da de alta solo con permiso de productos.
+  const puedeDarDeAlta = useAcceso().puede(PERMISO.GESTIONAR_PRODUCTOS);
   const { tiendas, tiendaId } = useTiendaActiva();
   const [recienCreado, setRecienCreado] = useState(false);
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
@@ -308,6 +312,10 @@ export function HojaEscaneo() {
                   navigate(`/products/${resultado.producto!.id}`);
                 }}
               />
+            ) : !puedeDarDeAlta ? (
+              <p key={`sin-alta-${hoja.clave}`} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                Ese código no está en los productos del negocio. Pedile a quien carga el inventario que lo agregue.
+              </p>
             ) : (
               <VistaAlta
                 key={`alta-${hoja.clave}`}
