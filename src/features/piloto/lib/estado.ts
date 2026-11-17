@@ -33,6 +33,13 @@ export interface EstadoPiloto {
   pregunta: PreguntaPiloto | null;
   /** Se entendió algo que se hace en el asistente: el botón para ir. */
   irAlAsistente: boolean;
+  /** Lo que va a cambiar, para revisarlo antes del "sí" (el stock de varios, un pedido). */
+  tabla: TablaPiloto | null;
+}
+
+export interface TablaPiloto {
+  titulo: string;
+  filas: { nombre: string; antes: string; despues: string }[];
 }
 
 const INICIAL: EstadoPiloto = {
@@ -43,6 +50,7 @@ const INICIAL: EstadoPiloto = {
   foco: null,
   pregunta: null,
   irAlAsistente: false,
+  tabla: null,
 };
 
 let estado = INICIAL;
@@ -89,21 +97,46 @@ export interface CajaPiloto {
   cobrar: (pago: PagoPiloto) => Promise<ResultadoCobro>;
 }
 
-let caja: { ficha: number; api: CajaPiloto } | null = null;
+/** Inventario: el buscador, para que la fila del producto quede a la vista. */
+export interface InventarioPiloto {
+  buscar: (texto: string) => Promise<void>;
+}
+
+export type CampoProducto = "nombre" | "precio" | "stock" | "categoria";
+
+export type ResultadoGuardar = { ok: true } | { ok: false; error: string };
+
+/** El formulario de producto nuevo: el piloto lo llena campo por campo y lo guarda con el "sí". */
+export interface ProductoPiloto {
+  escribir: (campo: CampoProducto, valor: string | number | { id?: string | null; nombre: string }) => Promise<void>;
+  guardar: () => Promise<ResultadoGuardar>;
+}
+
+/** Lo que cada pantalla le presta al piloto mientras está montada. */
+export interface PantallasPiloto {
+  caja: CajaPiloto;
+  inventario: InventarioPiloto;
+  producto: ProductoPiloto;
+}
+
+const registradas: { [K in keyof PantallasPiloto]?: { ficha: number; api: PantallasPiloto[K] } } = {};
 let fichas = 0;
 
 /**
  * Con ficha: en desarrollo React monta dos veces y el segundo desmontaje no
  * debe borrar el registro del montaje vigente.
  */
-export function registrarCaja(api: CajaPiloto): () => void {
+export function registrarPantalla<K extends keyof PantallasPiloto>(clave: K, api: PantallasPiloto[K]): () => void {
   const ficha = ++fichas;
-  caja = { ficha, api };
+  (registradas as Record<string, unknown>)[clave] = { ficha, api };
   return () => {
-    if (caja?.ficha === ficha) caja = null;
+    if (registradas[clave]?.ficha === ficha) delete registradas[clave];
   };
 }
 
-export function cajaPiloto(): CajaPiloto | null {
-  return caja?.api ?? null;
+export function pantallaPiloto<K extends keyof PantallasPiloto>(clave: K): PantallasPiloto[K] | null {
+  return (registradas[clave]?.api as PantallasPiloto[K] | undefined) ?? null;
 }
+
+export const registrarCaja = (api: CajaPiloto) => registrarPantalla("caja", api);
+export const cajaPiloto = () => pantallaPiloto("caja");

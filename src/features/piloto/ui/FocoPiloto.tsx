@@ -10,6 +10,11 @@ import { usePiloto } from "../lib/estado";
 const ETIQUETA: Record<string, string> = {
   "caja:pago": "Método de pago",
   "caja:cobrar": "Cobrar",
+  "producto:nombre": "Nombre",
+  "producto:precio": "Precio",
+  "producto:stock": "Stock inicial",
+  "producto:categoria": "Categoría",
+  "producto:guardar": "Guardar",
 };
 
 interface Caja {

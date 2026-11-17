@@ -1,5 +1,5 @@
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useNavigate } from "react-router-dom";
 import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
@@ -75,6 +75,8 @@ import {
   MOVEMENT_TYPE_CONFIG,
 } from "@/entities/inventory/model/movimientos";
 import { useAcceso } from "@/app/providers/acceso";
+import { registrarPantalla } from "@/features/piloto";
+import { escribirLetraPorLetra } from "@/features/piloto/lib/escribir";
 import { PERMISO } from "@/shared/acceso/permisos";
 
 // Se mudó a entities/inventory/model/envases; se re-exporta para no romper
@@ -110,6 +112,16 @@ export default function InventoryTable() {
     },
   );
   const searchTerm = borrador.q;
+  // El piloto escribe el producto en el buscador: su fila queda a la vista.
+  const filtroRef = useRef(setFiltro);
+  filtroRef.current = setFiltro;
+  useEffect(
+    () =>
+      registrarPantalla("inventario", {
+        buscar: (texto) => escribirLetraPorLetra((t) => filtroRef.current("q", t), texto),
+      }),
+    [],
+  );
   const debouncedSearch = filtros.q;
   const selectedCategory = filtros.categoria;
   const selectedBrand = filtros.marca;
@@ -569,7 +581,7 @@ export default function InventoryTable() {
               </TableHeader>
               <TableBody>
                 {inventories.map((inventory) => (
-                  <TableRow key={inventory.id}>
+                  <TableRow key={inventory.id} data-piloto={`inventario:${inventory.product.id}`}>
                     <TableCell>
                       <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden">
                         {inventory.product.imageUrls &&

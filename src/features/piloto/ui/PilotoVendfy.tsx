@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUpRight, Loader2, Mic, Send, Square, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Loader2, Mic, Send, Square, X } from "lucide-react";
 
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/ui/button";
@@ -181,6 +181,21 @@ export function PilotoVendfy() {
                 <p className="px-1 text-[15px] font-medium leading-snug text-foreground" data-testid="piloto-linea">
                   {e.linea}
                 </p>
+              )}
+              {e.tabla && (
+                <div className="overflow-hidden rounded-xl border border-border" data-testid="piloto-tabla">
+                  <p className="border-b border-border bg-muted/50 px-3 py-1.5 text-xs font-semibold text-muted-foreground">{e.tabla.titulo}</p>
+                  <ul className="max-h-44 divide-y divide-border overflow-y-auto">
+                    {e.tabla.filas.map((f) => (
+                      <li key={f.nombre} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                        <span className="min-w-0 flex-1 truncate">{f.nombre}</span>
+                        <span className={cn("text-muted-foreground", /^[\d—]/.test(f.antes) && "cifra")}>{f.antes}</span>
+                        <ArrowRight className="size-3.5 flex-none text-muted-foreground" aria-label="pasa a" />
+                        <span className={cn("font-semibold text-foreground", /^\d/.test(f.despues) && "cifra")}>{f.despues}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               {e.irAlAsistente && (
                 <Button

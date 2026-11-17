@@ -74,6 +74,7 @@ export function OrderCard({ order, onViewDetails }: { order: Order; onViewDetail
       style={style}
       {...attributes}
       className="transition-all"
+      data-piloto={`pedido:${order.id}`}
     >
       <div
         {...listeners}

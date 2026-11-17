@@ -26,6 +26,8 @@ import { sonar, useEnriquecimientoIa, useEscaner, useManejadorEscaneo } from "@/
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
 import { useRegreso } from "@/shared/hooks/use-regreso";
 import { toast } from "sonner";
+import { registrarPantalla } from "@/features/piloto";
+import { escribirLetraPorLetra } from "@/features/piloto/lib/escribir";
 
 export default function CreateProduct() {
   const { id: productId } = useParams();
@@ -473,11 +475,12 @@ export default function CreateProduct() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Devuelve si se guardó: el piloto lo necesita para decir "Producto creado".
+  const handleSubmit = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
     console.log("Submitting form with data:", formData);
     if (!validateForm()) {
-      return;
+      return false;
     }
     console.log("Form data is valid, proceeding to save.");
     try {
@@ -522,14 +525,44 @@ export default function CreateProduct() {
         toast.success("Producto creado correctamente");
       }
       volverALista();
+      return true;
     } catch (error) {
       console.error("Error saving product:", error);
       // El backend explica lo que importa (p. ej. "Ese código de barras ya es de «X»").
       toast.error(isEditMode ? "Error al actualizar el producto" : "Error al crear el producto", {
         description: error instanceof ApiError ? error.message : undefined,
       });
+      return false;
     }
   };
+
+  // ─── Piloto ("Oye Vendfy") ─────────────────────────────────────────────
+  // Al crear, el piloto llena el formulario frente a la persona (el nombre,
+  // letra por letra) y lo guarda solo cuando dice "sí".
+  const guardarRef = useRef(handleSubmit);
+  guardarRef.current = handleSubmit;
+  useEffect(() => {
+    if (isEditMode) return;
+    return registrarPantalla("producto", {
+      escribir: async (campo, valor) => {
+        if (campo === "nombre") {
+          await escribirLetraPorLetra((t) => setFormData((prev) => ({ ...prev, name: t })), String(valor));
+        } else if (campo === "precio") {
+          setFormData((prev) => ({ ...prev, price: Number(valor) || 0 }));
+        } else if (campo === "stock") {
+          setFormData((prev) => ({ ...prev, initialStock: Math.max(0, Math.floor(Number(valor) || 0)) }));
+        } else if (campo === "categoria" && typeof valor === "object") {
+          // Una que ya existe se elige; si no, queda sugerida y se crea al guardar.
+          if (valor.id) setFormData((prev) => ({ ...prev, categoryId: valor.id! }));
+          else setCategoriaSugerida(valor.nombre);
+        }
+      },
+      guardar: async () => {
+        const ok = await guardarRef.current({ preventDefault() {} } as React.FormEvent);
+        return ok ? { ok: true } : { ok: false, error: "No se pudo guardar: revisa los campos marcados en rojo." };
+      },
+    });
+  }, [isEditMode]);
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -555,7 +588,7 @@ export default function CreateProduct() {
           {/* Con qué IA responden los botones "IA" repartidos por el formulario.
               Uno solo arriba: repetirlo junto a cada campo sería ruido. */}
           <AiModelPicker />
-          <Button onClick={handleSubmit} disabled={createProduct.isPending || updateProduct.isPending}>
+          <Button onClick={handleSubmit} disabled={createProduct.isPending || updateProduct.isPending} data-piloto="producto:guardar">
             <Save className="h-4 w-4 mr-2" />
             {createProduct.isPending || updateProduct.isPending
               ? "Guardando..."
@@ -598,7 +631,7 @@ export default function CreateProduct() {
           <Card className="p-6 space-y-4">
             <h2 className="text-lg font-semibold">Información Básica</h2>
             
-            <div>
+            <div data-piloto="producto:nombre">
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="name">
                   Nombre del Producto <span className="text-red-500">*</span>
@@ -855,7 +888,7 @@ export default function CreateProduct() {
           <Card className="p-6 space-y-4">
             <h2 className="text-lg font-semibold">Organización</h2>
             
-            <div>
+            <div data-piloto="producto:categoria">
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="category">Categoría</Label>
                 <HintIcon>
@@ -923,7 +956,7 @@ export default function CreateProduct() {
               </div>
             </div>
 
-            <div>
+            <div data-piloto="producto:precio">
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="price">
                   Precio <span className="text-red-500">*</span>
@@ -946,7 +979,7 @@ export default function CreateProduct() {
               {errors.price && <p className="text-sm text-red-500 mt-1">{errors.price}</p>}
             </div>
 
-            <div>
+            <div data-piloto="producto:stock">
               <div className="flex items-center gap-2 mb-1">
                 <Label htmlFor="initialStock">{isEditMode ? "Stock Actual" : "Stock Inicial"}</Label>
                 <HintIcon>

@@ -1,17 +1,27 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useStore } from "@/app/providers/auth";
 import type { Propuesta } from "@/entities/omnibox/model/types";
 import { ventaEnCurso } from "@/entities/order";
 import { useEscucha } from "@/features/scanner/model/escucha";
+import { apiFetch } from "@/shared/api/client";
 import { formatMoney } from "@/shared/lib/money";
 import { callarVoz, decirFrases, preferenciasVoz, type FraseVoz } from "@/shared/voz";
 
 import { entenderTexto, entenderVoz } from "../lib/api";
 import { agregarAlCarrito, cantidadEnCarrito, lineasDeContexto, quitarDelCarrito, vaciarCarrito } from "../lib/carrito";
-import { cajaPiloto, cerrarPiloto, estadoPiloto, setPiloto, type CajaPiloto } from "../lib/estado";
-import { planDe, resumenAgregado, type AccionCaja } from "./plan";
+import {
+  cajaPiloto,
+  cerrarPiloto,
+  estadoPiloto,
+  pantallaPiloto,
+  setPiloto,
+  type CajaPiloto,
+  type PantallasPiloto,
+} from "../lib/estado";
+import { NOMBRE_ESTADO, planDe, resumenAgregado, type AccionCaja, type BorradorPiloto, type PlanPiloto } from "./plan";
 import { leerRespuesta, NOMBRE_PAGO, type PagoPiloto, type RespuestaPiloto } from "./respuestas";
 
 /** Cuánto se espera a que conteste una pregunta sin volver a llamarlo. */
@@ -23,17 +33,37 @@ const PAUSA_MS = 350;
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+type PlanDe<T extends PlanPiloto["tipo"]> = Extract<PlanPiloto, { tipo: T }>;
+
+/** Lo que el "sí" va a hacer. */
+type Pendiente =
+  | { tipo: "cobro" }
+  | { tipo: "stock"; plan: PlanDe<"stock"> }
+  | { tipo: "pedido"; plan: PlanDe<"pedido"> }
+  | { tipo: "producto" };
+
+/** Espera a que aparezca en la pantalla lo marcado con ese `data-piloto`. */
+async function esperarElemento(marca: string, ms: number): Promise<boolean> {
+  const fin = Date.now() + ms;
+  while (Date.now() < fin) {
+    if (document.querySelector(`[data-piloto~="${CSS.escape(marca)}"]`)) return true;
+    await dormir(150);
+  }
+  return false;
+}
+
 /**
  * El conductor del piloto: escucha, entiende, va a la pantalla, la llena
- * frente a la persona, pregunta lo que falta y cobra cuando dice "sí".
+ * frente a la persona, pregunta lo que falta y hace lo pedido cuando dice "sí".
  *
- * Hoy maneja la Caja (vender, sacar, cambiar cantidades, el pago y cobrar) y
- * contesta las consultas que el servidor ya resuelve. Lo demás lo deja
- * abierto en el asistente.
+ * Pantallas: Caja (vender y cobrar), Inventario (corregir el stock de uno o
+ * de varios), Pedidos (moverlos de estado) y Productos (crear uno). Las
+ * consultas que el servidor ya contesta se dicen; lo demás queda en el asistente.
  */
 export function useConductorPiloto() {
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
   const { selectedStore } = useStore();
   const storeId = selectedStore && selectedStore !== "all" ? selectedStore.id : null;
 
@@ -45,6 +75,11 @@ export function useConductorPiloto() {
     pago: null as PagoPiloto | null,
     /** Ya dijo "cóbrale": apenas sepa el método, cobra. */
     quiereCobrar: false,
+    /** Lo que hará el próximo "sí". */
+    pendiente: null as Pendiente | null,
+    /** El producto nuevo que se está llenando. */
+    borrador: null as BorradorPiloto | null,
+    preguntoStock: false,
     /** Cada vez que lo llaman empieza un turno nuevo; lo que quedó de antes se descarta. */
     turno: 0,
     cierre: null as ReturnType<typeof setTimeout> | null,
@@ -77,6 +112,16 @@ export function useConductorPiloto() {
     await decirFrases(frases ?? [{ tipo: "texto", texto: linea }], { forzar: true, esperaMs: 8_000 });
   };
 
+  /** Terminó: queda el mensaje un rato y la tarjeta se cierra sola. */
+  const terminar = async (turno: number, linea: string, frases?: FraseVoz[], ms = 5_000) => {
+    ctx.current.pendiente = null;
+    setPiloto({ pregunta: null });
+    await decir(linea, frases);
+    if (!vigente(turno)) return;
+    setPiloto({ fase: "listo" });
+    programarCierre(ms);
+  };
+
   // ─── Escuchar ─────────────────────────────────────────────────────────────
 
   const escucha = useEscucha(
@@ -101,24 +146,30 @@ export function useConductorPiloto() {
     programarCierre(2_500);
   };
 
-  // ─── La Caja ──────────────────────────────────────────────────────────────
+  // ─── Llevar a una pantalla ────────────────────────────────────────────────
 
-  const irACaja = async (turno: number): Promise<CajaPiloto | null> => {
-    if (!ctx.current.pathname.startsWith("/caja")) ctx.current.navigate("/caja");
+  /** Va a la ruta (si no está ahí) y espera a que la pantalla se preste al piloto. */
+  const irA = async <K extends keyof PantallasPiloto>(ruta: string, clave: K, turno: number): Promise<PantallasPiloto[K] | null> => {
+    if (!ctx.current.pathname.startsWith(ruta)) ctx.current.navigate(ruta);
     const fin = Date.now() + 10_000;
     while (Date.now() < fin) {
-      const caja = cajaPiloto();
-      if (caja) return caja;
+      const api = pantallaPiloto(clave);
+      if (api) return api;
       if (!vigente(turno)) return null;
       await dormir(120);
     }
     return null;
   };
 
-  const sinCaja = async () => {
-    setPiloto({ fase: "error", foco: null, pregunta: null });
-    await decir("No pude abrir la Caja. Revisa que tu usuario pueda vender.");
+  const irACaja = (turno: number) => irA("/caja", "caja", turno);
+
+  const sinPantalla = async (nombre: string) => {
+    setPiloto({ fase: "error", foco: null, pregunta: null, tabla: null });
+    ctx.current.pendiente = null;
+    await decir(`No pude abrir ${nombre}. Revisa que tu usuario tenga acceso.`);
   };
+
+  // ─── Caja ─────────────────────────────────────────────────────────────────
 
   const aplicar = async (caja: CajaPiloto, a: AccionCaja): Promise<string | null> => {
     switch (a.tipo) {
@@ -158,9 +209,9 @@ export function useConductorPiloto() {
   };
 
   const preguntarCobro = async (turno: number) => {
-    const caja = cajaPiloto();
-    const total = caja?.total() ?? 0;
+    const total = cajaPiloto()?.total() ?? 0;
     const pago = ctx.current.pago ?? "efectivo";
+    ctx.current.pendiente = { tipo: "cobro" };
     setPiloto({ pregunta: "confirmar", foco: "caja:cobrar" });
     await decir(`Total ${formatMoney(total)}. ¿Lo cobro con ${NOMBRE_PAGO[pago]}?`, [
       { tipo: "texto", texto: "Total:" },
@@ -172,7 +223,7 @@ export function useConductorPiloto() {
 
   const cobrar = async (turno: number) => {
     const caja = await irACaja(turno);
-    if (!caja) return sinCaja();
+    if (!caja) return sinPantalla("la Caja");
     const pago = ctx.current.pago;
     if (!pago) return preguntarPago(turno);
     setPiloto({ fase: "trabajando", foco: "caja:cobrar", pregunta: null, linea: "Cobrando…" });
@@ -181,6 +232,7 @@ export function useConductorPiloto() {
     if (!vigente(turno)) return;
     ctx.current.pago = null;
     ctx.current.quiereCobrar = false;
+    ctx.current.pendiente = null;
     if (r.ok === false) {
       setPiloto({ fase: "error", foco: null });
       await decir(r.error);
@@ -197,20 +249,15 @@ export function useConductorPiloto() {
       linea += ` · falta ${formatMoney(r.falta)}`;
     }
     setPiloto({ foco: null });
-    await decir(linea, frases);
-    if (!vigente(turno)) return;
-    setPiloto({ fase: "listo" });
-    programarCierre(5_000);
+    await terminar(turno, linea, frases);
   };
 
   /** Lo que sigue después de cargar: cobrar si lo pidió, o preguntar si hay algo más. */
   const despuesDeCargar = async (turno: number, antes: string) => {
     if (!vigente(turno)) return;
     if (!ventaEnCurso().length) {
-      setPiloto({ pregunta: null, foco: null });
-      await decir(antes || "La venta está vacía.");
-      setPiloto({ fase: "listo" });
-      programarCierre(3_000);
+      setPiloto({ foco: null });
+      await terminar(turno, antes || "La venta está vacía.", undefined, 3_000);
       return;
     }
     if (ctx.current.quiereCobrar) {
@@ -231,7 +278,207 @@ export function useConductorPiloto() {
     escucharRespuesta(turno);
   };
 
+  const vender = async (turno: number, plan: PlanDe<"caja">) => {
+    const caja = await irACaja(turno);
+    if (!caja) return sinPantalla("la Caja");
+    setPiloto({ fase: "trabajando", pregunta: null, tabla: null });
+    if (plan.cobrar) ctx.current.quiereCobrar = true;
+    const avisos: string[] = [];
+    for (const a of plan.acciones) {
+      if (!vigente(turno)) return;
+      const aviso = await aplicar(caja, a);
+      if (aviso) avisos.push(aviso);
+      await dormir(PAUSA_MS);
+    }
+    const agregado = resumenAgregado(plan.acciones);
+    const vacio = plan.acciones.some((a) => a.tipo === "vaciar") && !ventaEnCurso().length;
+    const antes = [vacio ? "Empecé la venta de nuevo." : agregado ? `Listo: ${agregado}.` : "", ...avisos].join(" ").trim();
+    return despuesDeCargar(turno, antes);
+  };
+
+  // ─── Inventario ───────────────────────────────────────────────────────────
+
+  const corregirStock = async (turno: number, plan: PlanDe<"stock">) => {
+    const inventario = await irA("/inventory", "inventario", turno);
+    if (!inventario) return sinPantalla("el Inventario");
+    const uno = plan.filas.length === 1 ? plan.filas[0] : null;
+    setPiloto({
+      fase: "trabajando",
+      pregunta: null,
+      tabla: {
+        titulo: uno ? "Corregir el stock" : `Corregir el stock de ${plan.filas.length} productos`,
+        filas: plan.filas.map((f) => ({ nombre: f.producto, antes: f.antes == null ? "—" : String(f.antes), despues: String(f.despues) })),
+      },
+    });
+    // Con uno solo, se escribe en el buscador y su fila queda marcada.
+    if (uno) {
+      await inventario.buscar(uno.producto);
+      if (await esperarElemento(`inventario:${uno.productId}`, 6_000)) setPiloto({ foco: `inventario:${uno.productId}` });
+    }
+    if (!vigente(turno)) return;
+    ctx.current.pendiente = { tipo: "stock", plan };
+    setPiloto({ pregunta: "confirmar" });
+    await decir(
+      uno
+        ? `${uno.producto}: ${uno.antes != null ? `hay ${uno.antes}, ` : ""}quedan ${uno.despues}. ¿Lo ajusto?`
+        : `Son ${plan.filas.length} productos. ¿Los ajusto?`,
+    );
+    escucharRespuesta(turno);
+  };
+
+  const confirmarStock = async (turno: number, plan: PlanDe<"stock">) => {
+    setPiloto({ fase: "trabajando", pregunta: null, linea: "Ajustando…" });
+    try {
+      await apiFetch("/api/omnibox/confirmar", {
+        method: "POST",
+        body: { intencion: "ajustar_stock", entidades: plan.entidades, storeId: ctx.current.storeId },
+      });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["inventory"] }),
+        qc.invalidateQueries({ queryKey: ["inventory-infinite"] }),
+        qc.invalidateQueries({ queryKey: ["omnibox"] }),
+      ]);
+      if (!vigente(turno)) return;
+      setPiloto({ tabla: null });
+      await terminar(turno, plan.filas.length === 1 ? "Listo, stock corregido." : `Listo, corregí el stock de ${plan.filas.length} productos.`);
+    } catch (e) {
+      await fallo(turno, e);
+    }
+  };
+
+  // ─── Pedidos ──────────────────────────────────────────────────────────────
+
+  const moverPedido = async (turno: number, plan: PlanDe<"pedido">) => {
+    if (!ctx.current.pathname.startsWith("/orders")) ctx.current.navigate("/orders");
+    const estado = NOMBRE_ESTADO[plan.estado] ?? plan.estado;
+    setPiloto({
+      fase: "trabajando",
+      pregunta: null,
+      tabla: {
+        titulo: `Pedido${plan.numero ? ` #${plan.numero}` : ""}`,
+        filas: [{ nombre: plan.cliente ?? "Sin cliente", antes: NOMBRE_ESTADO[plan.antes] ?? plan.antes, despues: estado }],
+      },
+    });
+    if (await esperarElemento(`pedido:${plan.orderId}`, 8_000)) setPiloto({ foco: `pedido:${plan.orderId}` });
+    if (!vigente(turno)) return;
+    ctx.current.pendiente = { tipo: "pedido", plan };
+    setPiloto({ pregunta: "confirmar" });
+    await decir(`¿Paso el pedido${plan.numero ? ` ${plan.numero}` : ""}${plan.cliente ? ` de ${plan.cliente}` : ""} a ${estado.toLowerCase()}?`);
+    escucharRespuesta(turno);
+  };
+
+  const confirmarPedido = async (turno: number, plan: PlanDe<"pedido">) => {
+    setPiloto({ fase: "trabajando", pregunta: null, linea: "Moviendo el pedido…" });
+    try {
+      await apiFetch(`/api/omnibox/pedido/${plan.orderId}/estado`, {
+        method: "POST",
+        body: { storeId: ctx.current.storeId, estado: plan.estado },
+      });
+      await qc.invalidateQueries({ queryKey: ["orders"] });
+      if (!vigente(turno)) return;
+      setPiloto({ tabla: null });
+      await terminar(turno, `Listo, el pedido pasó a ${(NOMBRE_ESTADO[plan.estado] ?? plan.estado).toLowerCase()}.`);
+    } catch (e) {
+      await fallo(turno, e);
+    }
+  };
+
+  // ─── Producto nuevo ───────────────────────────────────────────────────────
+
+  const formularioProducto = (turno: number) => irA("/products/create", "producto", turno);
+
+  const crearProducto = async (turno: number, plan: PlanDe<"producto">) => {
+    const form = await formularioProducto(turno);
+    if (!form) return sinPantalla("el formulario de productos");
+    const b = { ...plan.borrador };
+    ctx.current.borrador = b;
+    ctx.current.preguntoStock = false;
+    setPiloto({ fase: "trabajando", pregunta: null, tabla: null, foco: "producto:nombre" });
+    await dormir(PAUSA_MS);
+    await form.escribir("nombre", b.nombre);
+    if (b.precio != null) {
+      setPiloto({ foco: "producto:precio" });
+      await dormir(PAUSA_MS);
+      await form.escribir("precio", b.precio);
+    }
+    if (b.stock != null) {
+      setPiloto({ foco: "producto:stock" });
+      await dormir(PAUSA_MS);
+      await form.escribir("stock", b.stock);
+    }
+    if (b.categoria) {
+      setPiloto({ foco: "producto:categoria" });
+      await dormir(PAUSA_MS);
+      await form.escribir("categoria", b.categoria);
+    }
+    await dormir(PAUSA_MS);
+    if (!vigente(turno)) return;
+    return siguienteDelProducto(turno);
+  };
+
+  /** Pregunta lo que falta (precio, después cuántas tiene) y al final "¿Lo creo?". */
+  const siguienteDelProducto = async (turno: number) => {
+    const b = ctx.current.borrador;
+    if (!b) return;
+    if (b.precio == null) {
+      setPiloto({ pregunta: "precio", foco: "producto:precio" });
+      await decir(`${b.nombre}. ¿A cuánto lo vendes?`);
+      return escucharRespuesta(turno);
+    }
+    if (b.stock == null && !ctx.current.preguntoStock) {
+      ctx.current.preguntoStock = true;
+      setPiloto({ pregunta: "cantidad", foco: "producto:stock" });
+      await decir("¿Cuántas tienes ahora?");
+      return escucharRespuesta(turno);
+    }
+    ctx.current.pendiente = { tipo: "producto" };
+    setPiloto({ pregunta: "confirmar", foco: "producto:guardar" });
+    await decir(`${b.nombre} a ${formatMoney(b.precio)}${b.stock ? `, ${b.stock} en stock` : ""}. ¿Lo creo?`);
+    escucharRespuesta(turno);
+  };
+
+  const anotarEnProducto = async (turno: number, campo: "precio" | "stock", valor: number) => {
+    const form = await formularioProducto(turno);
+    const b = ctx.current.borrador;
+    if (!form || !b) return sinPantalla("el formulario de productos");
+    if (campo === "precio") b.precio = valor;
+    else b.stock = valor;
+    setPiloto({ fase: "trabajando", foco: `producto:${campo}` });
+    await dormir(PAUSA_MS);
+    await form.escribir(campo, valor);
+    await dormir(PAUSA_MS);
+    return siguienteDelProducto(turno);
+  };
+
+  const guardarProducto = async (turno: number) => {
+    const form = await formularioProducto(turno);
+    const b = ctx.current.borrador;
+    if (!form || !b) return sinPantalla("el formulario de productos");
+    setPiloto({ fase: "trabajando", pregunta: null, foco: "producto:guardar", linea: "Guardando…" });
+    await dormir(500);
+    const r = await form.guardar();
+    if (!vigente(turno)) return;
+    if (r.ok === false) {
+      setPiloto({ fase: "error" });
+      ctx.current.pendiente = null;
+      await decir(r.error);
+      return;
+    }
+    ctx.current.borrador = null;
+    setPiloto({ foco: null });
+    await terminar(turno, `Listo, creé ${b.nombre}.`);
+  };
+
   // ─── Lo que se dijo ───────────────────────────────────────────────────────
+
+  /** El "sí" a "¿Lo cobro?", "¿Lo ajusto?", "¿Lo paso?" o "¿Lo creo?". */
+  const confirmar = (turno: number) => {
+    const p = ctx.current.pendiente;
+    if (p?.tipo === "stock") return confirmarStock(turno, p.plan);
+    if (p?.tipo === "pedido") return confirmarPedido(turno, p.plan);
+    if (p?.tipo === "producto") return guardarProducto(turno);
+    return cobrar(turno);
+  };
 
   const responder = async (turno: number, r: RespuestaPiloto) => {
     const pregunta = estadoPiloto().pregunta;
@@ -240,12 +487,15 @@ export function useConductorPiloto() {
         callarVoz();
         escucha.detener();
         ctx.current.quiereCobrar = false;
-        setPiloto({ fase: "listo", linea: "Listo, me detengo.", pregunta: null, foco: null });
+        ctx.current.pendiente = null;
+        setPiloto({ fase: "listo", linea: "Listo, me detengo.", pregunta: null, foco: null, tabla: null });
         programarCierre(1_200);
         return;
+      case "numero":
+        return anotarEnProducto(turno, pregunta === "precio" ? "precio" : "stock", r.valor);
       case "pago": {
         const caja = await irACaja(turno);
-        if (!caja) return sinCaja();
+        if (!caja) return sinPantalla("la Caja");
         setPiloto({ foco: "caja:pago" });
         if (!caja.setPago(r.pago)) {
           await decir("En esta venta no se puede cobrar en dólares. ¿Efectivo, QR o tarjeta?");
@@ -264,7 +514,7 @@ export function useConductorPiloto() {
       }
       case "cobrar":
         ctx.current.quiereCobrar = true;
-        if (!(await irACaja(turno))) return sinCaja();
+        if (!(await irACaja(turno))) return sinPantalla("la Caja");
         if (!ventaEnCurso().length) {
           setPiloto({ pregunta: null });
           await decir("La venta está vacía. ¿Qué le vendo?");
@@ -272,9 +522,13 @@ export function useConductorPiloto() {
         }
         return ctx.current.pago ? cobrar(turno) : preguntarPago(turno);
       case "si":
-        if (pregunta === "confirmar") return cobrar(turno);
+        if (pregunta === "confirmar") return confirmar(turno);
         if (pregunta === "pago") {
           await decir("¿Efectivo, QR o tarjeta?");
+          return escucharRespuesta(turno);
+        }
+        if (pregunta === "precio" || pregunta === "cantidad") {
+          await decir(pregunta === "precio" ? "¿A cuánto? Dime el número." : "¿Cuántas? Dime el número.");
           return escucharRespuesta(turno);
         }
         // "¿Algo más?" → "sí": que lo diga.
@@ -283,49 +537,45 @@ export function useConductorPiloto() {
         setPiloto({ fase: "escuchando" });
         void escucha.escuchar(VENTANA_MS);
         return;
-      case "no":
+      case "no": {
         if (pregunta === "seguir") return ctx.current.pago ? preguntarCobro(turno) : preguntarPago(turno);
+        const p = ctx.current.pendiente;
         ctx.current.quiereCobrar = false;
-        setPiloto({ pregunta: null, foco: null });
-        await decir(pregunta === "confirmar" ? "Bueno, no la cobro. La venta queda abierta." : "Bueno. La venta queda abierta.");
-        setPiloto({ fase: "listo" });
-        programarCierre(3_000);
+        setPiloto({ foco: null, tabla: null });
+        const linea =
+          pregunta === "confirmar" && (!p || p.tipo === "cobro")
+            ? "Bueno, no la cobro. La venta queda abierta."
+            : pregunta === "confirmar"
+              ? "Bueno, no lo hago."
+              : "Bueno. Queda como está.";
+        await terminar(turno, linea, undefined, 3_000);
         return;
+      }
     }
   };
 
   const ejecutar = async (turno: number, p: Propuesta) => {
     const plan = planDe(p);
-    if (plan.tipo === "decir") {
-      setPiloto({ pregunta: null, foco: null });
-      await decir(plan.texto);
-      if (!vigente(turno)) return;
-      setPiloto({ fase: "listo" });
-      programarCierre(6_000);
-      return;
+    // Un pedido nuevo cancela lo que esperaba un "sí".
+    ctx.current.pendiente = null;
+    switch (plan.tipo) {
+      case "decir":
+        setPiloto({ foco: null, tabla: null });
+        return terminar(turno, plan.texto, undefined, 6_000);
+      case "asistente":
+        setPiloto({ pregunta: null, foco: null, tabla: null, irAlAsistente: true });
+        await decir(plan.texto);
+        if (vigente(turno)) setPiloto({ fase: "listo" });
+        return;
+      case "caja":
+        return vender(turno, plan);
+      case "stock":
+        return corregirStock(turno, plan);
+      case "pedido":
+        return moverPedido(turno, plan);
+      case "producto":
+        return crearProducto(turno, plan);
     }
-    if (plan.tipo === "asistente") {
-      setPiloto({ pregunta: null, foco: null, irAlAsistente: true });
-      await decir(plan.texto);
-      if (vigente(turno)) setPiloto({ fase: "listo" });
-      return;
-    }
-
-    const caja = await irACaja(turno);
-    if (!caja) return sinCaja();
-    setPiloto({ fase: "trabajando", pregunta: null });
-    if (plan.cobrar) ctx.current.quiereCobrar = true;
-    const avisos: string[] = [];
-    for (const a of plan.acciones) {
-      if (!vigente(turno)) return;
-      const aviso = await aplicar(caja, a);
-      if (aviso) avisos.push(aviso);
-      await dormir(PAUSA_MS);
-    }
-    const agregado = resumenAgregado(plan.acciones);
-    const vacio = plan.acciones.some((a) => a.tipo === "vaciar") && !ventaEnCurso().length;
-    const antes = [vacio ? "Empecé la venta de nuevo." : agregado ? `Listo: ${agregado}.` : "", ...avisos].join(" ").trim();
-    return despuesDeCargar(turno, antes);
   };
 
   /** Lo que llegó (hablado o escrito): ¿contesta la pregunta o es un pedido nuevo? */
@@ -346,7 +596,8 @@ export function useConductorPiloto() {
 
   const fallo = async (turno: number, error: unknown) => {
     if (!vigente(turno)) return;
-    setPiloto({ fase: "error", foco: null });
+    ctx.current.pendiente = null;
+    setPiloto({ fase: "error", foco: null, pregunta: null });
     await decir(error instanceof Error && error.message ? error.message : "Algo falló. Inténtalo otra vez.");
   };
 
@@ -372,7 +623,7 @@ export function useConductorPiloto() {
 
   // ─── Lo que usa la pantalla ───────────────────────────────────────────────
 
-  /** F9 o el botón: abre el micrófono; si ya está escuchando, entrega lo dicho. */
+  /** F9, el botón o la palabra: abre el micrófono; si ya está escuchando, entrega lo dicho. */
   const activar = () => {
     const e = estadoPiloto();
     if (e.fase === "escuchando") {
@@ -412,6 +663,7 @@ export function useConductorPiloto() {
   const detener = () => {
     ctx.current.turno++;
     ctx.current.quiereCobrar = false;
+    ctx.current.pendiente = null;
     cancelarCierre();
     callarVoz();
     escucha.detener();
