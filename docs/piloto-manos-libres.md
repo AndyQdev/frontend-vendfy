@@ -45,17 +45,30 @@ herramientas/oye-vendfy/ cómo se entrena el detector
 
 ## Las tres apps (como Claude: web, escritorio, celular)
 
-Una sola aplicación, la web. Las otras dos la abren y suman lo nativo:
+Una sola aplicación, la web. Las otras dos la abren y suman lo nativo. Hoy
+abren **vendfy-panel.vercel.app** (cuenta de Vercel andyqdev): app.vendfy.shop
+sigue en la cuenta pausada hasta que se verifique el dominio; sirven lo mismo.
 
 | | Carpeta | Agrega |
 |---|---|---|
-| Windows (.exe) | `src-tauri/` (Tauri 2) | Bandeja del reloj, arranca con Windows, F9 desde cualquier programa, cerrar = esconder, trae la ventana al frente al oír la palabra |
-| Android (.apk) | repo `vendfy-app`, rama `piloto-vendfy` (Expo + WebView) | Micrófono y cámara con el permiso del sistema, pantalla encendida con manos libres, «atrás» dentro del panel |
+| Windows (.exe) | `src-tauri/` (Tauri 2) | Bandeja del reloj, arranca con Windows, F9 desde cualquier programa, cerrar = esconder, trae la ventana al frente al oír la palabra (aunque esté minimizada) |
+| Android (.apk) | repo `ecommerce-movil` (Expo + WebView + `modules/vendfy-oido`) | **Oído del teléfono**: servicio de micrófono con notificación que oye «Oye Vendfy» con la app en segundo plano o la pantalla apagada, enciende la pantalla y trae Vendfy al frente (con «Mostrar sobre otras apps»; si no, un aviso para tocar). Con el teléfono bloqueado no se muestra encima: se ve al desbloquear. Cámara, «atrás» dentro del panel |
+
+El oído del teléfono corre el mismo detector y los mismos modelos del panel
+(los baja de `/oido/` y los guarda para usar sin conexión). El panel lo usa por
+`window.vendfyNativo.oido` (`src/features/piloto/oido/oido-telefono.ts`) y no
+abre el micrófono del navegador; recibe "oyó la palabra" y "esto es lo que
+dijo" por el evento `vendfy-oido`.
 
 ```bash
-# Windows, contra el panel local
-VENDFY_URL=http://localhost:5173 npx tauri dev     # o cargo build en src-tauri
-npx tauri build                                      # instalador NSIS
+# Windows
+VENDFY_URL=http://127.0.0.1:5173 npx tauri dev       # contra el panel local
+npx tauri build --bundles nsis                         # instalador (1,9 MB)
+
+# Android (en ecommerce-movil)
+npm run apk                                            # APK de producción: solo ARM, ~60 MB
+# De prueba en emulador, contra el panel local y con un WAV como micrófono:
+EXPO_PUBLIC_VENDFY_URL=http://127.0.0.1:5173 EXPO_PUBLIC_OIDO_ARCHIVO=http://127.0.0.1:8765/android.wav npm run apk
 ```
 
 ## Pruebas
@@ -70,7 +83,11 @@ Las de punta a punta dejan la tienda de prueba como estaba (anulan la venta, dev
 
 ## Pendiente
 
-- **El detector**: la v1 acierta 93 % pero dispara de más con música y tele. La v2 (con MUSAN) está en entrenamiento. Hasta entonces manos libres queda apagado por defecto.
-- Android con la pantalla apagada (servicio nativo de micrófono).
-- El instalador .exe firmado (sin firma, Windows muestra «editor desconocido»).
-- Desplegar: backend (con `GEMINI_BASE_URL` de Vertex y `VOZ_TTS_API_KEY`) y después el panel.
+- **app.vendfy.shop**: agregar en el DNS (Hostinger) el TXT `_vercel.vendfy.shop`
+  que pide Vercel para pasar el dominio a la cuenta andyqdev.
+- **El detector**: v3 oye la palabra el 92 % de las veces (86 % en medio de una
+  conversación) con 1,7 falsas alarmas por hora (las descarta el servidor). Lo
+  que más lo mejoraría: grabaciones reales de personas diciendo «Oye Vendfy».
+- Firmar el instalador .exe (sin firma, Windows muestra «editor desconocido») y
+  la APK con una llave propia (hoy usa la de depuración de Expo; para Play Store
+  hace falta la propia).
