@@ -1,0 +1,894 @@
+{
+ "elegido": {
+  "umbral": 0.74,
+  "aciertos": 0.8726635514018691,
+  "aciertos_ventana": 0.7844626168224299,
+  "falsas_por_hora": 0.9875026059096543,
+  "por_fuente": {
+   "fleurs": 0.0,
+   "mls": 0.11,
+   "oww": 1.96
+  },
+  "parecidas_disparan": 0.0022727272727272726
+ },
+ "paso": 40000,
+ "horas_evaluacion": 22.278422222222225,
+ "curva": [
+  {
+   "umbral": 0.3,
+   "aciertos": 0.9018691588785047,
+   "aciertos_ventana": 0.8288551401869159,
+   "falsas_por_hora": 2.4238700326873333,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.56,
+    "oww": 4.58
+   },
+   "parecidas_disparan": 0.005113636363636364
+  },
+  {
+   "umbral": 0.31,
+   "aciertos": 0.9018691588785047,
+   "aciertos_ventana": 0.8282710280373832,
+   "falsas_por_hora": 2.4238700326873333,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.56,
+    "oww": 4.58
+   },
+   "parecidas_disparan": 0.005113636363636364
+  },
+  {
+   "umbral": 0.32,
+   "aciertos": 0.9018691588785047,
+   "aciertos_ventana": 0.8271028037383178,
+   "falsas_por_hora": 2.4238700326873333,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.56,
+    "oww": 4.58
+   },
+   "parecidas_disparan": 0.005113636363636364
+  },
+  {
+   "umbral": 0.33,
+   "aciertos": 0.9018691588785047,
+   "aciertos_ventana": 0.8271028037383178,
+   "falsas_por_hora": 2.4238700326873333,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.56,
+    "oww": 4.58
+   },
+   "parecidas_disparan": 0.005113636363636364
+  },
+  {
+   "umbral": 0.34,
+   "aciertos": 0.9018691588785047,
+   "aciertos_ventana": 0.8253504672897196,
+   "falsas_por_hora": 2.2443241043401234,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.56,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.005113636363636364
+  },
+  {
+   "umbral": 0.35,
+   "aciertos": 0.8995327102803738,
+   "aciertos_ventana": 0.8247663551401869,
+   "falsas_por_hora": 2.199437622253321,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.45,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003977272727272727
+  },
+  {
+   "umbral": 0.36,
+   "aciertos": 0.8983644859813084,
+   "aciertos_ventana": 0.822429906542056,
+   "falsas_por_hora": 2.1545511401665185,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.33,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003977272727272727
+  },
+  {
+   "umbral": 0.37,
+   "aciertos": 0.8983644859813084,
+   "aciertos_ventana": 0.8212616822429907,
+   "falsas_por_hora": 2.1545511401665185,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.33,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003977272727272727
+  },
+  {
+   "umbral": 0.38,
+   "aciertos": 0.8983644859813084,
+   "aciertos_ventana": 0.8195093457943925,
+   "falsas_por_hora": 2.1545511401665185,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.33,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003409090909090909
+  },
+  {
+   "umbral": 0.39,
+   "aciertos": 0.8983644859813084,
+   "aciertos_ventana": 0.8183411214953271,
+   "falsas_por_hora": 2.1545511401665185,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.33,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003409090909090909
+  },
+  {
+   "umbral": 0.4,
+   "aciertos": 0.8960280373831776,
+   "aciertos_ventana": 0.8177570093457944,
+   "falsas_por_hora": 2.1545511401665185,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.33,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.003409090909090909
+  },
+  {
+   "umbral": 0.41,
+   "aciertos": 0.8960280373831776,
+   "aciertos_ventana": 0.8171728971962616,
+   "falsas_por_hora": 2.0647781759929136,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 4.21
+   },
+   "parecidas_disparan": 0.002840909090909091
+  },
+  {
+   "umbral": 0.42,
+   "aciertos": 0.8936915887850467,
+   "aciertos_ventana": 0.8171728971962616,
+   "falsas_por_hora": 2.019891693906111,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 4.11
+   },
+   "parecidas_disparan": 0.002840909090909091
+  },
+  {
+   "umbral": 0.43,
+   "aciertos": 0.8925233644859814,
+   "aciertos_ventana": 0.8165887850467289,
+   "falsas_por_hora": 2.019891693906111,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 4.11
+   },
+   "parecidas_disparan": 0.002840909090909091
+  },
+  {
+   "umbral": 0.44,
+   "aciertos": 0.8925233644859814,
+   "aciertos_ventana": 0.8154205607476636,
+   "falsas_por_hora": 1.8852322476457037,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.83
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.45,
+   "aciertos": 0.8913551401869159,
+   "aciertos_ventana": 0.8142523364485982,
+   "falsas_por_hora": 1.8403457655589013,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.74
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.46,
+   "aciertos": 0.8913551401869159,
+   "aciertos_ventana": 0.8119158878504673,
+   "falsas_por_hora": 1.8403457655589013,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.74
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.47,
+   "aciertos": 0.8901869158878505,
+   "aciertos_ventana": 0.8113317757009346,
+   "falsas_por_hora": 1.8403457655589013,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.74
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.48,
+   "aciertos": 0.8901869158878505,
+   "aciertos_ventana": 0.8095794392523364,
+   "falsas_por_hora": 1.7954592834720988,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.65
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.49,
+   "aciertos": 0.889018691588785,
+   "aciertos_ventana": 0.8089953271028038,
+   "falsas_por_hora": 1.705686319298494,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.46
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.5,
+   "aciertos": 0.889018691588785,
+   "aciertos_ventana": 0.8072429906542056,
+   "falsas_por_hora": 1.705686319298494,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.46
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.51,
+   "aciertos": 0.889018691588785,
+   "aciertos_ventana": 0.8066588785046729,
+   "falsas_por_hora": 1.705686319298494,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.46
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.52,
+   "aciertos": 0.889018691588785,
+   "aciertos_ventana": 0.8066588785046729,
+   "falsas_por_hora": 1.705686319298494,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.46
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.53,
+   "aciertos": 0.889018691588785,
+   "aciertos_ventana": 0.8066588785046729,
+   "falsas_por_hora": 1.6607998372116914,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.37
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.54,
+   "aciertos": 0.8878504672897196,
+   "aciertos_ventana": 0.8060747663551402,
+   "falsas_por_hora": 1.6607998372116914,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.37
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.55,
+   "aciertos": 0.8878504672897196,
+   "aciertos_ventana": 0.8049065420560748,
+   "falsas_por_hora": 1.6607998372116914,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.37
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.56,
+   "aciertos": 0.8866822429906542,
+   "aciertos_ventana": 0.8049065420560748,
+   "falsas_por_hora": 1.615913355124889,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.27
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.57,
+   "aciertos": 0.8866822429906542,
+   "aciertos_ventana": 0.804322429906542,
+   "falsas_por_hora": 1.615913355124889,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.27
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.58,
+   "aciertos": 0.8866822429906542,
+   "aciertos_ventana": 0.8031542056074766,
+   "falsas_por_hora": 1.5710268730380865,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.18
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.59,
+   "aciertos": 0.8855140186915887,
+   "aciertos_ventana": 0.802570093457944,
+   "falsas_por_hora": 1.526140390951284,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.09
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.6,
+   "aciertos": 0.8855140186915887,
+   "aciertos_ventana": 0.8014018691588785,
+   "falsas_por_hora": 1.526140390951284,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 3.09
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.61,
+   "aciertos": 0.8843457943925234,
+   "aciertos_ventana": 0.8014018691588785,
+   "falsas_por_hora": 1.4812539088644816,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.99
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.62,
+   "aciertos": 0.8843457943925234,
+   "aciertos_ventana": 0.8002336448598131,
+   "falsas_por_hora": 1.4812539088644816,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.99
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.63,
+   "aciertos": 0.883177570093458,
+   "aciertos_ventana": 0.8002336448598131,
+   "falsas_por_hora": 1.4363674267776791,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.9
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.64,
+   "aciertos": 0.883177570093458,
+   "aciertos_ventana": 0.798481308411215,
+   "falsas_por_hora": 1.3914809446908765,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.8
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.65,
+   "aciertos": 0.883177570093458,
+   "aciertos_ventana": 0.7961448598130841,
+   "falsas_por_hora": 1.3914809446908765,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.8
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.66,
+   "aciertos": 0.883177570093458,
+   "aciertos_ventana": 0.7955607476635514,
+   "falsas_por_hora": 1.3914809446908765,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.8
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.67,
+   "aciertos": 0.883177570093458,
+   "aciertos_ventana": 0.7955607476635514,
+   "falsas_por_hora": 1.346594462604074,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.71
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.68,
+   "aciertos": 0.8796728971962616,
+   "aciertos_ventana": 0.7938084112149533,
+   "falsas_por_hora": 1.346594462604074,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.71
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.69,
+   "aciertos": 0.8796728971962616,
+   "aciertos_ventana": 0.7926401869158879,
+   "falsas_por_hora": 1.346594462604074,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.71
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.7,
+   "aciertos": 0.8796728971962616,
+   "aciertos_ventana": 0.790303738317757,
+   "falsas_por_hora": 1.2119350163436666,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.43
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.71,
+   "aciertos": 0.8796728971962616,
+   "aciertos_ventana": 0.7885514018691588,
+   "falsas_por_hora": 1.1670485342568642,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.34
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.72,
+   "aciertos": 0.8761682242990654,
+   "aciertos_ventana": 0.7873831775700935,
+   "falsas_por_hora": 1.1221620521700617,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.24
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.73,
+   "aciertos": 0.8738317757009346,
+   "aciertos_ventana": 0.7862149532710281,
+   "falsas_por_hora": 1.0323890879964568,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 2.06
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.74,
+   "aciertos": 0.8726635514018691,
+   "aciertos_ventana": 0.7844626168224299,
+   "falsas_por_hora": 0.9875026059096543,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 1.96
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.75,
+   "aciertos": 0.8714953271028038,
+   "aciertos_ventana": 0.7827102803738317,
+   "falsas_por_hora": 0.9426161238228519,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 1.87
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.76,
+   "aciertos": 0.8714953271028038,
+   "aciertos_ventana": 0.7809579439252337,
+   "falsas_por_hora": 0.9426161238228519,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 1.87
+   },
+   "parecidas_disparan": 0.0022727272727272726
+  },
+  {
+   "umbral": 0.77,
+   "aciertos": 0.8703271028037384,
+   "aciertos_ventana": 0.7792056074766355,
+   "falsas_por_hora": 0.8977296417360494,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.11,
+    "oww": 1.78
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.78,
+   "aciertos": 0.8691588785046729,
+   "aciertos_ventana": 0.7786214953271028,
+   "falsas_por_hora": 0.8079566775624445,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.68
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.79,
+   "aciertos": 0.8691588785046729,
+   "aciertos_ventana": 0.7762850467289719,
+   "falsas_por_hora": 0.7181837133888396,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.5
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.8,
+   "aciertos": 0.8679906542056075,
+   "aciertos_ventana": 0.7757009345794392,
+   "falsas_por_hora": 0.7181837133888396,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.5
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.81,
+   "aciertos": 0.8679906542056075,
+   "aciertos_ventana": 0.7739485981308412,
+   "falsas_por_hora": 0.7181837133888396,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.5
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.82,
+   "aciertos": 0.8679906542056075,
+   "aciertos_ventana": 0.7716121495327103,
+   "falsas_por_hora": 0.673297231302037,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.4
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.83,
+   "aciertos": 0.8679906542056075,
+   "aciertos_ventana": 0.7692757009345794,
+   "falsas_por_hora": 0.673297231302037,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.4
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.84,
+   "aciertos": 0.8656542056074766,
+   "aciertos_ventana": 0.7675233644859814,
+   "falsas_por_hora": 0.5835242671284321,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.22
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.85,
+   "aciertos": 0.8656542056074766,
+   "aciertos_ventana": 0.7646028037383178,
+   "falsas_por_hora": 0.5835242671284321,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.22
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.86,
+   "aciertos": 0.8644859813084113,
+   "aciertos_ventana": 0.7628504672897196,
+   "falsas_por_hora": 0.5386377850416296,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.12
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.87,
+   "aciertos": 0.860981308411215,
+   "aciertos_ventana": 0.7628504672897196,
+   "falsas_por_hora": 0.49375130295482716,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.03
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.88,
+   "aciertos": 0.8598130841121495,
+   "aciertos_ventana": 0.7605140186915887,
+   "falsas_por_hora": 0.49375130295482716,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.03
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.89,
+   "aciertos": 0.8598130841121495,
+   "aciertos_ventana": 0.758177570093458,
+   "falsas_por_hora": 0.49375130295482716,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 1.03
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.9,
+   "aciertos": 0.8539719626168224,
+   "aciertos_ventana": 0.7552570093457944,
+   "falsas_por_hora": 0.4488648208680247,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.93
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.91,
+   "aciertos": 0.852803738317757,
+   "aciertos_ventana": 0.7529205607476636,
+   "falsas_por_hora": 0.40397833878122225,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.84
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.92,
+   "aciertos": 0.8469626168224299,
+   "aciertos_ventana": 0.7488317757009346,
+   "falsas_por_hora": 0.40397833878122225,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.84
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.93,
+   "aciertos": 0.8434579439252337,
+   "aciertos_ventana": 0.7429906542056075,
+   "falsas_por_hora": 0.31420537460761727,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.65
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.94,
+   "aciertos": 0.8387850467289719,
+   "aciertos_ventana": 0.7383177570093458,
+   "falsas_por_hora": 0.31420537460761727,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.65
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.95,
+   "aciertos": 0.8352803738317757,
+   "aciertos_ventana": 0.7348130841121495,
+   "falsas_por_hora": 0.2693188925208148,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.56
+   },
+   "parecidas_disparan": 0.0017045454545454545
+  },
+  {
+   "umbral": 0.96,
+   "aciertos": 0.8282710280373832,
+   "aciertos_ventana": 0.7301401869158879,
+   "falsas_por_hora": 0.1795459283472099,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.37
+   },
+   "parecidas_disparan": 0.0011363636363636363
+  },
+  {
+   "umbral": 0.97,
+   "aciertos": 0.822429906542056,
+   "aciertos_ventana": 0.7172897196261683,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0005681818181818182
+  },
+  {
+   "umbral": 0.98,
+   "aciertos": 0.8130841121495327,
+   "aciertos_ventana": 0.7079439252336449,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0005681818181818182
+  },
+  {
+   "umbral": 0.99,
+   "aciertos": 0.7827102803738317,
+   "aciertos_ventana": 0.6787383177570093,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0005681818181818182
+  },
+  {
+   "umbral": 0.995,
+   "aciertos": 0.7464953271028038,
+   "aciertos_ventana": 0.6454439252336449,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0
+  },
+  {
+   "umbral": 0.998,
+   "aciertos": 0.7044392523364486,
+   "aciertos_ventana": 0.5975467289719626,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0
+  },
+  {
+   "umbral": 0.999,
+   "aciertos": 0.6483644859813084,
+   "aciertos_ventana": 0.5531542056074766,
+   "falsas_por_hora": 0.08977296417360495,
+   "por_fuente": {
+    "fleurs": 0.0,
+    "mls": 0.0,
+    "oww": 0.19
+   },
+   "parecidas_disparan": 0.0
+  }
+ ]
+}

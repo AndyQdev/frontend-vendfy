@@ -27,7 +27,11 @@ MODELO = RAIZ / "modelo"
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 SEG_POR_VENTANA = 0.08
 REFRACTARIO = 19  # ~1,5 s: una activación no se cuenta dos veces
-PESO_NEG = 60.0  # el castigo a una falsa alarma al final del entrenamiento
+import os
+
+PESO_NEG = float(os.environ.get("PESO_NEG", 60))  # el castigo a una falsa alarma al final del entrenamiento
+OCULTAS = int(os.environ.get("OCULTAS", 128))
+APAGADO = float(os.environ.get("APAGADO", 0.3))
 OBJETIVO_FA = 1.0  # falsas alarmas por hora (antes de la verificación del servidor)
 UMBRALES = np.round(np.concatenate([np.arange(0.30, 0.99, 0.01), [0.99, 0.995, 0.998, 0.999]]), 4)
 
@@ -85,8 +89,30 @@ def activaciones(p: np.ndarray, umbral: float) -> int:
     return n
 
 
+# El conjunto en flujo (voces de reserva dentro de 3,5 s, ventanas cada 80 ms).
+FLUJO = None
+
+
+def cargar_flujo():
+    global FLUJO
+    x, largos = CAR / "flujo_reserva.npy", CAR / "flujo_reserva_largos.npy"
+    if x.exists() and largos.exists():
+        FLUJO = (np.load(x, mmap_mode="r"), np.load(largos))
+
+
+def aciertos_flujo(modelo, u: float) -> float | None:
+    """Como en el navegador: oída si dispara (2 ventanas seguidas sobre el umbral) en su secuencia."""
+    if FLUJO is None:
+        return None
+    p = puntajes(modelo, FLUJO[0])
+    cortes = np.cumsum(FLUJO[1])[:-1]
+    return float(np.mean([activaciones(s, u) >= 1 for s in np.split(p, cortes)]))
+
+
 def medir(modelo, pos, secuencias: dict, parecidas):
     sp = puntajes(modelo, pos)
+    pf = puntajes(modelo, FLUJO[0]) if FLUJO is not None else None
+    cortes = np.cumsum(FLUJO[1])[:-1] if FLUJO is not None else None
     ps = {k: puntajes(modelo, v) for k, v in secuencias.items()}
     horas = {k: len(v) * SEG_POR_VENTANA / 3600 for k, v in secuencias.items()}
     pz = puntajes(modelo, parecidas) if len(parecidas) else np.zeros(0)
@@ -96,7 +122,9 @@ def medir(modelo, pos, secuencias: dict, parecidas):
         total = sum(activaciones(p, u) for p in ps.values()) / max(sum(horas.values()), 1e-9)
         filas.append({
             "umbral": float(u),
-            "aciertos": float((sp >= u).mean()) if len(sp) else 0.0,
+            # Lo que importa: oída en flujo, como en el panel. "ventana" es la medida dura de una sola ventana.
+            "aciertos": float(np.mean([activaciones(s, u) >= 1 for s in np.split(pf, cortes)])) if pf is not None else float((sp >= u).mean()),
+            "aciertos_ventana": float((sp >= u).mean()) if len(sp) else 0.0,
             "falsas_por_hora": total,
             "por_fuente": {k: round(v, 2) for k, v in fa.items()},
             "parecidas_disparan": float((pz >= u).mean()) if len(pz) else 0.0,
@@ -115,13 +143,14 @@ def main():
     t0 = time.time()
     pasos = int(sys.argv[1]) if len(sys.argv) > 1 else 30000
 
-    pos = np.asarray(cargar("pos_train"), dtype=np.float16)
+    # La palabra sola y la palabra en medio de una conversación.
+    pos = np.concatenate([np.asarray(cargar(n), dtype=np.float16) for n in ("pos_train", "pos_contexto")])
     negs = {n: cargar(n) for n in NEGATIVOS}
     negs = {k: v for k, v in negs.items() if len(v)}
     pesos = {k: NEGATIVOS[k] for k in negs}
     print(f"positivos {pos.shape} · " + " · ".join(f"{k} {len(v)}" for k, v in negs.items()), flush=True)
 
-    pos_res = cargar("pos_reserva")
+    pos_res = np.concatenate([np.asarray(cargar(n), dtype=np.float16) for n in ("pos_reserva", "pos_reserva_contexto")])
     eval_seq = {"fleurs": cargar("eval_fleurs"), "mls": cargar("eval_mls")}
     oww_val = RAIZ / "datos" / "oww" / "validation_set_features.npy"
     if oww_val.exists():
@@ -129,8 +158,10 @@ def main():
         eval_seq["oww"] = v if v.ndim == 3 else np.lib.stride_tricks.sliding_window_view(v, (16, 96))[:, 0]
     eval_seq = {k: s for k, s in eval_seq.items() if len(s)}
     eval_parecidas = cargar("eval_tts")
+    cargar_flujo()
 
-    modelo = Detector().to(DEV)
+    modelo = Detector(OCULTAS, APAGADO).to(DEV)
+    print(f"red: ocultas {OCULTAS} · dropout {APAGADO} · peso de las falsas alarmas hasta {PESO_NEG}", flush=True)
     opt = torch.optim.AdamW(modelo.parameters(), lr=1e-3, weight_decay=1e-3)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1.5e-3, total_steps=pasos)
     bce = nn.BCELoss(reduction="none")
@@ -194,14 +225,15 @@ def main():
 
     MODELO.mkdir(exist_ok=True)
     modelo.eval().cpu()
+    salida = MODELO / os.environ.get("SALIDA", "oye_vendfy.onnx")
     torch.onnx.export(
-        modelo, torch.zeros(1, 16, 96), str(MODELO / "oye_vendfy.onnx"),
+        modelo, torch.zeros(1, 16, 96), str(salida),
         input_names=["x"], output_names=["p"], opset_version=13, dynamic_axes={"x": {0: "n"}, "p": {0: "n"}}, dynamo=False,
     )
-    (MODELO / "metricas.json").write_text(
+    (MODELO / salida.name.replace(".onnx", ".json")).write_text(
         json.dumps({"elegido": elegido, "paso": paso_elegido, "horas_evaluacion": horas, "curva": filas}, indent=1, ensure_ascii=False), encoding="utf-8"
     )
-    print(f"exportado: {MODELO / 'oye_vendfy.onnx'} ({(MODELO / 'oye_vendfy.onnx').stat().st_size / 1024:.0f} KB)")
+    print(f"exportado: {salida} ({salida.stat().st_size / 1024:.0f} KB)")
 
 
 if __name__ == "__main__":

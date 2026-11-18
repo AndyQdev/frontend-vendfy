@@ -123,16 +123,18 @@ def voces_cloud():
     return [(v["name"], v["languageCodes"][0]) for v in voces if any(l.startswith("es-") for l in v["languageCodes"])]
 
 
-def cloud(texto: str, voz: str, idioma: str, velocidad: float, destino: Path, clave: str):
+def cloud(texto: str, voz: str, idioma: str, velocidad: float, destino: Path, clave: str, tono: float = 0.0):
     if destino.exists():
         return "ya"
     audio = {"audioEncoding": "LINEAR16", "sampleRateHertz": 16000}
     if velocidad != 1.0:
         audio["speakingRate"] = velocidad
+    if tono:
+        audio["pitch"] = tono
     try:
         r = post(f"{TTS}/text:synthesize", {"input": {"text": texto}, "voice": {"languageCode": idioma, "name": voz}, "audioConfig": audio}, clave)
     except RuntimeError as e:
-        if "speakingRate" in audio and "400" in str(e):
+        if ("speakingRate" in audio or "pitch" in audio) and "400" in str(e):
             return "sin-velocidad"
         raise
     guardar(destino, pcm16(base64.b64decode(r["audioContent"])))
@@ -147,7 +149,14 @@ def gemini(texto: str, voz: str, modelo: str, destino: Path, clave: str):
         "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voz}}}},
     }, clave)
     parte = r["candidates"][0]["content"]["parts"][0]["inlineData"]
-    muestras = resample_poly(pcm16(base64.b64decode(parte["data"])), 2, 3)  # 24 kHz → 16 kHz
+    datos = base64.b64decode(parte["data"])
+    # La frecuencia: del encabezado WAV si viene, si no del tipo ("rate=24000").
+    if datos[:4] == b"RIFF":
+        frecuencia = int.from_bytes(datos[24:28], "little")
+    else:
+        m = __import__("re").search(r"rate=(\d+)", parte.get("mimeType", ""))
+        frecuencia = int(m.group(1)) if m else 24000
+    muestras = resample_poly(pcm16(datos), 16000, frecuencia)
     guardar(destino, muestras)
     return "ok"
 
@@ -183,6 +192,27 @@ def main():
                 if i % 500 == 0:
                     print(f"  cloud {i}/{len(futuros)} {hechos}", flush=True)
         print("cloud listo:", hechos, flush=True)
+
+    if que in ("todo", "tono"):
+        # Otra persona: el mismo texto más grave o más agudo (las voces que lo permiten).
+        con_tono = [(v, i) for v, i in voces if "Chirp" not in v and "Studio" not in v]
+        trabajos = []
+        for voz, idioma in con_tono:
+            carpeta = "reserva" if voz in RESERVA_CLOUD else "positivos"
+            for texto in POSITIVOS:
+                for t in (-5.0, -2.5, 2.5, 5.0):
+                    trabajos.append((texto, voz, idioma, 1.0, RAIZ / carpeta / nombre("t", voz, texto, t), t))
+        hechos = {"ok": 0, "ya": 0, "sin-velocidad": 0, "error": 0}
+        with cf.ThreadPoolExecutor(8) as pool:
+            futuros = [pool.submit(cloud, t[0], t[1], t[2], t[3], t[4], clave_cloud, t[5]) for t in trabajos]
+            for f in cf.as_completed(futuros):
+                try:
+                    hechos[f.result()] += 1
+                except Exception as e:  # noqa: BLE001
+                    hechos["error"] += 1
+                    if hechos["error"] <= 5:
+                        print("  error:", e, flush=True)
+        print(f"tono listo ({len(con_tono)} voces):", hechos, flush=True)
 
     if que in ("todo", "gemini"):
         pedidos = []

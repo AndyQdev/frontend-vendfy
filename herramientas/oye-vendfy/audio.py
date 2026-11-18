@@ -174,12 +174,24 @@ def microfono(x: np.ndarray, rng: random.Random) -> np.ndarray:
     return x.astype(np.float32)
 
 
-def aumentar_en_ventana(palabra: np.ndarray, fondos: Fondos, rng: random.Random, n=32000, fin=(1.55, 1.98), snr=(-2.0, 25.0)) -> np.ndarray:
+def aumentar_en_ventana(
+    palabra: np.ndarray,
+    fondos: Fondos,
+    rng: random.Random,
+    n=32000,
+    fin=(1.55, 1.98),
+    snr=(-2.0, 25.0),
+    rapidez=(0.88, 1.12),
+    previa: np.ndarray | None = None,
+) -> np.ndarray:
     """
     La palabra dentro de una ventana de `n` muestras, terminando entre fin[0] y
     fin[1] segundos, con su sala, su micrófono y algo de fondo.
+
+    `previa`: otra frase dicha justo antes ("bueno, oye Vendfy…"), para que la
+    palabra se reconozca en medio de una conversación y no solo tras un silencio.
     """
-    x = velocidad(palabra, rng.uniform(0.88, 1.12))
+    x = velocidad(palabra, rng.uniform(*rapidez))
     if rng.random() < 0.6:
         x = eco(x, rng)
     x = microfono(x, rng)
@@ -191,6 +203,12 @@ def aumentar_en_ventana(palabra: np.ndarray, fondos: Fondos, rng: random.Random,
         x = x[-empieza:]
         empieza = 0
     ventana[empieza: empieza + len(x)] = x[: n - empieza]
+    if previa is not None and empieza > SR // 10:
+        p = microfono(velocidad(previa, rng.uniform(0.9, 1.1)), rng)
+        p = normalizar(p) * 0.1 * rng.uniform(0.5, 1.2)
+        hasta = max(0, empieza - int(rng.uniform(0.05, 0.4) * SR))
+        desde = max(0, hasta - len(p))
+        ventana[desde:hasta] += p[len(p) - (hasta - desde):]
     if rng.random() < 0.9:
         ventana = con_snr(ventana, fondos.fondo(n), rng.uniform(*snr))
     else:

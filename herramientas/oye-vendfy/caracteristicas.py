@@ -34,10 +34,11 @@ VENTANA = 32000  # 2 s → 16 ventanas de embeddings
 
 _feat = None
 _fondos = None
+_frases = []
 
 
 def _iniciar(semilla):
-    global _feat, _fondos
+    global _feat, _fondos, _frases
     from openwakeword.utils import AudioFeatures
 
     _feat = AudioFeatures(
@@ -57,6 +58,8 @@ def _iniciar(semilla):
     ruidos = [r[: 30 * SR].copy() for r in islice(musan("noise"), 300)]
     ruidos += [m[len(m) // 3: len(m) // 3 + 30 * SR].copy() for m in islice(musan("music"), 150)]
     _fondos = Fondos(habla, ruidos, rng)
+    # Frases que se dicen antes de la palabra ("bueno, oye Vendfy…").
+    _frases = [f for f in leer_tts("negativos") if 0.3 * SR < len(f) < 3 * SR][:800]
 
 
 def ventanas(emb: np.ndarray, paso: int) -> np.ndarray:
@@ -100,6 +103,39 @@ def _clips(args) -> np.ndarray:
     clips = [aumentar_en_ventana(p, _fondos, _fondos.rng, **opciones) for p in palabras for _ in range(veces)]
     emb = _feat.embed_clips(a_int16(np.stack(clips)), batch_size=64, ncpu=1)
     return emb[:, -16:].astype(np.float16)
+
+
+def _contexto(args) -> np.ndarray:
+    """La palabra en medio de una conversación, más rápida o más lenta, con más ruido."""
+    palabras, veces = args
+    clips = [
+        aumentar_en_ventana(p, _fondos, _fondos.rng, snr=(-3.0, 20.0), rapidez=(0.8, 1.25), previa=_fondos.rng.choice(_frases))
+        for p in palabras
+        for _ in range(veces)
+    ]
+    emb = _feat.embed_clips(a_int16(np.stack(clips)), batch_size=64, ncpu=1)
+    return emb[:, -16:].astype(np.float16)
+
+
+def _flujo(args) -> list:
+    """
+    Para medir como el navegador: la palabra (de voces de reserva) dentro de
+    3,5 s de audio, y todas las ventanas de a 80 ms. Devuelve una secuencia por
+    variante; se cuenta como oída si dispara (2 ventanas seguidas) en alguna.
+    """
+    palabras, veces = args
+    salida = []
+    for p in palabras:
+        for k in range(veces):
+            contexto = k % 2 == 1
+            clip = aumentar_en_ventana(
+                p, _fondos, _fondos.rng, n=56000, fin=(2.3, 2.7), snr=(0.0, 20.0),
+                rapidez=(0.85, 1.2) if contexto else (0.9, 1.1),
+                previa=_fondos.rng.choice(_frases) if contexto else None,
+            )
+            emb = _feat._get_embeddings(a_int16(clip)).astype(np.float32)
+            salida.append(ventanas(emb, 1))
+    return salida
 
 
 def _ruido(n: int) -> np.ndarray:
@@ -170,6 +206,23 @@ def main():
             parciales = [p[: int(len(p) * rng.uniform(0.4, 0.75))] for p in pal]
             guardar("neg_parcial", en_lotes(pool, parciales, 3, {}))
 
+        if que in ("todo", "contexto"):
+            pal = [p for p in leer_tts("positivos") if 0.35 * SR < len(p) < 2.2 * SR]
+            trabajos = [(pal[i: i + 8], 6) for i in range(0, len(pal), 8)]
+            guardar("pos_contexto", np.concatenate(list(pool.imap(_contexto, trabajos, chunksize=1))))
+            res = [p for p in leer_tts("reserva") if 0.35 * SR < len(p) < 2.2 * SR]
+            trabajos = [(res[i: i + 8], 6) for i in range(0, len(res), 8)]
+            guardar("pos_reserva_contexto", np.concatenate(list(pool.imap(_contexto, trabajos, chunksize=1))))
+
+        if que in ("todo", "flujo"):
+            res = [p for p in leer_tts("reserva") if 0.35 * SR < len(p) < 2.2 * SR]
+            trabajos = [(res[i: i + 4], 8) for i in range(0, len(res), 4)]
+            secuencias = [s for parte in pool.imap(_flujo, trabajos, chunksize=1) for s in parte]
+            # Una tira con todas y dónde empieza cada una.
+            largos = np.array([len(s) for s in secuencias])
+            np.save(SALIDA / "flujo_reserva_largos.npy", largos)
+            guardar("flujo_reserva", np.concatenate(secuencias))
+
         if que in ("todo", "tts"):
             neg = [n[: VENTANA - 800] for n in leer_tts("negativos") if len(n) > 0.2 * SR]
             print(f"negativos TTS: {len(neg)} clips", flush=True)
@@ -189,6 +242,8 @@ def main():
             # Lo que suena en una tienda: música, ruidos reales y la tele (habla en inglés).
             base = DATOS / "musan" / "musan"
             for nombre, carpeta, paso in (("neg_musica", "music", 4), ("neg_ruido_real", "noise", 2), ("neg_ingles", "speech", 6)):
+                if (SALIDA / f"{nombre}.npy").exists():
+                    continue
                 rutas = sorted(str(r) for r in (base / carpeta).rglob("*.wav"))
                 if not rutas:
                     print(f"  (sin {carpeta})", flush=True)

@@ -15,7 +15,7 @@ test("oye «Oye Vendfy» y vende sin tocar nada", async ({ page }) => {
   await expect(page.getByTestId("piloto-tarjeta")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("piloto-linea")).toContainText("¿Algo más?", { timeout: 45_000 });
   // Lo que se entendió ya no trae la palabra.
-  await expect(page.getByTestId("piloto-dicho")).toContainText(/vende 2 sprite/i);
+  await expect(page.getByTestId("piloto-dicho")).toContainText(/vende (2|dos) ?sprite/i);
   await expect(page.getByTestId("piloto-dicho")).not.toContainText(/vendfy/i);
   await expect(page).toHaveURL(/\/caja/);
   expect((await carrito(page)).map((i) => [i.name, i.quantity])).toEqual([["Sprite 2L", 2]]);

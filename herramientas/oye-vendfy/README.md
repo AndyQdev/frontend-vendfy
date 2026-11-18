@@ -28,13 +28,22 @@ python puntajes_stream.py prueba/positiva.wav   # dónde dispara, paso a paso (i
 
 `claves.py` lee las claves de los `.env` locales sin imprimirlas.
 
-## Estado (17/11/2026)
+## Estado (18/11/2026) — modelo en uso: v3
 
-- v1 (`metricas-v1.json`): acierta 93 % con voces que nunca escuchó, pero dispara
-  demasiado con música, tele y ruido de casa (≈50 falsas por hora antes de la
-  verificación del servidor). El servidor descarta esas falsas alarmas en silencio,
-  pero el modelo todavía no está para producción.
-- v2 en curso: suma música, ruido real y habla en inglés de MUSAN como negativos
-  y como fondo, con más peso a las falsas alarmas y regularización.
-- La copia en el navegador da los mismos puntajes que Python (diferencia máxima
-  0,0007) y tarda ~11 ms por paso de 80 ms.
+Medido como en el panel (dispara con 2 pasos seguidos sobre el umbral 0,5), con
+voces que el modelo nunca escuchó (Chirp, Neural2 con otros tonos y Gemini
+susurrando, cansado, gritando) y fondo de tienda entre 0 y 20 dB:
+
+| | v1 | v3 (en uso) |
+|---|---|---|
+| Oye la palabra sola | — | 91,8 % |
+| La oye en medio de una conversación | — | 86,0 % |
+| Falsas alarmas por hora (22 h de charla, música, tele) | ~50 | 1,7 (0 con charla en español; 3,5 con música y tele) |
+
+Las falsas alarmas que quedan las descarta el servidor (Whisper no encuentra la
+palabra) y la tarjeta se cierra sola. Lo que más falla: hablar muy rápido y
+algunas voces de Gemini. **Lo que más mejoraría ahora: grabaciones reales** de
+personas diciendo «Oye Vendfy» (todo lo de hoy es sintético).
+
+`evaluar.py` mide un modelo, `fallas.py` dice qué voces/estilos fallan y
+`v3.sh` arma todo de punta a punta.
