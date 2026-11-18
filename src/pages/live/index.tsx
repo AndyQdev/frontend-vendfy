@@ -8,6 +8,15 @@ import { Badge } from "@/shared/ui/badge";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { useStore } from "@/app/providers/auth";
 import { useLives } from "@/entities/live/api";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import {
+  descargarExcel,
+  fechaHoraCelda,
+  nombreArchivoListado,
+  numeroCelda,
+  traerTodas,
+} from "@/shared/lib/exportar-excel";
 import { CrearLiveModal } from "@/features/live/ui/CrearLiveModal";
 import { CompartirLive } from "@/features/live/ui/CompartirLive";
 import type { LiveSession } from "@/entities/live/model/types";
@@ -43,6 +52,52 @@ export default function LivePage() {
 
   const vendidosTotales = lives.reduce((s, l) => s + (l.summary?.vendidos ?? 0), 0);
 
+  // Excel del historial completo de Lives (la pantalla carga los últimos 30).
+  const exportar = async () => {
+    const todos = await traerTodas<LiveSession>((limit, offset) => {
+      const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (storeId !== "all") qs.append("storeId", storeId);
+      return apiFetch<LiveSession[]>(`/api/live?${qs.toString()}`);
+    });
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      [
+        {
+          nombre: "Lives",
+          columnas: [
+            { titulo: "Título", tipo: "texto", ancho: 30 },
+            { titulo: "Estado", tipo: "texto", ancho: 14 },
+            { titulo: "Tienda", tipo: "texto", ancho: 20 },
+            { titulo: "Empieza", tipo: "texto", ancho: 18 },
+            { titulo: "Termina", tipo: "texto", ancho: 18 },
+            { titulo: "Prendas", tipo: "numero", ancho: 10 },
+            { titulo: "Vendidas", tipo: "numero", ancho: 10 },
+            { titulo: "Disponibles", tipo: "numero", ancho: 12 },
+            { titulo: "Ventas (Bs)", tipo: "dinero", ancho: 14 },
+            { titulo: "Cuentas", tipo: "numero", ancho: 10 },
+            { titulo: "Subastas cerradas", tipo: "numero", ancho: 16 },
+            { titulo: "Monto en subastas (Bs)", tipo: "dinero", ancho: 20 },
+          ],
+          filas: todos.map((l) => [
+            l.title,
+            ETIQUETA[l.status]?.texto ?? l.status,
+            l.store?.name || "",
+            fechaHoraCelda(l.startedAt),
+            fechaHoraCelda(l.endedAt),
+            l.summary?.items ?? null,
+            l.summary?.vendidos ?? null,
+            l.summary?.disponibles ?? null,
+            l.summary ? numeroCelda(l.summary.ventasTotal) : null,
+            l.summary?.cuentas ?? null,
+            l.summary?.subastas.cerradas ?? null,
+            l.summary ? numeroCelda(l.summary.subastas.montoFinal) : null,
+          ]),
+        },
+      ],
+      nombreArchivoListado("lives", tienda),
+    );
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -53,12 +108,15 @@ export default function LivePage() {
           { value: vendidosTotales, label: "prendas vendidas" },
         ]}
         actions={
-          puedeCrear ? (
-            <Button onClick={() => setCrearAbierto(true)}>
-              <Plus className="h-4 w-4" />
-              <span className="ml-1">Nuevo Live</span>
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportar onExportar={exportar} size="sm" disabled={isLoading} />
+            {puedeCrear ? (
+              <Button onClick={() => setCrearAbierto(true)}>
+                <Plus className="h-4 w-4" />
+                <span className="ml-1">Nuevo Live</span>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

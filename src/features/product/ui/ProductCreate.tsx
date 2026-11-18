@@ -24,6 +24,7 @@ import type { ProductInput } from "@/entities/product/model/schema";
 import type { EnriquecimientoIa, ResultadoEscaneo, SugerenciaCatalogo } from "@/entities/product/model/escaneo";
 import { sonar, useEnriquecimientoIa, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { StoreReviewsManager } from "@/features/store/ui/StoreReviewsManager";
+import { FormasDeVenta } from "@/features/product/ui/FormasDeVenta";
 import { useRegreso } from "@/shared/hooks/use-regreso";
 import { toast } from "sonner";
 import { registrarPantalla } from "@/features/piloto";
@@ -79,6 +80,9 @@ export default function CreateProduct() {
   const [precioPorMedida, setPrecioPorMedida] = useState<number>(0);
   const [unidadBase, setUnidadBase] = useState("ml");
   const [contenido, setContenido] = useState<number>(0);
+  // La fila de inventario de esta tienda: es a la que se cuelgan las formas de
+  // venta (el frasco entero, los decants).
+  const [storeProductId, setStoreProductId] = useState("");
   const { data: unidades = [] } = useUnitsOfMeasure(true);
 
   // Las unidades en que tiene sentido fraccionar: 'unidad' no sirve para esto.
@@ -119,6 +123,7 @@ export default function CreateProduct() {
         inventories.find((inv) => inv.store?.id === currentStoreId) || inventories[0];
 
       const p: any = existingProduct;
+      setStoreProductId(storeProduct?.id ?? "");
       if (p.inventoryType === "fractional") {
         setPorMedida(true);
         setUnidadBase(p.baseUnit?.code || "ml");
@@ -1151,6 +1156,19 @@ export default function CreateProduct() {
               </div>
             )}
           </Card>
+
+          {/* Formas de venta: solo existen cuando el producto ya está guardado,
+              porque se cuelgan de su fila de inventario. */}
+          {isEditMode && porMedida && storeProductId && (
+            <Card className="p-6">
+              <FormasDeVenta
+                storeProductId={storeProductId}
+                baseUnitCode={unidadBase}
+                contentPerUnit={contenido}
+                units={unidadesMedibles}
+              />
+            </Card>
+          )}
 
           {/* Featured */}
           <Card className="p-6">

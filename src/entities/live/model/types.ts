@@ -37,6 +37,9 @@ export interface LiveAuction {
   currentAmount: number | null;
   bidCount: number;
   openedAt: string | null;
+  /** Segundos que dura la puja desde que se abre; null = la cierra el vendedor. */
+  durationSeconds?: number | null;
+  /** Cuándo se cierra sola (se fija al abrirla). */
   closesAt: string | null;
   closedAt: string | null;
 }
@@ -136,5 +139,7 @@ export interface QuickItemInput {
 export interface CreateAuctionInput {
   startingPrice: number;
   minIncrement?: number;
+  /** Cuánto dura la puja desde que se abre (10 s a 1 h). Sin esto, se cierra a mano. */
+  durationSeconds?: number;
   closesAt?: string;
 }

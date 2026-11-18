@@ -54,6 +54,15 @@ import {
 } from "@/shared/ui/lista-tarjetas";
 import { useAcceso } from "@/app/providers/acceso";
 import { PERMISO } from "@/shared/acceso/permisos";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import {
+  descargarExcel,
+  fechaHoraCelda,
+  nombreArchivoListado,
+  numeroCelda,
+  traerTodas,
+} from "@/shared/lib/exportar-excel";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pendiente", variant: "outline" },
@@ -186,6 +195,68 @@ export function PurchaseOrdersTable() {
   };
 
   /** El total como lo cobró el proveedor; si fue en dólares, con su Bs abajo. */
+  // Excel de todas las compras (la pantalla muestra las últimas 50).
+  const exportar = async () => {
+    const compras = await traerTodas<PurchaseOrder>((limit, offset) => {
+      const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), order: "DESC" });
+      if (storeId) qs.append("storeId", storeId);
+      if (filtro.producto) qs.append("productId", filtro.producto.id);
+      return apiFetch<PurchaseOrder[]>(`/api/purchase-order?${qs.toString()}`);
+    });
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      [
+        {
+          nombre: "Compras",
+          columnas: [
+            { titulo: "Fecha", tipo: "texto", ancho: 18 },
+            { titulo: "Proveedor", tipo: "texto", ancho: 26 },
+            { titulo: "Referencia", tipo: "texto", ancho: 16 },
+            { titulo: "Productos", tipo: "numero", ancho: 10 },
+            { titulo: "Total (Bs)", tipo: "dinero", ancho: 12 },
+            { titulo: "Total (USD)", tipo: "dinero", ancho: 12 },
+            { titulo: "Tienda", tipo: "texto", ancho: 20 },
+            { titulo: "Estado", tipo: "texto", ancho: 12 },
+          ],
+          filas: compras.map((po) => [
+            fechaHoraCelda(po.created_at),
+            po.supplierName || "Sin proveedor",
+            po.referenceNumber || "",
+            po.items?.length ?? 0,
+            numeroCelda(po.totalAmount),
+            po.currency === "USD" ? numeroCelda(po.totalUsd) : null,
+            po.store?.name || "",
+            (statusConfig[po.status] ?? statusConfig.pending).label,
+          ]),
+        },
+        {
+          nombre: "Detalle",
+          columnas: [
+            { titulo: "Fecha", tipo: "texto", ancho: 18 },
+            { titulo: "Proveedor", tipo: "texto", ancho: 26 },
+            { titulo: "Referencia", tipo: "texto", ancho: 16 },
+            { titulo: "Producto", tipo: "texto", ancho: 32 },
+            { titulo: "Cantidad", tipo: "numero", ancho: 10 },
+            { titulo: "Costo unit. (Bs)", tipo: "dinero", ancho: 15 },
+            { titulo: "Subtotal (Bs)", tipo: "dinero", ancho: 14 },
+          ],
+          filas: compras.flatMap((po) =>
+            (po.items ?? []).map((it) => [
+              fechaHoraCelda(po.created_at),
+              po.supplierName || "Sin proveedor",
+              po.referenceNumber || "",
+              it.product?.name || "",
+              numeroCelda(it.quantity),
+              numeroCelda(it.unitCost),
+              numeroCelda(it.subtotal),
+            ]),
+          ),
+        },
+      ],
+      nombreArchivoListado(filtro.producto ? `compras-${filtro.producto.nombre}` : "compras", tienda),
+    );
+  };
+
   const totalDe = (po: PurchaseOrder) =>
     po.currency === "USD" ? (
       <>
@@ -206,7 +277,9 @@ export function PurchaseOrdersTable() {
             Registra y gestiona tus compras por lote
           </p>
         </div>
-        {puedeGestionar ? <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+        <BotonExportar onExportar={exportar} />
+        {puedeGestionar ? <>
           <ButtonMagic
             onClick={() => setIaAbierto(true)}
             disabled={!storeId}
@@ -220,7 +293,8 @@ export function PurchaseOrdersTable() {
             <Plus className="mr-2 h-4 w-4" />
             Nueva Compra
           </Button>
-        </div> : null}
+        </> : null}
+        </div>
       </div>
       {storeId && <CompraConIaModal open={iaAbierto} onOpenChange={setIaAbierto} storeId={storeId} />}
 

@@ -21,6 +21,16 @@ import { OrderType, OrderStatus, Order } from "@/entities/order/model/types";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
 import { format } from "date-fns";
 import { SalesDetailsModal } from "./SalesDetailsModal";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import {
+  descargarExcel,
+  fechaCelda,
+  nombreArchivoListado,
+  numeroCelda,
+  traerTodas,
+  type HojaExcel,
+} from "@/shared/lib/exportar-excel";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import {
   ListaTarjetas,
@@ -129,6 +139,66 @@ export default function SalesTable() {
     );
   };
 
+  // Excel con todas las ventas de la búsqueda actual (no solo las 100 que
+  // carga la pantalla), una hoja por tipo como las pestañas.
+  const exportar = async () => {
+    const ventas = await traerTodas<Order>((limit, offset) => {
+      const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), order: "DESC" });
+      if (storeId) qs.append("storeId", storeId);
+      if (searchTerm) {
+        qs.append("attr", "customer.name");
+        qs.append("value", searchTerm);
+      }
+      if (filtro.producto) qs.append("productId", filtro.producto.id);
+      return apiFetch<Order[]>(`/api/order?${qs.toString()}`);
+    });
+    const ESTADO: Record<string, string> = {
+      [OrderStatus.PENDIENTE]: "Pendiente",
+      [OrderStatus.EN_PROCESO]: "En Proceso",
+      [OrderStatus.EN_CAMINO]: "En Camino",
+      [OrderStatus.COMPLETADO]: "Completado",
+      [OrderStatus.CANCELADO]: "Cancelado",
+    };
+    const hoja = (nombre: string, tipo: OrderType): HojaExcel => {
+      const conDireccion = tipo === OrderType.DELIVERY;
+      const conCuotas = tipo === OrderType.INSTALLMENT;
+      return {
+        nombre,
+        columnas: [
+          { titulo: "ID", tipo: "texto", ancho: 12 },
+          { titulo: "Cliente", tipo: "texto", ancho: 26 },
+          { titulo: "Tienda", tipo: "texto", ancho: 20 },
+          { titulo: "Total (Bs)", tipo: "dinero", ancho: 12 },
+          { titulo: "Recibido (Bs)", tipo: "dinero", ancho: 13 },
+          { titulo: "Estado", tipo: "texto", ancho: 13 },
+          { titulo: "Método de pago", tipo: "texto", ancho: 16 },
+          { titulo: "Fecha", tipo: "texto", ancho: 12 },
+          ...(conDireccion ? [{ titulo: "Dirección", tipo: "texto" as const, ancho: 36 }] : []),
+          ...(conCuotas ? [{ titulo: "Cuotas", tipo: "numero" as const, ancho: 8 }] : []),
+        ],
+        filas: ventas
+          .filter((o) => o.type === tipo)
+          .map((o) => [
+            o.number ? `#${o.number}` : o.id.slice(0, 8),
+            o.customer?.name || "",
+            o.store?.name || "",
+            numeroCelda(o.totalAmount),
+            numeroCelda(o.totalReceived),
+            ESTADO[o.status] ?? o.status,
+            nombrePago(o.paymentMethod),
+            fechaCelda(o.created_at),
+            ...(conDireccion ? [o.deliveryInfo?.address || ""] : []),
+            ...(conCuotas ? [numeroCelda(o.installmentInfo?.numberOfInstallments)] : []),
+          ]),
+      };
+    };
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      [hoja("Venta rápida", OrderType.QUICK), hoja("Delivery", OrderType.DELIVERY), hoja("A cuotas", OrderType.INSTALLMENT)],
+      nombreArchivoListado(filtro.producto ? `ventas-${filtro.producto.nombre}` : "ventas", tienda),
+    );
+  };
+
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
@@ -144,6 +214,7 @@ export default function SalesTable() {
             Gestiona todas las órdenes de venta
           </p>
         </div>
+        <BotonExportar onExportar={exportar} />
       </div>
 
       {/* Search */}

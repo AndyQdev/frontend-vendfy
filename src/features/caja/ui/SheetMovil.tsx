@@ -36,6 +36,7 @@ interface Product {
 }
 
 interface CartItem {
+  lineId: string;
   id: string;
   storeProductId: string; // ID del StoreProduct desde inventory
   name: string;
@@ -43,6 +44,10 @@ interface CartItem {
   quantity: number;
   stock: number;
   imageUrl?: string;
+  presentationId?: string;
+  presentationName?: string;
+  unitBaseQuantity?: number;
+  baseUnitSymbol?: string;
 }
 
 interface SheetMovileCartProps {
@@ -179,7 +184,7 @@ export function SheetMovileCart({
                 {cart.map((item) => {
                   const product = products.find((p) => p.id === item.id);
                   return (
-                    <Card key={item.id} className="p-3 hover:bg-accent/50 transition-colors">
+                    <Card key={item.lineId} className="p-3 hover:bg-accent/50 transition-colors">
                       <div className="flex gap-3">
                         {/* Imagen */}
                         <div className="w-16 h-16 rounded-md overflow-hidden bg-muted shrink-0">
@@ -199,6 +204,7 @@ export function SheetMovileCart({
                             <h4 className="text-sm font-medium line-clamp-1">{item.name}</h4>
                             <p className="text-sm font-bold text-emerald-600">
                               Bs. {item.price.toFixed(2)}
+                              {item.presentationName ? ` · ${item.presentationName}` : ""}
                             </p>
                           </div>
 
@@ -209,7 +215,7 @@ export function SheetMovileCart({
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 hover:bg-background"
-                                onClick={() => decrementQuantity(item.id)}
+                                onClick={() => decrementQuantity(item.lineId)}
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
@@ -220,8 +226,14 @@ export function SheetMovileCart({
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 hover:bg-background"
-                                onClick={() => incrementQuantity(item.id)}
-                                disabled={item.quantity >= item.stock}
+                                onClick={() => incrementQuantity(item.lineId)}
+                                disabled={
+                                  cart
+                                    .filter((i) => i.id === item.id)
+                                    .reduce((suma, i) => suma + (i.unitBaseQuantity ?? 1) * i.quantity, 0) +
+                                    (item.unitBaseQuantity ?? 1) >
+                                  item.stock
+                                }
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -236,7 +248,7 @@ export function SheetMovileCart({
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => removeFromCart(item.id)}
+                                onClick={() => removeFromCart(item.lineId)}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>

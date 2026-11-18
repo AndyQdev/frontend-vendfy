@@ -3,7 +3,18 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useOrders, useUpdateOrder } from "@/entities/order/api";
 import { useStore } from "@/app/providers/auth";
-import { Order, OrderStatus } from "@/entities/order/model/types";
+import { Order, OrderStatus, OrderType } from "@/entities/order/model/types";
+import { nombrePago } from "@/entities/order/model/pago";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import {
+  descargarExcel,
+  fechaCelda,
+  nombreArchivoListado,
+  numeroCelda,
+  traerTodas,
+  type HojaExcel,
+} from "@/shared/lib/exportar-excel";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -553,6 +564,63 @@ export default function OrdersTable() {
     );
   };
 
+  // Excel del tablero: una hoja por columna, con todo el período y la tienda
+  // elegidos (no solo los 200 pedidos que carga la pantalla).
+  const exportar = async () => {
+    const pedidos = await traerTodas<Order>((limit, offset) => {
+      const qs = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+        order: sortOrder,
+        dateFilter,
+      });
+      if (storeId) qs.append("storeId", storeId);
+      if (filtro.producto) qs.append("productId", filtro.producto.id);
+      return apiFetch<Order[]>(`/api/order?${qs.toString()}`);
+    });
+    const TIPO: Record<string, string> = {
+      [OrderType.QUICK]: "Venta rápida",
+      [OrderType.DELIVERY]: "Delivery",
+      [OrderType.INSTALLMENT]: "A cuotas",
+    };
+    const hojaDe = (column: (typeof KANBAN_COLUMNS)[number]): HojaExcel => ({
+      nombre: column.title,
+      columnas: [
+        { titulo: "Pedido", tipo: "texto", ancho: 12 },
+        { titulo: "Cliente", tipo: "texto", ancho: 26 },
+        { titulo: "Tienda", tipo: "texto", ancho: 20 },
+        { titulo: "Tipo", tipo: "texto", ancho: 14 },
+        { titulo: "Productos", tipo: "texto", ancho: 40 },
+        { titulo: "Total (Bs)", tipo: "dinero", ancho: 12 },
+        { titulo: "Recibido (Bs)", tipo: "dinero", ancho: 13 },
+        { titulo: "Método de pago", tipo: "texto", ancho: 16 },
+        { titulo: "Fecha", tipo: "texto", ancho: 12 },
+        { titulo: "Dirección", tipo: "texto", ancho: 34 },
+      ],
+      filas: pedidos
+        .filter((o) => o.status === column.id)
+        .map((o) => [
+          o.number ? `#${o.number}` : o.id.slice(0, 8),
+          o.customer?.name || "",
+          o.store?.name || "",
+          TIPO[o.type] ?? o.type,
+          (o.items ?? [])
+            .map((i) => `${i.storeProduct?.product?.name || "Producto"} x${i.quantity}`)
+            .join(", "),
+          numeroCelda(o.totalAmount),
+          numeroCelda(o.totalReceived),
+          nombrePago(o.paymentMethod),
+          fechaCelda(o.created_at),
+          o.deliveryInfo?.address || "",
+        ]),
+    });
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      KANBAN_COLUMNS.map(hojaDe),
+      nombreArchivoListado(filtro.producto ? `pedidos-${filtro.producto.nombre}` : "pedidos", tienda),
+    );
+  };
+
   return (
     <div className="space-y-6 pb-6">
       {/* Header */}
@@ -563,7 +631,8 @@ export default function OrdersTable() {
             Arrastra las órdenes para cambiar su estado
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <BotonExportar onExportar={exportar} size="sm" disabled={isLoading} />
           <Tabs
             value={dateFilter}
             onValueChange={(value) => setDateFilter(value as DateFilter)}

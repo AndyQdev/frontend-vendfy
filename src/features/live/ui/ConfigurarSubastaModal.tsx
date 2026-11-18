@@ -17,6 +17,16 @@ import { Label } from "@/shared/ui/label";
 import { usePrepararSubasta } from "@/entities/live/api";
 import type { LiveItem } from "@/entities/live/model/types";
 
+/** Duraciones que se ofrecen; null = sin tiempo, la cierra el vendedor. */
+const DURACIONES: { segundos: number | null; nombre: string }[] = [
+  { segundos: null, nombre: "La cierro yo" },
+  { segundos: 60, nombre: "1 min" },
+  { segundos: 120, nombre: "2 min" },
+  { segundos: 180, nombre: "3 min" },
+  { segundos: 300, nombre: "5 min" },
+  { segundos: 600, nombre: "10 min" },
+];
+
 /**
  * Configurar la subasta de una prenda.
  *
@@ -27,6 +37,10 @@ import type { LiveItem } from "@/entities/live/model/types";
  * Esto solo la deja preparada. Abrirla -que es cuando la gente puede pujar- es
  * un botón aparte en el panel de control, para que el vendedor la largue
  * cuando tenga la prenda en la mano.
+ *
+ * La duración es opcional: si se elige, el tiempo corre desde que se abre y al
+ * llegar a cero la puja se cierra sola y la prenda va al mejor postor. Sin
+ * duración, la cierra el vendedor como siempre.
  */
 export function ConfigurarSubastaModal({
   open,
@@ -42,6 +56,7 @@ export function ConfigurarSubastaModal({
   const preparar = usePrepararSubasta(liveId);
   const [startingPrice, setStartingPrice] = useState("");
   const [minIncrement, setMinIncrement] = useState("10");
+  const [duracion, setDuracion] = useState<number | null>(null);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +76,11 @@ export function ConfigurarSubastaModal({
         itemId: item.id,
         startingPrice: inicial,
         minIncrement: incremento,
+        ...(duracion && { durationSeconds: duracion }),
       });
       toast.success(`"${item.name}" queda lista para subastar`);
       setStartingPrice("");
+      setDuracion(null);
       onOpenChange(false);
     } catch (error) {
       toast.error((error as Error).message || "No se pudo preparar la subasta");
@@ -114,6 +131,30 @@ export function ConfigurarSubastaModal({
               value={minIncrement}
               onChange={(e) => setMinIncrement(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Duración de la puja</Label>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Duración de la puja">
+              {DURACIONES.map((d) => (
+                <Button
+                  key={d.nombre}
+                  type="button"
+                  size="sm"
+                  role="radio"
+                  aria-checked={duracion === d.segundos}
+                  variant={duracion === d.segundos ? "default" : "outline"}
+                  onClick={() => setDuracion(d.segundos)}
+                >
+                  {d.nombre}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {duracion
+                ? "El tiempo corre desde que la abrís. Al llegar a cero se cierra sola y la prenda va al mejor postor."
+                : "Sin tiempo: la cerrás vos desde el control del Live."}
+            </p>
           </div>
 
           </DialogBody>

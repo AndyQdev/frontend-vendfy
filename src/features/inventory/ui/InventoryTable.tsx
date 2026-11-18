@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useNavigate } from "react-router-dom";
 import { useInventory, useMovementsByInventory } from "@/entities/inventory/api";
+import { apiFetch } from "@/shared/api/client";
+import type { Inventory as InventarioFila } from "@/entities/inventory/model/types";
+import { desglosarEnvases } from "@/entities/inventory/model/envases";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, nombreArchivoListado, numeroCelda, traerTodas } from "@/shared/lib/exportar-excel";
 import { useCategories, useBrands } from "@/entities/product/api";
 import { fraseVan, frasesInventario, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { decirFrases } from "@/shared/voz";
@@ -179,6 +184,57 @@ export default function InventoryTable() {
     ...(onlyInStock && { inStock: true }),
   };
 
+  // Excel del stock con los filtros actuales (todas las páginas).
+  const exportar = async () => {
+    const filas = await traerTodas<InventarioFila>((limit, offset) => {
+      const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), order: "DESC", storeId });
+      if (debouncedSearch) qs.append("search", debouncedSearch);
+      if (selectedCategory !== "all") qs.append("categoryId", selectedCategory);
+      if (selectedBrand !== "all") qs.append("brandId", selectedBrand);
+      if (minPriceNum !== undefined) qs.append("minPrice", String(minPriceNum));
+      if (maxPriceNum !== undefined) qs.append("maxPrice", String(maxPriceNum));
+      if (onlyInStock) qs.append("inStock", "true");
+      return apiFetch<InventarioFila[]>(`/api/inventory?${qs.toString()}`);
+    });
+    const ESTADO: Record<string, string> = { disponible: "Disponible", agotado: "Agotado", reservado: "Reservado" };
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      [
+        {
+          nombre: "Stock",
+          columnas: [
+            { titulo: "Producto", tipo: "texto", ancho: 34 },
+            { titulo: "Código", tipo: "texto", ancho: 16 },
+            { titulo: "Tienda", tipo: "texto", ancho: 20 },
+            { titulo: "Precio (Bs)", tipo: "dinero", ancho: 12 },
+            { titulo: "Stock", tipo: "numero", ancho: 10 },
+            { titulo: "Unidad", tipo: "texto", ancho: 10 },
+            { titulo: "Envases cerrados", tipo: "numero", ancho: 16 },
+            { titulo: "Envase abierto", tipo: "numero", ancho: 14 },
+            { titulo: "Reservado", tipo: "numero", ancho: 11 },
+            { titulo: "Estado", tipo: "texto", ancho: 12 },
+          ],
+          filas: filas.map((inv) => {
+            const d = desglosarEnvases(inv);
+            return [
+              inv.product?.name || "",
+              inv.product?.sku || "",
+              inv.store?.name || "",
+              numeroCelda(inv.product?.price),
+              d.total,
+              d.porMedida ? inv.product?.baseUnit?.symbol || "" : "unid.",
+              d.porMedida ? d.sellados : null,
+              d.porMedida ? d.abierto : null,
+              numeroCelda(inv.reservedQuantity),
+              ESTADO[inv.status] ?? inv.status ?? "",
+            ];
+          }),
+        },
+      ],
+      nombreArchivoListado("inventario", tienda),
+    );
+  };
+
   const hasActiveFilters = hayFiltros;
   const handleResetFilters = limpiar;
 
@@ -266,16 +322,19 @@ export default function InventoryTable() {
         value={vista}
         onValueChange={(v) => setVista(v as "stock" | "movimientos")}
       >
-        <TabsList>
-          <TabsTrigger value="stock" className="gap-1.5">
-            <Boxes className="h-4 w-4" />
-            Stock
-          </TabsTrigger>
-          <TabsTrigger value="movimientos" className="gap-1.5">
-            <History className="h-4 w-4" />
-            Movimientos
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="stock" className="gap-1.5">
+              <Boxes className="h-4 w-4" />
+              Stock
+            </TabsTrigger>
+            <TabsTrigger value="movimientos" className="gap-1.5">
+              <History className="h-4 w-4" />
+              Movimientos
+            </TabsTrigger>
+          </TabsList>
+          {vista === "stock" && <BotonExportar onExportar={exportar} />}
+        </div>
 
         <TabsContent value="stock" className="mt-4 space-y-6">
         {/* Stats Cards */}

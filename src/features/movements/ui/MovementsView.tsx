@@ -7,6 +7,17 @@ import { useStore } from "@/app/providers/auth";
 import { inventariosDeEscaneo } from "@/features/inventory/model/escaneo";
 import { sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
 import { MovimientosDeProducto } from "./MovimientosDeProducto";
+import { apiFetch } from "@/shared/api/client";
+import type { Order } from "@/entities/order/model/types";
+import type { InventoryMovement } from "@/entities/inventory/model/types";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import {
+  descargarExcel,
+  fechaHoraCelda,
+  nombreArchivoListado,
+  numeroCelda,
+  traerTodas,
+} from "@/shared/lib/exportar-excel";
 import {
   Table,
   TableBody,
@@ -110,6 +121,88 @@ export default function MovementsView() {
     "Muestra solo los movimientos de ese producto",
   );
 
+  // Excel con las dos pestañas completas (no solo la página visible) y los KPIs.
+  const exportar = async () => {
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    const qs = (extra: Record<string, string>, limit: number, offset: number) =>
+      new URLSearchParams({
+        ...extra,
+        limit: String(limit),
+        offset: String(offset),
+        order: "DESC",
+        ...(storeId ? { storeId } : {}),
+      }).toString();
+    const [ventas, compras] = await Promise.all([
+      traerTodas<Order>((limit, offset) => apiFetch<Order[]>(`/api/order?${qs({ status: "completado" }, limit, offset)}`)),
+      traerTodas<InventoryMovement>((limit, offset) =>
+        apiFetch<InventoryMovement[]>(`/api/inventory-movements?${qs({ type: "purchase" }, limit, offset)}`),
+      ),
+    ]);
+    descargarExcel(
+      [
+        {
+          nombre: "Resumen",
+          columnas: [
+            { titulo: "Indicador", tipo: "texto", ancho: 24 },
+            { titulo: "Valor", tipo: "numero", ancho: 16 },
+          ],
+          filas: [
+            ["Tienda", tienda ?? "Todas las tiendas"],
+            ...(kpis
+              ? ([
+                  ["Ingresos (Bs)", kpis.totalVentas],
+                  ["Invertido (Bs)", kpis.totalCompras],
+                  ["Ganancia neta (Bs)", kpis.gananciaReal],
+                  ["Margen (%)", Math.round(kpis.margen * 10) / 10],
+                ] as [string, number][])
+              : []),
+          ],
+        },
+        {
+          nombre: "Ventas",
+          columnas: [
+            { titulo: "Fecha", tipo: "texto", ancho: 18 },
+            { titulo: "Cliente", tipo: "texto", ancho: 26 },
+            { titulo: "Productos", tipo: "texto", ancho: 44 },
+            { titulo: "Método de pago", tipo: "texto", ancho: 16 },
+            { titulo: "Recibido (Bs)", tipo: "dinero", ancho: 14 },
+            { titulo: "Total (Bs)", tipo: "dinero", ancho: 14 },
+          ],
+          filas: ventas.map((o) => [
+            fechaHoraCelda(o.created_at),
+            o.customer?.name || "",
+            (o.items ?? []).map((i) => `${i.storeProduct?.product?.name || "Producto"} x${i.quantity}`).join(", "),
+            o.paymentMethod || "",
+            numeroCelda(o.totalReceived),
+            numeroCelda(o.totalAmount),
+          ]),
+        },
+        {
+          nombre: "Compras",
+          columnas: [
+            { titulo: "Fecha", tipo: "texto", ancho: 18 },
+            { titulo: "Producto", tipo: "texto", ancho: 32 },
+            { titulo: "Tienda", tipo: "texto", ancho: 20 },
+            { titulo: "Cantidad", tipo: "numero", ancho: 10 },
+            { titulo: "Costo unit. (Bs)", tipo: "dinero", ancho: 16 },
+            { titulo: "Total (Bs)", tipo: "dinero", ancho: 14 },
+            { titulo: "Notas", tipo: "texto", ancho: 30 },
+          ],
+          filas: compras.map((m) => [
+            fechaHoraCelda(m.created_at),
+            m.inventory?.product?.name || "",
+            m.inventory?.store?.name || "",
+            numeroCelda(m.quantity),
+            numeroCelda(m.unitCost),
+            numeroCelda(m.totalCost),
+            m.notes || "",
+          ]),
+        },
+      ],
+      nombreArchivoListado("movimientos", tienda),
+    );
+  };
+
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("es-BO", {
       day: "2-digit",
@@ -122,11 +215,14 @@ export default function MovementsView() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="titulo-pagina">Movimientos</h1>
-        <p className="mt-1.5 text-[13px] text-muted-foreground">
-          Registro de ventas y compras de mercadería. Escaneá un producto para ver solo lo suyo.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="titulo-pagina">Movimientos</h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
+            Registro de ventas y compras de mercadería. Escaneá un producto para ver solo lo suyo.
+          </p>
+        </div>
+        {!porProducto && <BotonExportar onExportar={exportar} />}
       </div>
 
       {porProducto ? (

@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { AjustesVoz, agregarAVenta, frasesCaja, sonar, useEscaner, useManejadorEscaneo } from "@/features/scanner";
-import { totalesVenta, useVentaEnCurso, ventaEnCurso } from "@/entities/order";
+import { esUnidadEntera, totalesVenta, useVentaEnCurso, ventaEnCurso } from "@/entities/order";
 import { decirFrases } from "@/shared/voz";
 import type { ResultadoEscaneo } from "@/entities/product/model/escaneo";
 import { Input } from "@/shared/ui/input";
@@ -63,11 +63,16 @@ import { useCustomers, useCreateCustomer, useAddCustomerAddress, type Customer }
 import { useInfiniteInventory } from "@/entities/inventory/api";
 import { useCategories } from "@/entities/product/api";
 import { useCreateOrder, OrderType } from "@/entities/order";
+import type { InstallmentFrequency } from "@/entities/order";
 import { useStore } from "@/app/providers/auth";
 import { useAcceso } from "@/app/providers/acceso";
 import { PERMISO } from "@/shared/acceso/permisos";
 import { useStore as useStoreDetail } from "@/entities/store/api";
 import { ComboBoxClient, CreateClientModal, SheetMovileCart } from "./";
+import {
+  SelectorFormaDeVentaCaja,
+  type ProductoParaVender,
+} from "./SelectorFormaDeVentaCaja";
 import { CreateCategoryModal } from "@/features/product/ui/CreateCategoryModal";
 import { useDolarElegido } from "@/entities/exchange-rate/ui/dolar";
 import { formatDolares, formatMoney } from "@/shared/lib/money";
@@ -210,6 +215,8 @@ export default function Caja() {
   
   // Estado para Sheet del carrito en móvil
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  // Producto fraccionable esperando que se elija su forma de venta.
+  const [productoAVender, setProductoAVender] = useState<ProductoParaVender | null>(null);
   
   // Estado para tipo de venta
   const [saleType, setSaleType] = useState<'quick' | 'installment' | 'delivery'>('quick');
@@ -219,6 +226,7 @@ export default function Caja() {
   const [installmentData, setInstallmentData] = useState({
     initialPayment: '',
     numberOfInstallments: '2',
+    frequency: 'mensual' as InstallmentFrequency,
     installmentAmount: '0',
     nextPaymentDate: '',
   });
@@ -276,10 +284,14 @@ export default function Caja() {
         id: inventory.id,
         storeProductId: inventory.storeProductId, // ID del StoreProduct
         productId: inventory.product.id as string | undefined,
+        storeId: inventory.store?.id,
         name: inventory.product.name,
         price: inventory.product.price || 0,
         stock: inventory.stockQuantity,
         imageUrl: inventory.product.imageUrls?.[0],
+        inventoryType: inventory.product.inventoryType,
+        contentPerUnit: inventory.product.contentPerUnit ?? undefined,
+        baseUnitSymbol: inventory.product.baseUnit?.symbol,
         category: "Todos", // Por ahora todas las categorías en "Todos"
       }))
     );
@@ -347,31 +359,106 @@ export default function Caja() {
   // Agregar producto al carrito
   const addToCart = useCallback((product: typeof allProducts[0]) => {
     if (product.stock === 0) return;
+    // Un producto fraccionable no tiene "un" precio: hay que elegir el envase
+    // entero, un decant o una medida libre.
+    if (product.inventoryType === "fractional") {
+      setProductoAVender(product);
+      return;
+    }
 
-    // También la fila que cargó el piloto por voz (la guarda por storeProductId).
-    const existingItem = cart.find(item => item.id === product.id || item.storeProductId === product.storeProductId);
-    
-    if (existingItem) {
-      if (existingItem.quantity < product.stock) {
-        setCart(cart.map(item =>
-          item.id === existingItem.id
+    setCart((previa) => {
+      // También la fila que cargó el piloto por voz (la guarda por storeProductId);
+      // solo la del producto entero: los decants y medidas van en filas aparte.
+      const existente = previa.find(
+        (item) =>
+          esUnidadEntera(item) &&
+          (item.id === product.id || item.storeProductId === product.storeProductId)
+      );
+      if (existente) {
+        if (existente.quantity >= product.stock) return previa;
+        return previa.map((item) =>
+          item.lineId === existente.lineId
             ? { ...item, quantity: item.quantity + 1 }
             : item
-        ));
+        );
       }
-    } else {
-      setCart([...cart, {
+      return [...previa, {
+        lineId: product.id,
         id: product.id,
-        storeProductId: product.storeProductId, // Guardar storeProductId
+        storeProductId: product.storeProductId,
         productId: product.productId,
         name: product.name,
         price: product.price,
         quantity: 1,
         stock: product.stock,
         imageUrl: product.imageUrl,
-      }]);
-    }
-  }, [cart]);
+      }];
+    });
+  }, [setCart]);
+
+  /** Vuelca la forma de venta elegida en el carrito. */
+  const agregarFormaDeVenta = (linea: {
+    presentationId?: string;
+    presentationName?: string;
+    baseQuantity: number;
+    unitPrice: number;
+    quantity: number;
+  }) => {
+    const producto = productoAVender;
+    if (!producto) return;
+
+    const consumo = linea.baseQuantity > 0 ? linea.baseQuantity : 1;
+    setCart((previa) => {
+      const consumido = previa
+        .filter((i) => i.id === producto.id)
+        .reduce((suma, i) => suma + (i.unitBaseQuantity ?? 1) * i.quantity, 0);
+      const disponible = Math.max(0, producto.stock - consumido);
+      const puede = Math.floor(disponible / consumo);
+      const cantidad = Math.min(linea.quantity, puede);
+
+      if (cantidad < 1) {
+        toast.error(`No queda stock suficiente de «${producto.name}»`);
+        return previa;
+      }
+      if (cantidad < linea.quantity) {
+        toast.warning(`Solo alcanzó para ${cantidad}`, {
+          description: `Quedan ${disponible} ${producto.baseUnitSymbol ?? "unidades"} de stock.`,
+        });
+      }
+
+      const existente = previa.find(
+        (i) =>
+          i.id === producto.id &&
+          i.presentationId === linea.presentationId &&
+          (i.unitBaseQuantity ?? 1) === consumo
+      );
+
+      if (existente) {
+        return previa.map((i) =>
+          i.lineId === existente.lineId ? { ...i, quantity: i.quantity + cantidad } : i
+        );
+      }
+
+      const lineId = `${producto.id}:${linea.presentationId ?? "completo"}:${consumo}`;
+      return [...previa, {
+        lineId,
+        id: producto.id,
+        storeProductId: producto.storeProductId,
+        name: linea.presentationName
+          ? `${producto.name} · ${linea.presentationName}`
+          : producto.name,
+        price: linea.unitPrice,
+        quantity: cantidad,
+        stock: producto.stock,
+        imageUrl: producto.imageUrl,
+        presentationId: linea.presentationId,
+        presentationName: linea.presentationName,
+        unitBaseQuantity: consumo,
+        baseUnitSymbol: producto.baseUnitSymbol,
+      }];
+    });
+    setProductoAVender(null);
+  };
 
   // ─── Escáner ───────────────────────────────────────────────────────────
   // En Caja una lectura no abre la ficha: el producto va directo al carrito.
@@ -385,6 +472,32 @@ export default function Caja() {
     (r: ResultadoEscaneo) => {
       const p = r.producto;
       if (!p) return;
+
+      // Escanear un perfume no dice si el cliente se lleva el frasco o un
+      // decant: se elige igual que al tocar la tarjeta.
+      if (p.inventoryType === "fractional") {
+        const tiendaId = storeId === "all" ? null : storeId;
+        const tienda =
+          p.tiendas.find((t) => t.storeId === tiendaId) ??
+          p.tiendas.find((t) => t.stock > 0) ??
+          p.tiendas[0];
+        const inventario = allProducts.find(
+          (prod) => prod.storeProductId === tienda?.storeProductId
+        );
+        if (tienda && inventario) {
+          setProductoAVender({
+            ...inventario,
+            stock: tienda.stock,
+            price: tienda.price,
+            inventoryType: p.inventoryType,
+            contentPerUnit: p.contentPerUnit ?? undefined,
+            baseUnitSymbol: p.baseUnit?.symbol,
+          });
+          sonar("encontrado");
+          return;
+        }
+      }
+
       const resultado = agregarAVenta(r, storeId === "all" ? null : storeId);
       // Quien escanea mira el producto, no la pantalla: la voz dice el precio
       // y, desde el segundo, cuántos van ("Doce bolivianos. Van dos."); si no
@@ -416,7 +529,7 @@ export default function Caja() {
         duration: 1600,
       });
     },
-    [storeId],
+    [storeId, allProducts],
   );
 
   const procesarCodigo = useCallback(
@@ -453,26 +566,30 @@ export default function Caja() {
   }, [resaltado]);
 
   // Incrementar cantidad
-  const incrementQuantity = (id: string) => {
-    setCart(cart.map(item =>
-      item.id === id && item.quantity < item.stock
-        ? { ...item, quantity: item.quantity + 1 }
-        : item
-    ));
+  const incrementQuantity = (lineId: string) => {
+    setCart(cart.map(item => {
+      if (item.lineId !== lineId) return item;
+      const consumido = cart
+        .filter((i) => i.id === item.id)
+        .reduce((suma, i) => suma + (i.unitBaseQuantity ?? 1) * i.quantity, 0);
+      const disponible = item.stock - consumido;
+      if (disponible < (item.unitBaseQuantity ?? 1)) return item;
+      return { ...item, quantity: item.quantity + 1 };
+    }));
   };
 
   // Decrementar cantidad
-  const decrementQuantity = (id: string) => {
+  const decrementQuantity = (lineId: string) => {
     setCart(cart.map(item =>
-      item.id === id && item.quantity > 1
+      item.lineId === lineId && item.quantity > 1
         ? { ...item, quantity: item.quantity - 1 }
         : item
     ));
   };
 
   // Eliminar item del carrito
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter(item => item.id !== id));
+  const removeFromCart = (lineId: string) => {
+    setCart(cart.filter(item => item.lineId !== lineId));
   };
 
   // Calcular totales
@@ -615,6 +732,8 @@ export default function Caja() {
           storeProductId: item.storeProductId, // ID del StoreProduct desde inventory
           quantity: item.quantity,
           price: item.price,
+          ...(item.presentationId ? { presentationId: item.presentationId } : {}),
+          ...(item.unitBaseQuantity ? { baseQuantity: item.unitBaseQuantity } : {}),
         })),
       });
 
@@ -670,6 +789,7 @@ export default function Caja() {
         installmentInfo: {
           numberOfInstallments: parseInt(installmentData.numberOfInstallments),
           nextPaymentDate: installmentData.nextPaymentDate,
+          frequency: installmentData.frequency,
         },
         storeId: selectedStore.id,
         customerId: selectedClient.id,
@@ -677,6 +797,8 @@ export default function Caja() {
           storeProductId: item.storeProductId, // ID del StoreProduct desde inventory
           quantity: item.quantity,
           price: item.price,
+          ...(item.presentationId ? { presentationId: item.presentationId } : {}),
+          ...(item.unitBaseQuantity ? { baseQuantity: item.unitBaseQuantity } : {}),
         })),
       });
 
@@ -687,6 +809,7 @@ export default function Caja() {
       setInstallmentData({
         initialPayment: '',
         numberOfInstallments: '2',
+        frequency: 'mensual',
         installmentAmount: '0',
         nextPaymentDate: '',
       });
@@ -772,6 +895,8 @@ export default function Caja() {
           storeProductId: item.storeProductId,
           quantity: item.quantity,
           price: item.price,
+          ...(item.presentationId ? { presentationId: item.presentationId } : {}),
+          ...(item.unitBaseQuantity ? { baseQuantity: item.unitBaseQuantity } : {}),
         })),
       });
 
@@ -803,12 +928,13 @@ export default function Caja() {
     } catch { toast.error("Error al agregar dirección"); }
   };
   
-  // Calcular monto de cuota cuando cambia el pago inicial o número de cuotas
+  // Calcular monto de cuota cuando cambia el pago inicial o número de cuotas.
+  // La cuota 1 es el pago inicial; el saldo se reparte entre las demás.
   useEffect(() => {
     const initialPayment = parseFloat(installmentData.initialPayment) || 0;
-    const remaining = total - initialPayment;
-    const installments = parseInt(installmentData.numberOfInstallments) || 1;
-    const installmentAmount = remaining / installments;
+    const remaining = Math.max(0, total - initialPayment);
+    const cuotasRestantes = Math.max(1, (parseInt(installmentData.numberOfInstallments) || 2) - 1);
+    const installmentAmount = remaining / cuotasRestantes;
     setInstallmentData(prev => ({
       ...prev,
       installmentAmount: installmentAmount.toFixed(2),
@@ -1298,7 +1424,7 @@ export default function Caja() {
                       const recien = resaltado?.id === item.id;
                       return (
                     <motion.div
-                      key={item.id}
+                      key={item.lineId}
                       data-cart-item={item.id}
                       layout
                       initial={{ opacity: 0, y: -10, scale: 0.97 }}
@@ -1339,6 +1465,7 @@ export default function Caja() {
                         </h4>
                         <p className="text-xs text-muted-foreground mb-2">
                             Bs. {item.price.toFixed(2)}
+                            {item.presentationName ? ` · ${item.presentationName}` : ""}
                         </p>
                         
                         {/* Stepper de cantidad */}
@@ -1348,7 +1475,7 @@ export default function Caja() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 hover:bg-background"
-                                onClick={() => decrementQuantity(item.id)}
+                                onClick={() => decrementQuantity(item.lineId)}
                                 disabled={item.quantity <= 1}
                             >
                                 <Minus className="h-3 w-3" />
@@ -1360,8 +1487,14 @@ export default function Caja() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 hover:bg-background"
-                                onClick={() => incrementQuantity(item.id)}
-                                disabled={item.quantity >= item.stock}
+                                onClick={() => incrementQuantity(item.lineId)}
+                                disabled={
+                                  cart
+                                    .filter((i) => i.id === item.id)
+                                    .reduce((suma, i) => suma + (i.unitBaseQuantity ?? 1) * i.quantity, 0) +
+                                    (item.unitBaseQuantity ?? 1) >
+                                  item.stock
+                                }
                             >
                                 <Plus className="h-3 w-3" />
                             </Button>
@@ -1371,7 +1504,7 @@ export default function Caja() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(item.lineId)}
                             >
                             <Trash2 className="h-3 w-3" />
                             </Button>
@@ -1521,6 +1654,20 @@ export default function Caja() {
                 <option value="4">4 cuotas</option>
                 <option value="6">6 cuotas</option>
                 <option value="12">12 cuotas</option>
+              </NativeSelect>
+            </div>
+
+            {/* Frecuencia de las cuotas */}
+            <div className="space-y-2">
+              <Label htmlFor="frequency">Frecuencia</Label>
+              <NativeSelect
+                id="frequency"
+                value={installmentData.frequency}
+                onChange={(e) => setInstallmentData(prev => ({ ...prev, frequency: e.target.value as InstallmentFrequency }))}
+              >
+                <option value="semanal">Semanal</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="mensual">Mensual</option>
               </NativeSelect>
             </div>
             
@@ -1706,6 +1853,12 @@ export default function Caja() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SelectorFormaDeVentaCaja
+        producto={productoAVender}
+        onCerrar={() => setProductoAVender(null)}
+        onAgregar={agregarFormaDeVenta}
+      />
     </div>
   );
 }

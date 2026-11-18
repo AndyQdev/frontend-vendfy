@@ -1,4 +1,4 @@
-import { setVentaEnCurso, ventaEnCurso, type ItemVenta } from "@/entities/order";
+import { esUnidadEntera, setVentaEnCurso, ventaEnCurso, type ItemVenta } from "@/entities/order";
 import type { ResultadoEscaneo, TiendaDelProducto } from "@/entities/product/model/escaneo";
 import type { FraseVoz } from "@/shared/voz";
 
@@ -26,13 +26,17 @@ export function agregarAVenta(r: ResultadoEscaneo, tiendaId: string | null): Res
   if (!producto || !tienda?.inventoryId) return { ok: false, motivo: "sin_tienda", tienda };
 
   // La misma fila aunque la haya cargado el piloto (que la guarda por storeProductId).
-  const fila = ventaEnCurso().find((i) => i.id === tienda.inventoryId || i.storeProductId === tienda.storeProductId);
+  // Solo la del producto entero: los decants y medidas van en filas aparte.
+  const fila = ventaEnCurso().find(
+    (i) => esUnidadEntera(i) && (i.id === tienda.inventoryId || i.storeProductId === tienda.storeProductId),
+  );
   const yaEnVenta = fila?.quantity ?? 0;
   if (tienda.stock <= yaEnVenta) {
     return { ok: false, motivo: tienda.stock <= 0 ? "agotado" : "sin_mas", tienda };
   }
 
   const item: ItemVenta = {
+    lineId: fila?.lineId ?? tienda.inventoryId,
     id: fila?.id ?? tienda.inventoryId,
     storeProductId: tienda.storeProductId,
     name: producto.name,
@@ -42,8 +46,8 @@ export function agregarAVenta(r: ResultadoEscaneo, tiendaId: string | null): Res
     imageUrl: producto.imageUrls[0],
   };
   setVentaEnCurso((previa) =>
-    previa.some((i) => i.id === item.id)
-      ? previa.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1, stock: tienda.stock } : i))
+    previa.some((i) => i.lineId === item.lineId)
+      ? previa.map((i) => (i.lineId === item.lineId ? { ...i, quantity: i.quantity + 1, stock: tienda.stock } : i))
       : [...previa, item],
   );
   return { ok: true, item, cantidad: yaEnVenta + 1, tienda };

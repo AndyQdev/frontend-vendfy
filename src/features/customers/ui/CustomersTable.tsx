@@ -41,6 +41,9 @@ import { toast } from "sonner";
 import { useFiltrosUrl } from "@/shared/hooks/use-filtros-url";
 import { useAcceso } from "@/app/providers/acceso";
 import { PERMISO } from "@/shared/acceso/permisos";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, fechaCelda, nombreArchivoListado, traerTodas } from "@/shared/lib/exportar-excel";
 
 export default function CustomersTable() {
   // Ver clientes alcanza para la lista; crear, editar y borrar piden gestionar.
@@ -123,6 +126,42 @@ export default function CustomersTable() {
     }
   };
 
+  // Excel de los clientes con la búsqueda (o el producto escaneado) actual.
+  const exportar = async () => {
+    const clientes = await traerTodas<Customer>((limit, offset) => {
+      const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), order: "DESC" });
+      if (searchTerm) {
+        qs.append("attr", "name");
+        qs.append("value", searchTerm);
+      }
+      if (filtro.producto) qs.append("productId", filtro.producto.id);
+      return apiFetch<Customer[]>(`/api/customer?${qs.toString()}`);
+    });
+    const GENERO: Record<string, string> = { male: "Masculino", female: "Femenino", other: "Otro" };
+    descargarExcel(
+      [
+        {
+          nombre: "Clientes",
+          columnas: [
+            { titulo: "Nombre", tipo: "texto", ancho: 30 },
+            { titulo: "Teléfono", tipo: "texto", ancho: 18 },
+            { titulo: "Email", tipo: "texto", ancho: 30 },
+            { titulo: "Género", tipo: "texto", ancho: 14 },
+            { titulo: "Fecha de registro", tipo: "texto", ancho: 16 },
+          ],
+          filas: clientes.map((c) => [
+            c.name,
+            c.phone ? `${c.country || "+591"} ${c.phone}` : "",
+            c.email || "",
+            c.gender ? GENERO[c.gender] ?? c.gender : "No especificado",
+            fechaCelda(c.created_at),
+          ]),
+        },
+      ],
+      nombreArchivoListado(filtro.producto ? `clientes-${filtro.producto.nombre}` : "clientes", null),
+    );
+  };
+
   const getGenderBadge = (gender?: string) => {
     const genderConfig = {
       male: { label: "Masculino", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" },
@@ -146,14 +185,15 @@ export default function CustomersTable() {
             Gestiona tu base de clientes
           </p>
         </div>
-        {puedeGestionar ? (
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <BotonExportar onExportar={exportar} />
+          {puedeGestionar ? (
             <Button onClick={handleCreateCustomer}>
               <Plus className="w-4 h-4 mr-2" />
               Crear Cliente
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {/* Search */}

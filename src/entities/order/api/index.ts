@@ -97,6 +97,39 @@ export function useUpdateOrder() {
   });
 }
 
+export function usePayInstallment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      installmentId,
+      paymentMethod,
+    }: {
+      orderId: string;
+      installmentId: string;
+      paymentMethod: 'cash' | 'qr' | 'card' | 'transfer';
+    }) => {
+      const response = await apiFetch<Order>(
+        `/api/order/${orderId}/installments/${installmentId}/pay`,
+        { method: 'POST', body: { paymentMethod } },
+      );
+      return response.data as Order;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error("No se pudo cobrar la cuota");
+      }
+      console.error('Error paying installment:', error);
+    },
+  });
+}
+
 export function useDeleteOrder() {
   const queryClient = useQueryClient();
 

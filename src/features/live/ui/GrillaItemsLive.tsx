@@ -22,6 +22,7 @@ import {
   useRemoveLiveItem,
 } from "@/entities/live/api";
 import type { LiveItem, LiveSessionDetail } from "@/entities/live/model/types";
+import { CuentaRegresiva } from "./CuentaRegresiva";
 
 /**
  * Qué se puede hacer con una prenda depende del momento del Live.
@@ -272,6 +273,12 @@ export function GrillaItemsLive({
                   <Badge variant="warning" className="absolute right-2 top-2 gap-1">
                     <Gavel className="h-3 w-3" />
                     {subasta.currentAmount ?? subasta.startingPrice}
+                    {subasta.closesAt && (
+                      <>
+                        {" · "}
+                        <CuentaRegresiva hasta={subasta.closesAt} />
+                      </>
+                    )}
                   </Badge>
                 )}
 

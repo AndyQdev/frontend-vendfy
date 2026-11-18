@@ -1,4 +1,4 @@
-import { setVentaEnCurso, ventaEnCurso, type ItemVenta } from "@/entities/order";
+import { esUnidadEntera, setVentaEnCurso, ventaEnCurso, type ItemVenta } from "@/entities/order";
 import type { ProductoOpcion } from "@/entities/omnibox/model/types";
 
 /**
@@ -12,7 +12,8 @@ export type ResultadoCarga =
   | { ok: false; motivo: "agotado" | "sin_mas"; nombre: string; stock: number };
 
 export function agregarAlCarrito(producto: ProductoOpcion, cantidad: number, precio?: number): ResultadoCarga {
-  const actual = ventaEnCurso().find((i) => i.storeProductId === producto.storeProductId);
+  // Solo la fila del producto entero: los decants y medidas van en filas aparte.
+  const actual = ventaEnCurso().find((i) => esUnidadEntera(i) && i.storeProductId === producto.storeProductId);
   const yaHay = actual?.quantity ?? 0;
   const stock = producto.stock;
   if (stock <= 0) return { ok: false, motivo: "agotado", nombre: producto.nombre, stock };
@@ -22,6 +23,7 @@ export function agregarAlCarrito(producto: ProductoOpcion, cantidad: number, pre
   const nueva = Math.min(stock, yaHay + cantidad);
   const id = actual?.id ?? producto.storeProductId;
   const fila: ItemVenta = {
+    lineId: actual?.lineId ?? id,
     id,
     storeProductId: producto.storeProductId,
     productId: producto.productId,
@@ -31,7 +33,7 @@ export function agregarAlCarrito(producto: ProductoOpcion, cantidad: number, pre
     stock,
     imageUrl: producto.imagen ?? actual?.imageUrl,
   };
-  setVentaEnCurso((previa) => (actual ? previa.map((i) => (i.id === id ? fila : i)) : [...previa, fila]));
+  setVentaEnCurso((previa) => (actual ? previa.map((i) => (i.lineId === fila.lineId ? fila : i)) : [...previa, fila]));
   return { ok: true, id, cantidad: nueva };
 }
 

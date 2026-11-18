@@ -20,6 +20,7 @@ import {
   ResponsiveDialogBody as DialogBody,
 } from "@/shared/ui/responsive-dialog";
 import { Separator } from "@/shared/ui/separator";
+import { CuotasDeVenta } from "./CuotasDeVenta";
 import { formatearCantidad } from "@/entities/inventory/model/envases";
 
 export function OrderDetailsModal({
@@ -330,7 +331,17 @@ export function OrderDetailsModal({
                       {format(new Date(order.installmentInfo.nextPaymentDate), "dd MMM yyyy", { locale: es })}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Frecuencia</span>
+                    <span className="font-semibold capitalize">
+                      {order.installmentInfo.frequency ?? "mensual"}
+                    </span>
+                  </div>
                 </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Cuotas</h3>
+                <CuotasDeVenta order={order} />
               </div>
               <Separator />
             </>

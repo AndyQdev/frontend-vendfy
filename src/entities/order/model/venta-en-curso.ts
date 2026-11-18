@@ -8,6 +8,8 @@ import { useSyncExternalStore } from "react";
  * ir a otra pantalla o recargar. Se descarta sola si quedó abandonada.
  */
 export interface ItemVenta {
+  /** Renglón del carrito: el mismo producto puede ir dos veces con formas de venta distintas. */
+  lineId: string;
   /** Fila de inventario (stock en una tienda). */
   id: string;
   storeProductId: string;
@@ -18,7 +20,16 @@ export interface ItemVenta {
   quantity: number;
   stock: number;
   imageUrl?: string;
+  /** Forma de venta elegida, si es un producto fraccionable. */
+  presentationId?: string;
+  presentationName?: string;
+  /** Cuánto consume del stock cada unidad de este renglón, en unidad base. */
+  unitBaseQuantity?: number;
+  baseUnitSymbol?: string;
 }
+
+/** Renglón del producto entero (no un decant ni una medida): el que suman la voz y el escáner. */
+export const esUnidadEntera = (i: ItemVenta) => !i.presentationId && (i.unitBaseQuantity ?? 1) === 1;
 
 const CLAVE = "vendfy.venta-en-curso.v1";
 /** Una venta que nadie tocó en medio día ya no es la de este cliente. */
@@ -27,7 +38,10 @@ const VENCE_MS = 12 * 60 * 60 * 1000;
 function leer(): ItemVenta[] {
   try {
     const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? "null") as { items: ItemVenta[]; t: number } | null;
-    if (guardado && Date.now() - guardado.t < VENCE_MS && Array.isArray(guardado.items)) return guardado.items;
+    if (guardado && Date.now() - guardado.t < VENCE_MS && Array.isArray(guardado.items)) {
+      // Carritos viejos, de antes de las formas de venta: cada renglón era único.
+      return guardado.items.map((i) => ({ ...i, lineId: i.lineId ?? i.id }));
+    }
   } catch {
     // arranca vacía
   }

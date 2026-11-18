@@ -2,6 +2,7 @@ import { formatMoney } from "@/shared/lib/money";
 import { Order } from "@/entities/order/model/types";
 import { cobroEnDolaresTexto } from "@/entities/order/model/pago";
 import { Badge } from "@/shared/ui/badge";
+import { CuotasDeVenta } from "@/features/orders/ui/CuotasDeVenta";
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -138,50 +139,7 @@ export function SalesDetailsModal({ order, open, onClose }: OrderDetailsModalPro
           {order.type === "installment" && order.installments && order.installments.length > 0 && (
             <div>
               <h3 className="font-semibold mb-3 text-lg text-foreground">Cuotas</h3>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-primary text-primary-foreground">
-                    <tr>
-                      <th className="text-left p-3">Cuota</th>
-                      <th className="text-right p-3">Monto</th>
-                      <th className="text-center p-3">Fecha Vencimiento</th>
-                      <th className="text-center p-3">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.installments.map((installment, index) => (
-                      <tr 
-                        key={installment.id}
-                        className={index % 2 === 0 ? "" : "bg-muted/30"}
-                      >
-                        <td className="p-3">
-                          <p className="font-medium">Cuota {installment.installmentNumber}</p>
-                          {installment.notes && (
-                            <p className="text-xs text-gray-500">{installment.notes}</p>
-                          )}
-                        </td>
-                        <td className="text-right p-3 font-semibold">
-                          {formatMoney(Number(installment.amount))}
-                        </td>
-                        <td className="text-center p-3">
-                          {new Date(installment.dueDate).toLocaleDateString()}
-                        </td>
-                        <td className="text-center p-3">
-                          <Badge className={
-                            installment.status === "paid" 
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" 
-                              : installment.status === "overdue"
-                              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          }>
-                            {installment.status === "paid" ? "Pagada" : installment.status === "overdue" ? "Vencida" : "Pendiente"}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <CuotasDeVenta order={order} />
             </div>
           )}
         </div>

@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 import { useAcceso } from "@/app/providers/acceso";
 import { useStores } from "@/entities/store/api";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, fechaCelda, nombreArchivoListado } from "@/shared/lib/exportar-excel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +68,50 @@ export function EquipoView() {
 
   const lleno = equipo?.limiteUsuarios != null && equipo.usuariosActivos >= equipo.limiteUsuarios;
 
+  // Excel del equipo: personas y roles, con lo que se ve en cada pestaña.
+  const exportar = () => {
+    const miembros = equipo?.miembros ?? [];
+    descargarExcel(
+      [
+        {
+          nombre: "Personas",
+          columnas: [
+            { titulo: "Nombre", tipo: "texto", ancho: 28 },
+            { titulo: "Email", tipo: "texto", ancho: 30 },
+            { titulo: "Teléfono", tipo: "texto", ancho: 18 },
+            { titulo: "Rol", tipo: "texto", ancho: 20 },
+            { titulo: "Dueño", tipo: "texto", ancho: 10 },
+            { titulo: "Estado", tipo: "texto", ancho: 12 },
+            { titulo: "Sucursales", tipo: "numero", ancho: 12 },
+            { titulo: "Alta", tipo: "texto", ancho: 12 },
+          ],
+          filas: miembros.map((m) => [
+            m.name,
+            m.email,
+            m.phoneNumber || "",
+            m.rol?.name || "Sin rol",
+            m.esDueno ? "Sí" : "No",
+            m.activo ? "Activo" : "Inactivo",
+            m.storeIds.length,
+            fechaCelda(m.createdAt),
+          ]),
+        },
+        {
+          nombre: "Roles",
+          columnas: [
+            { titulo: "Rol", tipo: "texto", ancho: 24 },
+            { titulo: "Descripción", tipo: "texto", ancho: 40 },
+            { titulo: "Usuarios", tipo: "numero", ancho: 12 },
+            { titulo: "Permisos", tipo: "numero", ancho: 12 },
+            { titulo: "Origen", tipo: "texto", ancho: 14 },
+          ],
+          filas: roles.map((r) => [r.name, r.descripcion || "", r.usuarios, r.permisos.length, r.base ? "Vendfy" : "Propio"]),
+        },
+      ],
+      nombreArchivoListado("equipo", null),
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -82,9 +128,12 @@ export function EquipoView() {
             : undefined
         }
         actions={
-          <Button onClick={() => setMiembroAbierto({ miembro: null })} disabled={lleno || !roles.length} className="gap-1.5">
-            <Plus className="size-4" /> Agregar persona
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportar onExportar={exportar} size="sm" disabled={isLoading} />
+            <Button onClick={() => setMiembroAbierto({ miembro: null })} disabled={lleno || !roles.length} className="gap-1.5">
+              <Plus className="size-4" /> Agregar persona
+            </Button>
+          </div>
         }
       />
       {lleno ? (

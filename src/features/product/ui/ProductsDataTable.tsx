@@ -12,6 +12,9 @@ import {
 } from "@/shared/ui/lista-tarjetas";
 import { useNavegarConRegreso } from "@/shared/hooks/use-regreso";
 import { useProducts, useCategories, useBrands, useDeleteProduct } from "@/entities/product/api";
+import { apiFetch } from "@/shared/api/client";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, nombreArchivoListado, numeroCelda, traerTodas } from "@/shared/lib/exportar-excel";
 import { useStore } from "@/app/providers/auth";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { Tag, Boxes, Barcode, ShoppingCart as CartIcon, Copy, EyeOff } from "lucide-react";
@@ -190,6 +193,77 @@ export function ProductsDataTable() {
   const totalPages = Math.ceil(totalProducts / pageSize);
 
   // Renderiza el precio según el modo (tienda única vs todas las tiendas)
+  // Excel con todo el catálogo filtrado (no solo la página visible).
+  const exportar = async () => {
+    const base = new URLSearchParams();
+    base.append("order", "DESC");
+    if (activeStoreId !== "all") base.append("storeId", activeStoreId);
+    if (searchTerm) {
+      base.append("attr", "name");
+      base.append("value", searchTerm);
+    }
+    if (selectedCategory && selectedCategory !== "all") base.append("categoryId", selectedCategory);
+    if (selectedBrand && selectedBrand !== "all") base.append("brandId", selectedBrand);
+    const productos = await traerTodas<Product>((limit, offset) => {
+      const qs = new URLSearchParams(base);
+      qs.append("limit", String(limit));
+      qs.append("offset", String(offset));
+      return apiFetch<Product[]>(`/api/product?${qs.toString()}`);
+    });
+    const sino = (v: boolean | undefined) => (v === undefined ? "" : v ? "Sí" : "No");
+    const precioDe = (p: Product): [number | null, number | null] => {
+      if (isSingleStoreView) {
+        const precio = typeof p.price === "number" ? p.price : p.storeProducts?.[0]?.price;
+        return [numeroCelda(precio), null];
+      }
+      const precios = (p.storeProducts ?? []).map((sp) => Number(sp.price)).filter((n) => Number.isFinite(n));
+      if (precios.length === 0) return [null, null];
+      return [Math.min(...precios), Math.max(...precios)];
+    };
+    const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+    descargarExcel(
+      [
+        {
+          nombre: "Productos",
+          columnas: [
+            { titulo: "Nombre", tipo: "texto", ancho: 34 },
+            { titulo: "Descripción", tipo: "texto", ancho: 40 },
+            { titulo: "SKU", tipo: "texto", ancho: 16 },
+            { titulo: "Categoría", tipo: "texto", ancho: 20 },
+            { titulo: "Marca", tipo: "texto", ancho: 18 },
+            ...(isSingleStoreView
+              ? [{ titulo: "Precio (Bs)", tipo: "dinero" as const, ancho: 12 }]
+              : [
+                  { titulo: "Precio mínimo (Bs)", tipo: "dinero" as const, ancho: 16 },
+                  { titulo: "Precio máximo (Bs)", tipo: "dinero" as const, ancho: 16 },
+                ]),
+            { titulo: "Estado", tipo: "texto", ancho: 12 },
+            ...(isSingleStoreView
+              ? [
+                  { titulo: "En la web", tipo: "texto" as const, ancho: 10 },
+                  { titulo: "A pedido", tipo: "texto" as const, ancho: 10 },
+                ]
+              : []),
+          ],
+          filas: productos.map((p) => {
+            const [min, max] = precioDe(p);
+            return [
+              p.name,
+              p.description || "",
+              p.sku || "",
+              p.category?.name || "",
+              p.brand?.name || "",
+              ...(isSingleStoreView ? [min] : [min, max]),
+              p.metadata?.isFeatured ? "Destacado" : "Normal",
+              ...(isSingleStoreView ? [sino(p.visibleOnWeb), sino(p.sellWithoutStock)] : []),
+            ];
+          }),
+        },
+      ],
+      nombreArchivoListado("productos", tienda),
+    );
+  };
+
   const renderPrice = (product: Product) => {
     // Modo tienda única: el backend devuelve `price` plano
     if (isSingleStoreView) {
@@ -239,18 +313,21 @@ export function ProductsDataTable() {
             Gestiona tu catálogo de productos
           </p>
         </div>
-        {puedeEditar ? (
-          <div className="flex items-center gap-3">
-            <ButtonMagic onClick={() => setAiModalOpen(true)} alwaysActive>
-              <Sparkles className="h-4 w-4" />
-              Crear con IA
-            </ButtonMagic>
-            <Button onClick={() => navigate("/products/create")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Crear Producto
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          <BotonExportar onExportar={exportar} />
+          {puedeEditar ? (
+            <>
+              <ButtonMagic onClick={() => setAiModalOpen(true)} alwaysActive>
+                <Sparkles className="h-4 w-4" />
+                Crear con IA
+              </ButtonMagic>
+              <Button onClick={() => navigate("/products/create")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Crear Producto
+              </Button>
+            </>
+          ) : null}
+        </div>
       </div>
 
       {/* Stats Cards - Para Inventario */}

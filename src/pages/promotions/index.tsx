@@ -21,6 +21,8 @@ import {
 import { useStore } from "@/app/providers/auth";
 import { useEditarPromocion, useEliminarPromocion, usePromociones } from "@/entities/promotion/api";
 import type { EstadoPromocion, Promocion } from "@/entities/promotion/model/types";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, fechaCelda, nombreArchivoListado, numeroCelda } from "@/shared/lib/exportar-excel";
 import { URL_TIENDA } from "@/features/store/model/catalogo-temas";
 import { PromocionForm } from "@/features/promotions/ui/PromocionForm";
 import { useAcceso } from "@/app/providers/acceso";
@@ -105,6 +107,38 @@ export default function PromotionsPage() {
 
   const activas = promociones.filter((p) => p.estado === "activa").length;
 
+  // Excel de las promociones de la tienda, con su vigencia y su enlace.
+  const exportar = () => {
+    descargarExcel(
+      [
+        {
+          nombre: "Promociones",
+          columnas: [
+            { titulo: "Nombre", tipo: "texto", ancho: 30 },
+            { titulo: "Estado", tipo: "texto", ancho: 14 },
+            { titulo: "Descuento", tipo: "texto", ancho: 14 },
+            { titulo: "Productos", tipo: "numero", ancho: 10 },
+            { titulo: "Ahorro total (Bs)", tipo: "dinero", ancho: 16 },
+            { titulo: "Empieza", tipo: "texto", ancho: 12 },
+            { titulo: "Termina", tipo: "texto", ancho: 12 },
+            { titulo: "Enlace", tipo: "texto", ancho: 44 },
+          ],
+          filas: promociones.map((p) => [
+            p.nombre,
+            ESTADO[p.estado].texto,
+            p.etiqueta ?? "",
+            p.productos.length,
+            numeroCelda(p.ahorroTotal),
+            fechaCelda(p.empieza),
+            fechaCelda(p.termina),
+            enlace(p),
+          ]),
+        },
+      ],
+      nombreArchivoListado("promociones", tienda.name),
+    );
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -115,12 +149,15 @@ export default function PromotionsPage() {
           { value: activas, label: "activas", tone: activas ? "success" : "default" },
         ]}
         actions={
-          puedeGestionar ? (
-            <Button onClick={() => setFormulario({ abierto: true })}>
-              <Plus className="h-4 w-4" />
-              <span className="ml-1">Nueva promoción</span>
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <BotonExportar onExportar={exportar} size="sm" disabled={isLoading} />
+            {puedeGestionar ? (
+              <Button onClick={() => setFormulario({ abierto: true })}>
+                <Plus className="h-4 w-4" />
+                <span className="ml-1">Nueva promoción</span>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

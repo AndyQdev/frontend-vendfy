@@ -35,9 +35,14 @@ export interface DeliveryInfo {
   trackingUrl?: string;
 }
 
+/** Cada cuánto vence la siguiente cuota de una venta a crédito. */
+export type InstallmentFrequency = 'semanal' | 'quincenal' | 'mensual';
+
 export interface InstallmentInfo {
   numberOfInstallments: number;
   nextPaymentDate: string;
+  /** Cada cuánto vence la siguiente (mensual si no se eligió). */
+  frequency?: InstallmentFrequency;
 }
 
 export interface OrderItem {

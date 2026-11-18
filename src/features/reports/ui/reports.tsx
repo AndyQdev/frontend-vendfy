@@ -31,6 +31,9 @@ import {
 import type { ReportQueryParams } from "../model/types";
 import { ReporteProducto } from "./reporte-producto";
 import { frasesReporte, useFiltroEscaneado, useVozAlFiltrar } from "@/features/scanner";
+import { BotonExportar } from "@/shared/ui/boton-exportar";
+import { descargarExcel, nombreArchivoListado } from "@/shared/lib/exportar-excel";
+import { hojasDeReportes } from "../model/exportar";
 
 export function Reports() {
   const [period, setPeriod] = useState("7days");
@@ -71,6 +74,27 @@ export function Reports() {
     { value: "thisMonth", label: "Este mes" },
     { value: "custom", label: "Personalizado" },
   ];
+
+  const tienda = selectedStore && selectedStore !== "all" ? selectedStore.name : null;
+  const cargando = [kpis, salesOverTime, salesByCategory, ordersByStatus, orderChannels, topProducts, financialComparison, frequentCustomers, salesByDay].some((q) => q.isLoading);
+
+  // Lo que se ve en pantalla, del caché: exportar no vuelve a pedir nada.
+  const exportar = () => {
+    const hojas = hojasDeReportes({
+      periodo: periodoNombre(period, dateRange),
+      tienda: tienda ?? "Todas las tiendas",
+      kpis: kpis.data,
+      ventasEnElTiempo: salesOverTime.data,
+      pedidosPorEstado: ordersByStatus.data,
+      canales: orderChannels.data,
+      financiero: financialComparison.data,
+      topProductos: topProducts.data,
+      porCategoria: salesByCategory.data,
+      clientesFrecuentes: frequentCustomers.data,
+      porDia: salesByDay.data,
+    });
+    descargarExcel(hojas, nombreArchivoListado("estadisticas", tienda));
+  };
 
   const handlePeriodClick = (value: string) => {
     setPeriod(value);
@@ -123,6 +147,7 @@ export function Reports() {
               </Button>
             )
           ))}
+          {!filtro.producto && <BotonExportar size="sm" onExportar={exportar} disabled={cargando} />}
         </div>
       </div>
 
@@ -211,6 +236,24 @@ export function Reports() {
       )}
     </div>
   );
+}
+
+/** El período elegido, para la primera hoja del Excel. */
+function periodoNombre(period: string, rango: DateRange | undefined): string {
+  switch (period) {
+    case "today":
+      return "Hoy";
+    case "30days":
+      return "Últimos 30 días";
+    case "thisMonth":
+      return "Este mes";
+    case "custom":
+      return rango?.from && rango?.to
+        ? `Del ${format(rango.from, "dd/MM/yyyy")} al ${format(rango.to, "dd/MM/yyyy")}`
+        : "Últimos 7 días";
+    default:
+      return "Últimos 7 días";
+  }
 }
 
 /** El período elegido, para decirlo en una frase: "Vendiste 12 en los últimos 7 días". */
