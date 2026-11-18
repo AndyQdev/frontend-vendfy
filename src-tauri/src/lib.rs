@@ -15,7 +15,10 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindo
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
-const URL_POR_DEFECTO: &str = "https://app.vendfy.shop";
+// El panel publicado en la cuenta de Vercel que funciona (app.vendfy.shop
+// sigue en la cuenta pausada hasta que se verifique el dominio). Las dos
+// direcciones sirven el mismo panel.
+const URL_POR_DEFECTO: &str = "https://vendfy-panel.vercel.app";
 const ARRANQUE_MINIMIZADO: &str = "--minimizado";
 
 fn ventana(app: &AppHandle) -> Option<WebviewWindow> {

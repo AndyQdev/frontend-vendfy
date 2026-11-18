@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-import { avisarManosLibres } from "@/shared/nativo";
+import { avisarManosLibres, oidoNativo } from "@/shared/nativo";
 
-import { Oido, type EstadoOido } from "../oido/oido";
+import { Oido, type ControlOido, type EstadoOido, type EventosOido } from "../oido/oido";
+import { OidoTelefono } from "../oido/oido-telefono";
 
 /**
  * Manos libres: el oído escucha "Oye Vendfy" mientras Vendfy está abierto.
@@ -38,7 +39,7 @@ export interface ConductorConOido {
 export function useManosLibres(conductor: ConductorConOido) {
   const [activo, setActivo] = useState(leer);
   const [estado, setEstado] = useState<EstadoOido>("apagado");
-  const oido = useRef<Oido | null>(null);
+  const oido = useRef<ControlOido | null>(null);
   const actual = useRef(conductor);
   actual.current = conductor;
 
@@ -50,11 +51,18 @@ export function useManosLibres(conductor: ConductorConOido) {
       return;
     }
     if (!oido.current) {
-      oido.current = new Oido({
+      const eventos: EventosOido = {
         palabra: () => actual.current.alOirPalabra(),
         comando: (wav) => void actual.current.oirConPalabra(wav),
         estado: (e) => setEstado(e),
-      });
+        // El «Apagar» de la notificación del teléfono apaga también la preferencia.
+        apagadoAfuera: () => {
+          guardar(false);
+          setActivo(false);
+        },
+      };
+      // En la app de Android escucha el teléfono (sigue con la pantalla apagada).
+      oido.current = oidoNativo() ? new OidoTelefono(eventos) : new Oido(eventos);
     }
     void oido.current.encender();
     return () => oido.current?.apagar();

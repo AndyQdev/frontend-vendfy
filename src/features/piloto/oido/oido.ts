@@ -22,6 +22,18 @@ export interface EventosOido {
   comando?: (wav: Blob, hablo: boolean) => void;
   puntaje?: (p: number) => void;
   estado?: (e: EstadoOido, detalle?: string) => void;
+  /** Lo apagaron desde afuera (el «Apagar» de la notificación del teléfono). */
+  apagadoAfuera?: () => void;
+}
+
+/** Lo que el panel le pide a cualquier oído (el del navegador o el del teléfono). */
+export interface ControlOido {
+  readonly estado: EstadoOido;
+  encender(): Promise<void>;
+  pausar(valor: boolean): void;
+  setUmbral(valor: number): void;
+  apagar(): void;
+  destruir(): void;
 }
 
 /** Junta el micrófono en pasos de 1280 muestras a 16 kHz (si el contexto no es de 16 kHz, promedia). */
@@ -68,7 +80,7 @@ class CapturaVendfy extends AudioWorkletProcessor {
 registerProcessor("captura-vendfy", CapturaVendfy);
 `;
 
-export class Oido {
+export class Oido implements ControlOido {
   private worker: Worker | null = null;
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
