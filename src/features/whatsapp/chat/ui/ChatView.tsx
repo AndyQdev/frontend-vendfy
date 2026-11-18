@@ -28,6 +28,7 @@ import {
 import { MessageBubble, TypingBubble } from "./MessageBubble";
 import { ModelPicker } from "./ModelPicker";
 import { Composer } from "./Composer";
+import { AvisoAnuncio } from "./AnuncioDeOrigen";
 import { useAcceso } from "@/app/providers/acceso";
 import { PERMISO } from "@/shared/acceso/permisos";
 
@@ -183,6 +184,8 @@ export function ChatView({
           </Button>
         )}
       </header>
+
+      {!isSandbox && conversation.anuncio && <AvisoAnuncio anuncio={conversation.anuncio} />}
 
       {/* Aviso del modo prueba */}
       {isSandbox && (

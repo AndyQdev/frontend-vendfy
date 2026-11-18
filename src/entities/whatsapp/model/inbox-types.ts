@@ -37,6 +37,19 @@ export interface Conversation {
   unreadCount: number;
   aiPaused: boolean;
   provider: MessagingProviderId;
+  /** El anuncio por el que llegó la última vez (sin el ctwa_clid). */
+  anuncio?: AnuncioDeOrigen | null;
+}
+
+export interface AnuncioDeOrigen {
+  id: string | null;
+  titulo: string | null;
+  texto: string | null;
+  red: "facebook" | "instagram" | "otra";
+  imagen: string | null;
+  desde: string | null;
+  /** Dentro de los 7 días en que la venta todavía se le atribuye. */
+  vigente: boolean;
 }
 
 export interface ChatMessage {

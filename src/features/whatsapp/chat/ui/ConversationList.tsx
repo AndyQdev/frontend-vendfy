@@ -5,8 +5,10 @@ import {
   MessageCircle,
   UserRound,
   FlaskConical,
+  Megaphone,
 } from "lucide-react";
 import { Input } from "@/shared/ui/input";
+import { ChipAnuncio } from "./AnuncioDeOrigen";
 import { cn } from "@/shared/lib/cn";
 import {
   isSandboxPhone,
@@ -40,16 +42,19 @@ export function ConversationList({
   loading?: boolean;
 }) {
   const [q, setQ] = useState("");
+  const [soloAnuncios, setSoloAnuncios] = useState(false);
+  const conAnuncio = useMemo(() => conversations.filter((c) => c.anuncio).length, [conversations]);
 
   const filtered = useMemo(() => {
     const term = q.toLowerCase().trim();
-    if (!term) return conversations;
-    return conversations.filter(
+    const base = soloAnuncios ? conversations.filter((c) => c.anuncio) : conversations;
+    if (!term) return base;
+    return base.filter(
       (c) =>
         c.contactPhone.includes(term) ||
         (c.contactName ?? "").toLowerCase().includes(term),
     );
-  }, [conversations, q]);
+  }, [conversations, q, soloAnuncios]);
 
   return (
     <aside className="flex min-h-0 flex-1 flex-col">
@@ -63,6 +68,22 @@ export function ConversationList({
             className="pl-9"
           />
         </div>
+        {conAnuncio > 0 && (
+          <button
+            type="button"
+            onClick={() => setSoloAnuncios((v) => !v)}
+            aria-pressed={soloAnuncios}
+            className={cn(
+              "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              soloAnuncios
+                ? "border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+                : "border-border text-muted-foreground hover:bg-accent/60",
+            )}
+          >
+            <Megaphone className="h-3.5 w-3.5" />
+            Vinieron de anuncios ({conAnuncio})
+          </button>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -141,10 +162,15 @@ export function ConversationList({
                       </span>
                     )}
                   </div>
-                  {c.aiPaused && !sandbox && (
-                    <span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      Control humano
-                    </span>
+                  {((c.aiPaused && !sandbox) || c.anuncio) && (
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+                      {c.aiPaused && !sandbox && (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          Control humano
+                        </span>
+                      )}
+                      {c.anuncio && <ChipAnuncio anuncio={c.anuncio} className="min-w-0" />}
+                    </div>
                   )}
                 </div>
               </button>
