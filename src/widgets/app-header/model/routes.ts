@@ -73,7 +73,7 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/reports", label: "Reportes", icon: ChartColumnBig, match: "/reports", requiere: { permisos: [PERMISO.VER_REPORTES], funcion: "reportes" } },
   // Los canales por donde llega el cliente, juntos.
   { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp", requiere: { permisos: [PERMISO.VER_WHATSAPP], funcion: "whatsapp" } },
-  { href: "/campaigns", label: "Campañas", icon: Megaphone, requiere: { permisos: [PERMISO.VER_MARKETING] } },
+  { href: "/marketing", label: "Marketing", icon: Megaphone, match: "/marketing", requiere: { permisos: [PERMISO.VER_MARKETING], funcion: "anuncios_meta" } },
   // Lo que se configura, al final.
   { href: "/integrations", label: "Integraciones", icon: Plug, requiere: { permisos: [PERMISO.VER_MARKETING], funcion: "anuncios_meta" } },
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags, requiere: { permisos: [PERMISO.VER_CATEGORIAS, PERMISO.VER_MARCAS] } },
@@ -82,9 +82,9 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/equipo", label: "Equipo", icon: UserCog, requiere: { soloDueno: true } },
 ];
 
-// OJO: "Campañas" y "Reportes" apuntan hoy a pantallas
-// prácticamente vacías -un título y nada más-. Están en el carril a propósito,
-// para ver el conjunto y decidir el flujo; no son funcionalidad terminada.
+// OJO: "Reportes" apunta hoy a una pantalla
+// prácticamente vacía -un título y nada más-. Está en el carril a propósito,
+// para ver el conjunto y decidir el flujo; no es funcionalidad terminada.
 // Si se decide que alguna no va, se saca de acá y se borra su `pages/`.
 
 /** La ruta de la tienda depende de si hay una elegida o están "todas". */

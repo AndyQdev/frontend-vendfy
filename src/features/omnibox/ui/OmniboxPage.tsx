@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useReducer, useRef, useState } from "react";
 import { BarChart3, History, SquarePen, Store, Volume2, VolumeX } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -144,6 +144,7 @@ import { useEscaneoEnChat } from "./escaneo/useEscaneoEnChat";
 const DOCUMENTOS = /\.(xlsx|xls|csv|docx|txt)$/i;
 
 export function OmniboxPage() {
+  const navigate = useNavigate();
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
   const storeId = tienda?.id ?? null;
@@ -931,8 +932,10 @@ export function OmniboxPage() {
     try {
       const r = await ejecutarOperacionApi.mutateAsync({ storeId, operacion: vista.operacion, id: vista.id, datos });
       actualizar(m.id, (x) => ({ ...x, desenlace: { tipo: "hecho", resumen: r.resumen, despues: null, entidades: { ...vista.datos } } }));
-      // Lo que se termina en otra página (conectar Meta): se va a darle permiso y vuelve a Integraciones.
-      if (r.enlace) window.location.assign(r.enlace);
+      // Lo que se termina en otra página: una del panel (el borrador de campaña en Marketing) se
+      // abre sin recargar; una de afuera (darle permiso a Meta) se va y vuelve a Integraciones.
+      if (r.enlace?.startsWith("/")) navigate(r.enlace);
+      else if (r.enlace) window.location.assign(r.enlace);
     } catch (error: any) {
       toast.error(error?.message ?? "No se pudo hacer");
     } finally {

@@ -20,7 +20,8 @@ import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
 import WhatsAppPage from "@/pages/whatsapp";
-import CampaignsPage from "@/pages/campaigns";
+import MarketingPage from "@/pages/marketing";
+import CampanaPage from "@/pages/marketing/campana";
 import PromotionsPage from "@/pages/promotions";
 import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
@@ -96,7 +97,9 @@ export default function AppRouter() {
             <Route path="/reports/movements" element={<MovementPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/promotions" element={<PromotionsPage />} />
-            <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/marketing" element={<MarketingPage />} />
+            <Route path="/marketing/campanas/:id" element={<CampanaPage />} />
+            <Route path="/campaigns" element={<Navigate to="/marketing" replace />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/equipo" element={<EquipoPage />} />
 
