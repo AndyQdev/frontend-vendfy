@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useParams } from "react-r
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import McpConnectPage from "@/pages/mcp-connect";
+import GuiaPage from "@/pages/guia";
 import OnboardingPage from "@/pages/onboarding";
 // El dashboard ya no es la vista principal -ahora lo es el asistente- pero
 // sigue siendo una pantalla propia, alcanzable desde el carril.
@@ -65,6 +66,8 @@ export default function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
       {/* Puente OAuth del MCP (External Sign-in URI de WorkOS); maneja su propia auth */}
       <Route path="/mcp-connect" element={<McpConnectPage />} />
+      {/* Guía de uso con capturas: pública, para quien todavía no tiene cuenta */}
+      <Route path="/guia" element={<GuiaPage />} />
 
       {/* Rutas protegidas (con auth) */}
       <Route element={<Protected />}>

@@ -1,0 +1,589 @@
+{
+  "pantallas": [
+    {
+      "id": "asistente",
+      "titulo": "Asistente",
+      "ruta": "/omnibox",
+      "resumen": "El centro de Vendfy: escribes o dictas lo que necesitas y el asistente responde con los datos de tu tienda, o te prepara la operación para que la confirmes.",
+      "preparar": {
+        "preguntar": "¿Qué productos tienen poco stock?"
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "etiqueta": "Qué necesitás"
+          },
+          "titulo": "Escribe lo que necesitas",
+          "texto": "Una venta, una compra, un precio, una consulta: «vendí 2 cocas», «¿cuánto vendí ayer?». Enter para enviar."
+        },
+        {
+          "objetivo": {
+            "etiqueta": "Dictar"
+          },
+          "titulo": "Dictar por voz",
+          "texto": "Tócalo, habla y vuelve a tocarlo para terminar. El asistente entiende los nombres de tus productos."
+        },
+        {
+          "objetivo": {
+            "etiqueta": "Sacar una foto (a una factura o a un producto)"
+          },
+          "titulo": "Foto de una factura o un producto",
+          "texto": "Con la foto de la factura del proveedor arma la compra; con la de un producto, lo da de alta."
+        },
+        {
+          "objetivo": {
+            "texto": "Conclusión",
+            "n": 2
+          },
+          "titulo": "La respuesta, en el panel derecho",
+          "texto": "Las respuestas con datos se abren a la derecha: alertas, rankings y la conclusión escrita por la IA solo con tus números."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Reponer este"
+          },
+          "titulo": "Actuar desde la respuesta",
+          "texto": "Desde el análisis puedes pasar a la acción: «Reponer este» carga la compra para que la revises; no se registra nada hasta que confirmes."
+        }
+      ]
+    },
+    {
+      "id": "confirmacion",
+      "titulo": "Confirmar antes de guardar",
+      "ruta": "/omnibox",
+      "resumen": "Cuando pides un cambio, el asistente muestra el antes y el después. Nada se guarda hasta que tocas el botón.",
+      "preparar": {
+        "preguntar": "Cambia el precio de Huevos frescos x12 a 18 bolivianos"
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "texto": "Precio actual"
+          },
+          "titulo": "El antes y el después",
+          "texto": "El precio de hoy y el nuevo, lado a lado, con el producto que entendió el asistente."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Guardar precio"
+          },
+          "titulo": "Guardar",
+          "texto": "Recién aquí se guarda el cambio, con tus permisos."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Corregir"
+          },
+          "titulo": "Corregir",
+          "texto": "Si entendió mal, corriges el dato antes de guardar."
+        }
+      ]
+    },
+    {
+      "id": "caja",
+      "titulo": "Caja",
+      "ruta": "/caja",
+      "resumen": "Para vender en el mostrador: tocas los productos, eliges cómo te pagan y cierras la venta.",
+      "preparar": {
+        "tocar": [
+          "Café Nescafé",
+          "Huevos frescos"
+        ]
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "placeholder": "Buscar productos o escribir un código"
+          },
+          "titulo": "Buscar o escanear",
+          "texto": "Escribe el nombre o el código, o usa el lector de código de barras."
+        },
+        {
+          "objetivo": {
+            "texto": "Todos",
+            "n": 1
+          },
+          "titulo": "Categorías",
+          "texto": "Filtra los productos por categoría con un toque."
+        },
+        {
+          "objetivo": {
+            "texto": "Café Nescafé 200g",
+            "n": 1
+          },
+          "titulo": "Tocar para agregar",
+          "texto": "Cada toque suma una unidad al carrito. Los agotados aparecen en gris."
+        },
+        {
+          "objetivo": {
+            "texto": "Rápida",
+            "n": 1
+          },
+          "titulo": "Tipo de venta",
+          "texto": "Rápida (mostrador), a Cuota o con Delivery."
+        },
+        {
+          "objetivo": {
+            "texto": "Efectivo",
+            "n": 1
+          },
+          "titulo": "Cómo te pagan",
+          "texto": "Efectivo, QR, tarjeta o dólares (con el dólar del día)."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Finalizar Venta"
+          },
+          "titulo": "Finalizar la venta",
+          "texto": "Descuenta el stock y registra la venta en la caja."
+        }
+      ]
+    },
+    {
+      "id": "productos",
+      "titulo": "Productos",
+      "ruta": "/products",
+      "resumen": "Tu catálogo: precios, fotos, categorías y qué se muestra en la tienda web.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Crear con IA"
+          },
+          "titulo": "Crear con IA",
+          "texto": "Sube una foto, una lista o un Excel y la IA arma los productos; los revisas antes de crearlos."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Crear Producto"
+          },
+          "titulo": "Crear un producto",
+          "texto": "El formulario completo: nombre, código, precio, stock, fotos y venta por medida."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Exportar a Excel"
+          },
+          "titulo": "Exportar",
+          "texto": "Descarga el catálogo en Excel."
+        },
+        {
+          "objetivo": {
+            "placeholder": "Buscar productos por nombre o SKU"
+          },
+          "titulo": "Buscar y filtrar",
+          "texto": "Por nombre o código, y por categoría o marca."
+        },
+        {
+          "objetivo": {
+            "texto": "WEB",
+            "n": 1
+          },
+          "titulo": "Mostrar en la tienda web",
+          "texto": "El interruptor de cada fila decide si el producto aparece en tu tienda pública."
+        }
+      ]
+    },
+    {
+      "id": "compras",
+      "titulo": "Compras",
+      "ruta": "/purchases",
+      "resumen": "Lo que compras a tus proveedores: al recibirlo, el stock sube solo.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Crear con IA"
+          },
+          "titulo": "Crear la compra desde la factura",
+          "texto": "Sube la foto o el PDF de la factura: la IA reconoce productos, cantidades y costos y arma la compra para que la revises."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Nueva Compra"
+          },
+          "titulo": "Nueva compra",
+          "texto": "Para cargar la compra a mano, producto por producto."
+        },
+        {
+          "objetivo": {
+            "texto": "Recibido",
+            "n": 1
+          },
+          "titulo": "Estado",
+          "texto": "Cada compra muestra si ya se recibió la mercadería."
+        }
+      ]
+    },
+    {
+      "id": "pedidos",
+      "titulo": "Pedidos",
+      "ruta": "/orders",
+      "resumen": "Los pedidos de la tienda web, de WhatsApp y del Live, en un tablero por estado.",
+      "marcas": [
+        {
+          "objetivo": {
+            "texto": "Por confirmar",
+            "n": 1
+          },
+          "titulo": "Columnas por estado",
+          "texto": "Por confirmar, Pendiente, En proceso, En camino y Completado. Arrastra la tarjeta para cambiarla de estado."
+        },
+        {
+          "objetivo": {
+            "texto": "Cancelado",
+            "n": 1
+          },
+          "titulo": "Cancelados",
+          "texto": "Los pedidos cancelados quedan aparte, con su detalle."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Notificaciones"
+          },
+          "titulo": "Notificaciones",
+          "texto": "Aviso cuando entra un pedido nuevo."
+        }
+      ]
+    },
+    {
+      "id": "clientes",
+      "titulo": "Clientes",
+      "ruta": "/customers",
+      "resumen": "Las personas que te compran, con su teléfono y su historial.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Crear Cliente"
+          },
+          "titulo": "Crear un cliente",
+          "texto": "Nombre, teléfono, correo, fecha de nacimiento y género."
+        },
+        {
+          "objetivo": {
+            "placeholder": "Buscar por nombre de cliente"
+          },
+          "titulo": "Buscar",
+          "texto": "Encuentra a un cliente por su nombre."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Exportar a Excel"
+          },
+          "titulo": "Exportar",
+          "texto": "Descarga la lista de clientes."
+        }
+      ]
+    },
+    {
+      "id": "tienda",
+      "titulo": "Tu tienda web",
+      "ruta": "/stores/{tienda}",
+      "resumen": "La configuración de la tienda pública: datos, marca, contacto, diseño y reseñas.",
+      "preparar": {
+        "pestana": "Diseño",
+        "esperar": 12000
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "tab",
+            "nombre": "General"
+          },
+          "titulo": "Pestañas",
+          "texto": "General, Branding (logo y colores), Contacto, Diseño y Reseñas."
+        },
+        {
+          "objetivo": {
+            "texto": "Un punto de partida",
+            "n": 1
+          },
+          "titulo": "Elegir el diseño",
+          "texto": "Plantillas por rubro, paletas, tipografías y secciones."
+        },
+        {
+          "objetivo": {
+            "texto": "Vista previa de tu tienda",
+            "n": 1
+          },
+          "titulo": "Vista previa",
+          "texto": "Lo que eliges se ve al instante en tu tienda, en computadora o en celular."
+        },
+        {
+          "objetivo": {
+            "texto": "Ver tienda",
+            "n": 1
+          },
+          "titulo": "Ver la tienda",
+          "texto": "Abre tu tienda pública en otra pestaña, como la ven tus clientes."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Guardar Cambios"
+          },
+          "titulo": "Guardar",
+          "texto": "Publica los cambios en la tienda."
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "titulo": "Modo Live",
+      "ruta": "/live",
+      "resumen": "Para vender en vivo por redes: cargas las prendas, compartes el enlace y la gente compra o puja en tiempo real.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Nuevo Live"
+          },
+          "titulo": "Nuevo Live",
+          "texto": "Crea la sesión, saca foto a cada prenda y elige si es venta directa o subasta."
+        },
+        {
+          "objetivo": {
+            "texto": "HISTORIAL",
+            "n": 1
+          },
+          "titulo": "Historial",
+          "texto": "Los Live anteriores, con cuántas prendas se vendieron."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Exportar a Excel"
+          },
+          "titulo": "Exportar",
+          "texto": "Descarga lo vendido en cada Live."
+        }
+      ]
+    },
+    {
+      "id": "promociones",
+      "titulo": "Promociones",
+      "ruta": "/promotions",
+      "resumen": "Descuentos con fecha de inicio y fin; cada promoción tiene su propia página para compartir.",
+      "preparar": {
+        "boton": "Nueva promoción"
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "placeholder": "Liquidación de verano"
+          },
+          "titulo": "Nombre",
+          "texto": "Cómo se llama la campaña."
+        },
+        {
+          "objetivo": {
+            "texto": "Porcentaje",
+            "n": 1
+          },
+          "titulo": "Tipo de descuento",
+          "texto": "Porcentaje, monto por unidad o sin descuento (solo para destacar)."
+        },
+        {
+          "objetivo": {
+            "placeholder": "Buscar un producto"
+          },
+          "titulo": "Productos",
+          "texto": "Elige qué productos entran en la promoción."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Crear promoción"
+          },
+          "titulo": "Crear",
+          "texto": "El precio rebajado se ve en la tienda y se cobra en la caja."
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "titulo": "Marketing",
+      "ruta": "/marketing",
+      "resumen": "Del dato a la venta: Vendfy te propone campañas con tus datos, las publica en Meta como anuncios de «clic a WhatsApp» y te muestra cuánto vendió cada una.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Nueva campaña"
+          },
+          "titulo": "Nueva campaña",
+          "texto": "Vendfy te propone qué anunciar y cuánto invertir, y la publica en Facebook e Instagram como anuncio de «clic a WhatsApp»."
+        },
+        {
+          "objetivo": {
+            "texto": "Deja listo tu módulo",
+            "n": 1
+          },
+          "titulo": "Deja listo el módulo",
+          "texto": "Cuatro pasos: conectar WhatsApp, prender el agente IA, conectar Meta y crear la primera campaña."
+        },
+        {
+          "objetivo": {
+            "texto": "Conexiones",
+            "n": 1
+          },
+          "titulo": "Estado de las conexiones",
+          "texto": "WhatsApp, el agente IA y Meta, de un vistazo: el punto verde dice que está conectado."
+        },
+        {
+          "objetivo": {
+            "texto": "Cómo funciona",
+            "n": 1
+          },
+          "titulo": "Cómo funciona",
+          "texto": "De la idea a la venta: la campaña, los chats, el agente que responde, el tablero por etapas y cuánto vendió cada campaña."
+        }
+      ]
+    },
+    {
+      "id": "conexiones",
+      "titulo": "Conexiones: WhatsApp, agente IA y Meta",
+      "ruta": "/marketing",
+      "resumen": "Lo que hace funcionar el módulo de Marketing: tu número de WhatsApp, el agente con IA que responde a tus clientes y tu cuenta de anuncios de Meta.",
+      "preparar": {
+        "boton": "Conexiones"
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "dentro": "dialog",
+            "texto": "WhatsApp",
+            "n": 1
+          },
+          "titulo": "WhatsApp",
+          "texto": "Conecta tu número de WhatsApp Business (puedes seguir usando la app en tu celular). Los mensajes llegan a los chats de Marketing."
+        },
+        {
+          "objetivo": {
+            "dentro": "dialog",
+            "texto": "Agente",
+            "n": 1
+          },
+          "titulo": "Agente IA",
+          "texto": "Lo prendes y responde al instante con tu catálogo y tus precios; arma el carrito y crea el pedido. Puedes tomar el chat cuando quieras."
+        },
+        {
+          "objetivo": {
+            "dentro": "dialog",
+            "texto": "Meta",
+            "n": 1
+          },
+          "titulo": "Meta (Facebook e Instagram)",
+          "texto": "Conecta tu cuenta de anuncios para crear campañas desde Vendfy y saber cuánto vendió cada una."
+        }
+      ]
+    },
+    {
+      "id": "reportes",
+      "titulo": "Reportes",
+      "ruta": "/reports",
+      "resumen": "Ingresos, inversión, ganancia y margen del período, con gráficos y exportación.",
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "7 días"
+          },
+          "titulo": "Período",
+          "texto": "Hoy, 7 días, 30 días, este mes o un rango personalizado."
+        },
+        {
+          "objetivo": {
+            "texto": "Ingresos",
+            "n": 1
+          },
+          "titulo": "Indicadores",
+          "texto": "Ingresos, invertido, ganancia neta, margen y pedidos."
+        },
+        {
+          "objetivo": {
+            "texto": "Ventas en el Tiempo",
+            "n": 1
+          },
+          "titulo": "Gráficos",
+          "texto": "La evolución de las ventas contra el período anterior."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Exportar a Excel"
+          },
+          "titulo": "Exportar",
+          "texto": "Descarga el reporte."
+        }
+      ]
+    },
+    {
+      "id": "equipo",
+      "titulo": "Equipo y roles",
+      "ruta": "/equipo",
+      "resumen": "Quién entra al panel, con qué rol y en qué sucursales.",
+      "preparar": {
+        "pestana": "Roles"
+      },
+      "marcas": [
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Agregar persona"
+          },
+          "titulo": "Agregar persona",
+          "texto": "Tu cajero o tu encargado de inventario: cada uno entra con su usuario y ve solo lo suyo."
+        },
+        {
+          "objetivo": {
+            "rol": "tab",
+            "nombre": "Roles"
+          },
+          "titulo": "Roles",
+          "texto": "Roles listos para empezar (Administrador, Cajero, Encargado de inventario) y los tuyos propios."
+        },
+        {
+          "objetivo": {
+            "rol": "button",
+            "nombre": "Nuevo rol"
+          },
+          "titulo": "Crear un rol",
+          "texto": "Eliges permiso por permiso; también puedes duplicar uno existente."
+        }
+      ]
+    },
+    {
+      "id": "piloto",
+      "titulo": "«Oye Vendfy»: manos libres",
+      "ruta": "/caja",
+      "resumen": "El piloto por voz: dices «Oye Vendfy» y manejas el panel sin tocarlo. Responde con voz y subtítulos.",
+      "marcas": [
+        {
+          "objetivo": {
+            "testid": "piloto-lanzador"
+          },
+          "titulo": "La bola de Vendfy",
+          "texto": "Tócala para hablarle: suena una campanita y empieza a escuchar. Responde con voz de hombre y subtítulos que salen al ritmo de lo que dice."
+        },
+        {
+          "objetivo": {
+            "testid": "piloto-manos-libres"
+          },
+          "titulo": "Manos libres",
+          "texto": "Actívalo y basta con decir «Oye Vendfy» para que te escuche, sin tocar la pantalla."
+        }
+      ]
+    }
+  ]
+}
