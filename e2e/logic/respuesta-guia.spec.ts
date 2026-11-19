@@ -94,6 +94,10 @@ test.describe("contestarle a la Guía", () => {
     // Lo que sí es una respuesta, sigue siéndolo.
     expect(respuestaAGuia("hacé 24", compraCorta)).toMatchObject({ cantidad: 24 });
     expect(respuestaAGuia("no, dejalo así", compraCorta)?.tipo).toBe("descartar");
+    // Dicho de tú, como lo enseñan ahora las pistas del panel.
+    expect(respuestaAGuia("haz 24", compraCorta)).toMatchObject({ cantidad: 24 });
+    expect(respuestaAGuia("ponle 24", compraCorta)).toMatchObject({ cantidad: 24 });
+    expect(respuestaAGuia("no, déjalo así", compraCorta)?.tipo).toBe("descartar");
   });
 
   test("una frase larga no es una respuesta: es otra venta y va al servidor", () => {

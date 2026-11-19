@@ -54,7 +54,9 @@ const RELLENO = new Set(
     "que sean son seran es eran dejalo deja dejala en hace hacelo haceme hacé ponele pone mejor solo nomas " +
     "unidades unidad docena docenas media y o el la los las un una de del con por paga pago pagan cobrale cobra " +
     "cobrá cobrame si sip no nop nel dale ok okey okay bueno claro listo ya correcto exacto eso gracias favor " +
-    "esta bien asi ahora hace falta nada anotalo agregalo cargalo sumalo vez"
+    "esta bien asi ahora hace falta nada anotalo agregalo cargalo sumalo vez " +
+    // Lo mismo dicho de tú (las pistas del panel ya tutean): «hazlo», «ponle», «déjalo».
+    "hazlo hazme haz ponle pon dejala anotala"
   ).split(" "),
 );
 

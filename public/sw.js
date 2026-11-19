@@ -19,7 +19,7 @@
  * todas las cachés que no coincidan.
  * ======================================================================== */
 
-const CACHE_VERSION = "vendfy-v1";
+const CACHE_VERSION = "vendfy-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
