@@ -12,6 +12,7 @@ import { formatMoney } from "@/shared/lib/money";
 import { callarVoz, decirFrases, preferenciasVoz, sonarActivacion, sonarCierre, sonarTurno, type FraseVoz } from "@/shared/voz";
 
 import { entenderTexto, entenderVoz } from "../lib/api";
+import { cuantasPalabras, pedidoTrasLaPalabra } from "../lib/palabra";
 import { agregarAlCarrito, cantidadEnCarrito, lineasDeContexto, quitarDelCarrito, vaciarCarrito } from "../lib/carrito";
 import {
   cajaPiloto,
@@ -83,6 +84,8 @@ export function useConductorPiloto() {
     preguntoStock: false,
     /** Oyó "Oye Vendfy" y espera lo que se dijo después (del oído). */
     esperaComando: false,
+    /** Lo último que entendió el servidor: si va al Asistente, viaja con la pregunta. */
+    ultima: null as Propuesta | null,
     /** Cada vez que lo llaman empieza un turno nuevo; lo que quedó de antes se descarta. */
     turno: 0,
     cierre: null as ReturnType<typeof setTimeout> | null,
@@ -571,11 +574,20 @@ export function useConductorPiloto() {
       case "decir":
         setPiloto({ foco: null, tabla: null });
         return terminar(turno, plan.texto, undefined, 6_000);
-      case "asistente":
-        setPiloto({ pregunta: null, foco: null, tabla: null, irAlAsistente: true });
+      case "asistente": {
+        // Lo que se arma con gráficas, tablas o tarjetas para tocar va al
+        // Asistente, con la pregunta ya hecha: no hay que repetirla allá.
+        const consulta = estadoPiloto().dicho?.trim();
+        setPiloto({ pregunta: null, foco: null, tabla: null });
+        // Viaja también lo que ya entendió el servidor (el análisis con sus
+        // gráficas): el Asistente lo muestra tal cual, sin volver a preguntar.
+        ctx.current.navigate(consulta ? `/omnibox?preguntar=${encodeURIComponent(consulta)}` : "/omnibox", {
+          state: consulta ? { propuestaPiloto: ctx.current.ultima, pregunta: consulta } : undefined,
+        });
         await decir(plan.texto);
-        if (vigente(turno)) setPiloto({ fase: "listo" });
+        if (vigente(turno)) cerrarPiloto();
         return;
+      }
       case "caja":
         return vender(turno, plan);
       case "stock":
@@ -600,6 +612,7 @@ export function useConductorPiloto() {
       await decir("No te entendí. ¿Me lo repites?");
       return escucharRespuesta(turno);
     }
+    ctx.current.ultima = p;
     return ejecutar(turno, p);
   };
 
@@ -703,9 +716,19 @@ export function useConductorPiloto() {
     try {
       const r = await entenderVoz(wav, tienda, lineasDeContexto(), true);
       if (!vigente(turno)) return;
-      // Falsa alarma: no era "Oye Vendfy" (la tele, "oye, vendí…"). Se cierra sin decir nada.
+      // El servidor no la encontró al principio: lo dicho antes de la palabra
+      // ("a ver, a ver…", el "Gracias." que Whisper inventa sobre el silencio)
+      // o una forma rara de escribirla. El detector del equipo ya la oyó: el
+      // pedido es lo que sigue (o todo, si no está). Antes se cerraba sin decir
+      // nada y parecía que Vendfy no escuchaba.
       if (r.palabra === false) {
-        cerrarPiloto();
+        const pedido = pedidoTrasLaPalabra(r.transcripcion.texto ?? "");
+        if (cuantasPalabras(pedido) < 2) {
+          await decir("¿Sí? Dime.");
+          return escucharRespuesta(turno);
+        }
+        setPiloto({ dicho: pedido });
+        await atender(turno, pedido, () => entenderTexto(pedido, tienda, lineasDeContexto()));
         return;
       }
       const texto = r.transcripcion.texto?.trim();

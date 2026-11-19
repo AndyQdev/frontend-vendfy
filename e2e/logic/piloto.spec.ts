@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { cuantasPalabras, pedidoTrasLaPalabra } from "../../src/features/piloto/lib/palabra";
 
 import type { ItemPedido, ProductoOpcion, Propuesta } from "../../src/entities/omnibox/model/types";
 import { planDe, resumenAgregado } from "../../src/features/piloto/model/plan";
@@ -230,5 +231,26 @@ test.describe("Inventario, Pedidos y Productos", () => {
     expect(leerRespuesta("no tengo", "cantidad")).toEqual({ tipo: "numero", valor: 0 });
     // Sin pregunta de precio, un número suelto no es una respuesta.
     expect(leerRespuesta("8", "confirmar")).toBeNull();
+  });
+});
+
+test.describe("Oye Vendfy: lo pedido y el Asistente", () => {
+  test("la palabra en el medio o mal escrita: el pedido es lo que sigue", () => {
+    expect(pedidoTrasLaPalabra("A ver, a ver. Oye Vendfy, registra una venta de dos huevos frescos.")).toBe("registra una venta de dos huevos frescos.");
+    expect(pedidoTrasLaPalabra("Gracias. Oye Wendy, cobra con QR")).toBe("cobra con QR");
+    expect(pedidoTrasLaPalabra("Hoy Bendfai vende dos cocas")).toBe("vende dos cocas");
+  });
+
+  test("sin la palabra en la transcripción: el pedido es todo, sin lo que Whisper inventa", () => {
+    expect(pedidoTrasLaPalabra("Registra una venta de dos huevos frescos.")).toBe("Registra una venta de dos huevos frescos.");
+    expect(pedidoTrasLaPalabra("Gracias. ¿Cuánto vendí hoy?")).toBe("¿Cuánto vendí hoy?");
+    expect(cuantasPalabras(pedidoTrasLaPalabra("Gracias."))).toBe(0);
+  });
+
+  test("un análisis («¿cómo vamos este mes?») va al Asistente", () => {
+    const analisis = propuesta({ intencion: "analizar", vista: { titulo: "Este mes", piezas: [] } as any });
+    expect(planDe(analisis)).toMatchObject({ tipo: "asistente" });
+    const agente = propuesta({ intencion: "agente", agente: { texto: "Para eso tendríamos que ir al modo asistente.", acciones: [], motivo: "x" } });
+    expect(planDe(agente)).toMatchObject({ tipo: "asistente", texto: "Te lo dejo listo en el Asistente." });
   });
 });

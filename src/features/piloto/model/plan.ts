@@ -49,7 +49,10 @@ export type PlanPiloto =
   | { tipo: "asistente"; texto: string };
 
 /** Lo que la Caja todavía no hace por voz: se arma en el asistente. */
-const SOLO_ASISTENTE = "Eso todavía no lo hago desde aquí. Te lo dejo abierto en el asistente.";
+const SOLO_ASISTENTE = "Te lo dejo listo en el Asistente.";
+
+/** Análisis, gráficas y comparaciones: se arman en el Asistente, con la pregunta ya hecha. */
+const A_ANALISIS = "Te lo armo en el Asistente.";
 
 const ORDEN: PlanPiloto["tipo"][] = ["caja", "producto", "stock", "pedido"];
 
@@ -75,7 +78,11 @@ export function planDe(p: Propuesta): PlanPiloto {
     const hacible = ORDEN.map((t) => planes.find((x) => x.tipo === t)).find(Boolean);
     if (hacible) return hacible;
     const texto = p.agente.texto || SOLO_ASISTENTE;
-    return planes.some((x) => x.tipo === "asistente") ? { tipo: "asistente", texto } : { tipo: "decir", texto };
+    // "Para eso hay que ir al asistente": se va, no se dice.
+    if (planes.some((x) => x.tipo === "asistente") || /asistente/i.test(texto)) {
+      return { tipo: "asistente", texto: /asistente/i.test(texto) ? SOLO_ASISTENTE : texto };
+    }
+    return { tipo: "decir", texto };
   }
 
   const e = p.entidades as Record<string, any>;
@@ -185,6 +192,9 @@ export function planDe(p: Propuesta): PlanPiloto {
     }
     if (p.noEncontrado) return { tipo: "decir", texto: `No encontré ${p.noEncontrado} en tus productos.` };
   }
+
+  // "¿Cómo vamos este mes?": un análisis con gráficas, en el Asistente.
+  if (p.vista || p.intencion === "analizar") return { tipo: "asistente", texto: A_ANALISIS };
 
   // Consultas que el servidor ya contestó (el dólar, cuánto vendió…).
   if (p.resultado?.resumen) return { tipo: "decir", texto: p.resultado.resumen };

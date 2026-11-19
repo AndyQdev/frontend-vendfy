@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useReducer, useRef, useState } from "react";
 import { BarChart3, History, SquarePen, Store, Volume2, VolumeX } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -471,16 +471,21 @@ export function OmniboxPage() {
 
   // ------------------------------------------------------------ preguntar
 
+  /** Lo que se hace con lo entendido: la venta, el análisis, la herramienta… */
+  function aplicarPropuesta(id: string, consulta: string, propuesta: Propuesta | null | undefined) {
+    actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
+    if (propuesta?.agente) return desplegarAgente(id, propuesta);
+    if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
+    if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
+    if (propuesta?.intencion === "simular") armarHerramienta(id, consulta);
+    if (propuesta) abrirFormularioSiFalta(id, propuesta);
+  }
+
   async function interpretarEn(id: string, consulta: string) {
     if (!storeId) return;
     try {
       const propuesta = await interpretar.mutateAsync({ texto: consulta, storeId, contexto: contextoMesa() });
-      actualizar(id, (m) => ({ ...m, fase: "listo", propuesta: propuesta! }));
-      if (propuesta?.agente) return desplegarAgente(id, propuesta);
-      if (propuesta && esDeVenta(propuesta)) aplicarVenta(id, propuesta);
-      if (propuesta?.vista) mostrarAnalisis(id, consulta, propuesta);
-      if (propuesta?.intencion === "simular") armarHerramienta(id, consulta);
-      if (propuesta) abrirFormularioSiFalta(id, propuesta);
+      aplicarPropuesta(id, consulta, propuesta);
     } catch (error: any) {
       actualizar(id, (m) => ({
         ...m,
@@ -1076,6 +1081,32 @@ export function OmniboxPage() {
   // cambio; lo que quede pendiente se manda al cerrar la página.
   const [params, setParams] = useSearchParams();
   const conversacionId = params.get("c");
+
+  // El piloto («Oye Vendfy») trae lo que se pidió en ?preguntar=: se pregunta
+  // solo, como si se hubiera escrito, y el parámetro sale de la URL.
+  const preguntaPiloto = params.get("preguntar");
+  const preguntaHecha = useRef<string | null>(null);
+  const location = useLocation();
+  useEffect(() => {
+    if (!preguntaPiloto || !storeId || preguntaHecha.current === preguntaPiloto) return;
+    preguntaHecha.current = preguntaPiloto;
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        n.delete("preguntar");
+        return n;
+      },
+      { replace: true },
+    );
+    const m = nuevoMensaje(preguntaPiloto, true);
+    setMensajes((prev) => [...prev, m]);
+    // Si el piloto ya lo entendió (el análisis con sus gráficas), se muestra
+    // eso mismo: volver a preguntar podía dar otra respuesta.
+    const traida = (location.state as { propuestaPiloto?: Propuesta | null; pregunta?: string } | null) ?? null;
+    if (traida?.propuestaPiloto && traida.pregunta === preguntaPiloto) aplicarPropuesta(m.id, preguntaPiloto, traida.propuestaPiloto);
+    else interpretarEn(m.id, preguntaPiloto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preguntaPiloto, storeId]);
   const [tituloConversacion, setTituloConversacion] = useState<string | null>(null);
   const [guardado, setGuardado] = useState<"guardando" | "guardado" | "error" | null>(null);
   const [verConversaciones, setVerConversaciones] = useState(false);
