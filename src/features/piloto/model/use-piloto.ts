@@ -26,6 +26,9 @@ import {
 import { NOMBRE_ESTADO, planDe, resumenAgregado, type AccionCaja, type BorradorPiloto, type PlanPiloto } from "./plan";
 import { leerRespuesta, NOMBRE_PAGO, type PagoPiloto, type RespuestaPiloto } from "./respuestas";
 
+/** Lo que se lee si el servidor tarda más de lo normal. */
+const DEMORA = "Dame un momento…";
+
 /** Cuánto se espera a que conteste una pregunta sin volver a llamarlo. */
 const VENTANA_MS = 8_000;
 /** Lo primero que se dice después de llamarlo. */
@@ -606,7 +609,8 @@ export function useConductorPiloto() {
     // Sin pregunta, "sí" o "no" no dicen nada; "cóbrale", "con QR" y "para" sí.
     if (r && (pregunta || r.tipo === "parar" || r.tipo === "cobrar" || r.tipo === "pago")) return responder(turno, r);
     setPiloto({ fase: "pensando" });
-    const p = await propuesta();
+    const listo = avisoDemora(turno);
+    const p = await propuesta().finally(listo);
     if (!vigente(turno)) return;
     if (!p) {
       await decir("No te entendí. ¿Me lo repites?");
@@ -621,6 +625,21 @@ export function useConductorPiloto() {
     ctx.current.pendiente = null;
     setPiloto({ fase: "error", foco: null, pregunta: null });
     await decir(error instanceof Error && error.message ? error.message : "Algo falló. Inténtalo otra vez.");
+    // Que no quede abierta: se lee el aviso un rato y la bola vuelve a su lugar.
+    if (!vigente(turno)) return;
+    setPiloto({ fase: "listo" });
+    programarCierre(6_000);
+  };
+
+  /** Si el servidor tarda, que se note que sigue en eso y no parezca colgado. */
+  const avisoDemora = (turno: number) => {
+    const reloj = setTimeout(() => {
+      if (vigente(turno) && estadoPiloto().fase === "pensando") setPiloto({ linea: DEMORA });
+    }, 8_000);
+    return () => {
+      clearTimeout(reloj);
+      if (estadoPiloto().linea === DEMORA) setPiloto({ linea: null });
+    };
   };
 
   const oir = async (wav: Blob) => {
@@ -629,7 +648,7 @@ export function useConductorPiloto() {
     if (!tienda) return decir("Primero elige una tienda.");
     setPiloto({ fase: "pensando", linea: null });
     try {
-      const r = await entenderVoz(wav, tienda, lineasDeContexto());
+      const r = await entenderVoz(wav, tienda, lineasDeContexto()).finally(avisoDemora(turno));
       if (!vigente(turno)) return;
       const texto = r.transcripcion.texto?.trim();
       if (!texto) {
@@ -714,7 +733,7 @@ export function useConductorPiloto() {
     if (!tienda) return decir("Primero elige una tienda.");
     setPiloto({ fase: "pensando", linea: null });
     try {
-      const r = await entenderVoz(wav, tienda, lineasDeContexto(), true);
+      const r = await entenderVoz(wav, tienda, lineasDeContexto(), true).finally(avisoDemora(turno));
       if (!vigente(turno)) return;
       // El servidor no la encontró al principio: lo dicho antes de la palabra
       // ("a ver, a ver…", el "Gracias." que Whisper inventa sobre el silencio)
