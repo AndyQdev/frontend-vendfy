@@ -10,7 +10,9 @@ import {
   RefreshCw,
   ShieldCheck,
   Smartphone,
+  Unplug,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -21,9 +23,20 @@ import {
 } from "@/shared/ui/responsive-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Button } from "@/shared/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
 import { cn } from "@/shared/lib/cn";
 import {
   useKapsoConnect,
+  useKapsoDisconnect,
   useKapsoSetupLink,
   useKapsoStatus,
 } from "@/entities/whatsapp/api/inbox";
@@ -118,6 +131,8 @@ function ConnectionTimeline({ storeId }: { storeId: string }) {
   const statusQuery = useKapsoStatus(storeId);
   const connect = useKapsoConnect();
   const setupLink = useKapsoSetupLink();
+  const disconnect = useKapsoDisconnect();
+  const [confirmar, setConfirmar] = useState(false);
 
   const cfg = statusQuery.data;
   // Paso actual: 1 = sin conexión, 2 = esperando Meta, 3 = conectado
@@ -242,7 +257,20 @@ function ConnectionTimeline({ storeId }: { storeId: string }) {
         )}
       </TimelineStep>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex items-center justify-between gap-2 pt-2">
+        {cfg?.customer_id ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setConfirmar(true)}
+          >
+            <Unplug className="h-4 w-4" />
+            Desconectar
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           size="sm"
           variant="ghost"
@@ -256,6 +284,36 @@ function ConnectionTimeline({ storeId }: { storeId: string }) {
           Actualizar
         </Button>
       </div>
+
+      <AlertDialog open={confirmar} onOpenChange={setConfirmar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desconectar WhatsApp?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vendfy deja de usar este número: el agente no responde por ahí y
+              no se mandan avisos de pedidos por WhatsApp hasta que vuelvas a
+              conectar. Tus chats guardados no se borran.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmar(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={disconnect.isPending}
+              onClick={async () => {
+                await disconnect.mutateAsync({ storeId });
+                setConfirmar(false);
+                toast.success("WhatsApp desconectado. Puedes volver a conectarlo cuando quieras.");
+              }}
+            >
+              {disconnect.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

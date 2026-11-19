@@ -176,6 +176,29 @@ export function useClearSandbox() {
   });
 }
 
+/** Quita de Vendfy el WhatsApp de la tienda (Kapso no se toca) para conectar de cero. */
+export function useKapsoDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { storeId: string }) => {
+      const res = await apiFetch<{ desconectado: boolean }>(
+        `/api/kapso/connection/${vars.storeId}`,
+        { method: "DELETE" },
+      );
+      return res.data!;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["kapso-status", vars.storeId] });
+      qc.invalidateQueries({ queryKey: ["kapso-notifications", vars.storeId] });
+    },
+    onError: (error: Error) => {
+      toast.error(
+        error instanceof ApiError ? error.message : "No se pudo desconectar WhatsApp",
+      );
+    },
+  });
+}
+
 export function useKapsoSetupLink() {
   return useMutation({
     mutationFn: async (vars: { storeId: string }) => {
