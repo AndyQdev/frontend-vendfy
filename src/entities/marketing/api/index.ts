@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/shared/api/client";
 import { getChatSocket } from "@/entities/whatsapp/api/chat-socket";
 import type {
+  AnalisisCampana,
+  AnalisisLead,
   Campana,
   CampanaDetalle,
   Embudo,
@@ -70,12 +72,24 @@ export function useCampana(storeId?: string, id?: string) {
   });
 }
 
+/** ¿Valió la pena? Veredicto, dónde se traba y qué hacer. */
+export function useAnalisisCampana(storeId?: string, id?: string, habilitado = true) {
+  return useQuery({
+    queryKey: ["marketing", "analisis-campana", storeId, id],
+    queryFn: async () => (await apiFetch<AnalisisCampana>(`/api/marketing/campanas/${id}/analisis?storeId=${storeId}`)).data!,
+    enabled: !!storeId && !!id && habilitado,
+  });
+}
+
 function useRefrescarCampanas(storeId?: string) {
   const qc = useQueryClient();
   return (id?: string) => {
     qc.invalidateQueries({ queryKey: K.campanas(storeId) });
     qc.invalidateQueries({ queryKey: ["marketing", "resumen", storeId] });
-    if (id) qc.invalidateQueries({ queryKey: K.campana(storeId, id) });
+    if (id) {
+      qc.invalidateQueries({ queryKey: K.campana(storeId, id) });
+      qc.invalidateQueries({ queryKey: ["marketing", "analisis-campana", storeId, id] });
+    }
   };
 }
 
@@ -185,6 +199,27 @@ export function useLead(storeId?: string, id?: string | null) {
     queryFn: async () => (await apiFetch<Lead & { historial: EventoLead[] }>(`/api/marketing/leads/${id}?storeId=${storeId}`)).data!,
     enabled: !!storeId && !!id,
   });
+}
+
+/**
+ * Probabilidad de compra, por qué, y qué escribirle (con IA). Lo de la IA se
+ * guarda en el servidor hasta que llegue un mensaje nuevo; `regenerar` pide
+ * sugerencias nuevas.
+ */
+export function useAnalisisLead(storeId?: string, id?: string | null) {
+  const qc = useQueryClient();
+  const key = ["marketing", "analisis-lead", storeId, id];
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => (await apiFetch<AnalisisLead>(`/api/marketing/leads/${id}/analisis?storeId=${storeId}`)).data!,
+    enabled: !!storeId && !!id,
+    staleTime: 60_000,
+  });
+  const regenerar = useMutation({
+    mutationFn: async () => (await apiFetch<AnalisisLead>(`/api/marketing/leads/${id}/analisis?storeId=${storeId}&regenerar=1`)).data!,
+    onSuccess: (a) => qc.setQueryData(key, a),
+  });
+  return { ...query, regenerar };
 }
 
 export function useEditarLead(storeId?: string) {

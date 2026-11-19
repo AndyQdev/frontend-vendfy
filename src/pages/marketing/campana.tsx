@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Archive, Image as ImageIcon, MapPin, Pause, Play, RefreshCw, Rocket, Sparkles, Wallet } from "lucide-react";
-import { PageHeader } from "@/shared/ui/page-header";
+import { ArrowLeft, Archive, ChevronDown, Image as ImageIcon, MapPin, Megaphone, MessageCircle, Pause, Play, RefreshCw, Rocket, Sparkles, Wallet } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/ui/collapsible";
 import { Card } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -29,14 +29,14 @@ import {
   useArchivarCampana,
   useCampana,
   useEditarCampana,
-  useEmbudoLeads,
   usePresupuestoCampana,
 } from "@/entities/marketing/api";
-import { ESTADO_CAMPANA, bs, type Campana, type Creativo, type Publico } from "@/entities/marketing/model/types";
+import { ESTADO_CAMPANA, bs, type Campana, type CampanaDetalle, type Creativo, type Publico } from "@/entities/marketing/model/types";
 import { SelectorProductos, type ProductoElegible } from "@/features/promotions/ui/SelectorProductos";
 import { DialogImagenIa } from "@/features/promotions/ui/DialogImagenIa";
-import { RangoEstimado, EmbudoBarras } from "@/features/marketing/ui/Estimacion";
+import { RangoEstimado } from "@/features/marketing/ui/Estimacion";
 import { TableroChats } from "@/features/marketing/ui/TableroChats";
+import { AnalisisCampana } from "@/features/marketing/ui/AnalisisCampana";
 
 /** Durante el piloto, lo más que una campaña gasta por día (el servidor también lo controla). */
 const TOPE_PILOTO = 40;
@@ -79,7 +79,13 @@ function formularioDe(c: Campana): Formulario {
  * Una campaña: el borrador que se ajusta antes de crearlo en Meta, y después
  * su seguimiento (gasto, quién escribió, quién compró y el retorno real).
  */
-export default function CampanaPage() {
+/** «WhatsApp directo» comparte la ruta de las campañas: es el tablero de lo que no vino por anuncios. */
+export default function CampanaRuta() {
+  const { id } = useParams<{ id: string }>();
+  return id === "directo" ? <CanalDirecto /> : <CampanaPage />;
+}
+
+function CampanaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { selectedStore } = useStore();
@@ -93,7 +99,6 @@ export default function CampanaPage() {
   const accion = useAccionCampana(storeId, id);
   const presupuesto = usePresupuestoCampana(storeId, id);
   const archivar = useArchivarCampana(storeId);
-  const embudo = useEmbudoLeads(storeId, { anuncios: c?.externo.adIds.length ? c.externo.adIds : ["-"], dias: 365 });
 
   const [f, setF] = useState<Formulario | null>(null);
   const [imagenIa, setImagenIa] = useState(false);
@@ -160,14 +165,62 @@ export default function CampanaPage() {
 
   return (
     <div className="space-y-5">
-      <Link to="/marketing?tab=campanas" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Campañas
+      <Link to="/marketing" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Marketing
       </Link>
-      <PageHeader
-        title={c.nombre}
-        description={c.idea ? c.idea.porque : c.origen === "importada" ? "Traída de tu cuenta de Meta" : undefined}
-        actions={<Badge variant={estado.variant}>{estado.texto}</Badge>}
-      />
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-4">
+          <Miniatura c={c} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant={estado.variant}>{estado.texto}</Badge>
+              {c.origen === "importada" && <Badge variant="outline">Traída de Meta</Badge>}
+            </div>
+            <h1 className="titulo-pagina mt-1 break-words">{c.nombre}</h1>
+            {c.idea && <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">{c.idea.porque}</p>}
+            {!esBorrador && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {c.presupuestoDiario ? `${bs(c.presupuestoDiario, c.moneda)} por día` : "Sin presupuesto en Vendfy"}
+                {c.inicio ? ` · desde el ${new Date(c.inicio).toLocaleDateString("es-BO")}` : ""}
+                {c.ultimoSync ? ` · datos de Meta del ${new Date(c.ultimoSync).toLocaleString("es-BO")}` : ""}
+              </p>
+            )}
+          </div>
+        </div>
+        {!esBorrador && puedeGestionar && (
+          <div className="flex flex-wrap items-center gap-2">
+            {c.estado === "pausada" && (
+              <Button onClick={() => setConfirmar("activar")} loading={accion.isPending}>
+                <Play className="mr-1.5 h-4 w-4" /> Activar
+              </Button>
+            )}
+            {c.estado === "activa" && (
+              <Button variant="outline" onClick={() => ejecutar("pausar")} loading={accion.isPending}>
+                <Pause className="mr-1.5 h-4 w-4" /> Pausar
+              </Button>
+            )}
+            {c.origen === "vendfy" && (c.estado === "activa" || c.estado === "pausada") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNuevoPresupuesto(c.presupuestoDiario ?? 35);
+                  setConfirmar("presupuesto");
+                }}
+              >
+                <Wallet className="mr-1.5 h-4 w-4" /> Presupuesto
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" title="Traer los datos de Meta" aria-label="Traer los datos de Meta" onClick={() => ejecutar("sincronizar")} disabled={accion.isPending}>
+              <RefreshCw className={accion.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            </Button>
+            {c.estado !== "activa" && (
+              <Button variant="ghost" size="icon" className="text-muted-foreground" title="Archivar" aria-label="Archivar" onClick={() => setConfirmar("archivar")}>
+                <Archive className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+      </header>
 
       {c.ultimoError && (
         <div role="alert" className="rounded-xl border border-destructive-soft bg-destructive-soft px-4 py-3 text-sm text-destructive-soft-foreground">
@@ -350,109 +403,36 @@ export default function CampanaPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          <dl className="grid grid-cols-2 gap-3 md:grid-cols-6">
-            {[
-              { e: "Gastó", v: bs(m.gasto, c.moneda) },
-              { e: "Escribieron", v: String(escribieron) },
-              { e: "Costo por chat", v: bs(m.costoConversacion, c.moneda) },
-              { e: "Compraron", v: String(m.compraron) },
-              { e: "Vendió", v: bs(m.vendido) },
-              { e: "ROAS", v: m.roas != null ? `${m.roas}×` : "—" },
-            ].map((k) => (
-              <Card key={k.e} className="p-4">
-                <dt className="etiqueta text-muted-foreground">{k.e}</dt>
-                <dd className="cifra mt-1 text-lg font-bold">{k.v}</dd>
-              </Card>
-            ))}
-          </dl>
+        <div className="space-y-6">
+          <AnalisisCampana
+            storeId={tienda.id}
+            campana={c}
+            onAccion={(a) => {
+              if (a === "seguir_chats") document.getElementById("chats-campana")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              if (a === "pausar") void ejecutar("pausar");
+              if (a === "activar") setConfirmar("activar");
+              if (a === "subir_presupuesto") {
+                setNuevoPresupuesto(c.presupuestoDiario ?? 35);
+                setConfirmar("presupuesto");
+              }
+            }}
+          />
 
-          {puedeGestionar && (
-            <Card className="flex flex-wrap items-center gap-2 p-4">
-              {c.estado === "pausada" && (
-                <Button onClick={() => setConfirmar("activar")} loading={accion.isPending}>
-                  <Play className="mr-1.5 h-4 w-4" /> Activar · gastará hasta {bs(c.presupuestoDiario, c.moneda)} por día
-                </Button>
-              )}
-              {c.estado === "activa" && (
-                <Button variant="outline" onClick={() => ejecutar("pausar")} loading={accion.isPending}>
-                  <Pause className="mr-1.5 h-4 w-4" /> Pausar
-                </Button>
-              )}
-              {c.origen === "vendfy" && (c.estado === "activa" || c.estado === "pausada") && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setNuevoPresupuesto(c.presupuestoDiario ?? 35);
-                    setConfirmar("presupuesto");
-                  }}
-                >
-                  <Wallet className="mr-1.5 h-4 w-4" /> Cambiar presupuesto
-                </Button>
-              )}
-              <Button variant="ghost" onClick={() => ejecutar("sincronizar")} loading={accion.isPending}>
-                <RefreshCw className="mr-1.5 h-4 w-4" /> Actualizar datos
-              </Button>
-              {c.ultimoSync && <span className="text-xs text-muted-foreground">Datos de Meta del {new Date(c.ultimoSync).toLocaleString("es-BO")}</span>}
-              {c.estado !== "activa" && (
-                <Button variant="ghost" className="ml-auto text-muted-foreground" onClick={() => setConfirmar("archivar")}>
-                  <Archive className="mr-1.5 h-4 w-4" /> Archivar
-                </Button>
-              )}
-            </Card>
-          )}
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="p-5">
-              <h3 className="mb-3 font-semibold">Camino a la venta de esta campaña</h3>
-              {embudo.data && embudo.data.personas > 0 ? (
-                <EmbudoBarras embudo={embudo.data} />
-              ) : (
-                <p className="text-sm text-muted-foreground">Todavía nadie escribió por sus anuncios.</p>
-              )}
-            </Card>
-            {c.estimacion && (
-              <Card className="p-5">
-                <h3 className="mb-3 font-semibold">Lo que se estimó al armarla</h3>
-                <RangoEstimado e={c.estimacion} compacto />
-              </Card>
-            )}
-          </div>
-
-          {c.porDia.length > 0 && (
-            <Card className="overflow-x-auto p-5">
-              <h3 className="mb-3 font-semibold">Día por día</h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="etiqueta text-left text-muted-foreground">
-                    <th className="py-1 pr-3">Día</th>
-                    <th className="py-1 pr-3 text-right">Gastó</th>
-                    <th className="py-1 pr-3 text-right">Impresiones</th>
-                    <th className="py-1 pr-3 text-right">Clics</th>
-                    <th className="py-1 text-right">Escribieron</th>
-                  </tr>
-                </thead>
-                <tbody className="cifra">
-                  {c.porDia.map((d) => (
-                    <tr key={d.fecha} className="border-t border-border">
-                      <td className="py-1.5 pr-3">{d.fecha}</td>
-                      <td className="py-1.5 pr-3 text-right">{bs(d.gasto, c.moneda)}</td>
-                      <td className="py-1.5 pr-3 text-right">{d.impresiones}</td>
-                      <td className="py-1.5 pr-3 text-right">{d.clics}</td>
-                      <td className="py-1.5 text-right">{d.conversaciones}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
-
-          {c.externo.adIds.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-semibold">Quiénes escribieron por esta campaña</h3>
-              <TableroChats storeId={tienda.id} puedeGestionar={puedeChats} anunciosDeCampana={c.externo.adIds} tituloCampana={c.nombre} />
+          <section id="chats-campana" className="scroll-mt-24 space-y-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Conversaciones de esta campaña</h2>
+              <p className="text-sm text-muted-foreground">
+                Quienes escribieron por sus anuncios. Toca una tarjeta para ver su chat, qué tan probable es que compre y qué escribirle.
+              </p>
             </div>
-          )}
+            {c.externo.adIds.length > 0 ? (
+              <TableroChats storeId={tienda.id} puedeGestionar={puedeChats} filtro={{ anuncios: c.externo.adIds }} />
+            ) : (
+              <Card className="p-6 text-sm text-muted-foreground">Cuando la campaña tenga anuncios en Meta, aquí aparecen quienes escriban por ellos.</Card>
+            )}
+          </section>
+
+          <Detalle c={c} />
         </div>
       )}
 
@@ -528,7 +508,7 @@ export default function CampanaPage() {
                 if (que === "archivar") {
                   try {
                     await archivar.mutateAsync(c.id);
-                    navigate("/marketing?tab=campanas");
+                    navigate("/marketing");
                   } catch (e: any) {
                     toast.error(e?.message ?? "No se pudo archivar");
                   }
@@ -570,5 +550,120 @@ function VistaPreviaAnuncio({ nombreTienda, titulo, texto, imagen, saludo }: { n
         </div>
       )}
     </Card>
+  );
+}
+
+/** La imagen de la campaña (la del anuncio o la del producto). */
+function Miniatura({ c }: { c: Campana }) {
+  const [sinFoto, setSinFoto] = useState(false);
+  const imagen = c.creativo?.imagen ?? c.productos.find((p) => p.imagen)?.imagen ?? null;
+  return imagen && !sinFoto ? (
+    <img src={imagen} alt="" onError={() => setSinFoto(true)} className="h-16 w-16 shrink-0 rounded-2xl border border-border object-cover shadow-sm" />
+  ) : (
+    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5">
+      <Megaphone className="h-7 w-7 text-primary/70" />
+    </span>
+  );
+}
+
+/** Día por día, por anuncio y lo estimado: plegado, para quien quiera el detalle. */
+function Detalle({ c }: { c: CampanaDetalle }) {
+  if (!c.porDia.length && !c.anuncios.length && !c.estimacion) return null;
+  return (
+    <Card className="overflow-hidden">
+      <Collapsible>
+        <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 px-5 py-4 text-left">
+          <span className="font-semibold">Detalle: día por día, por anuncio y lo estimado</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-6 border-t border-border px-5 py-4">
+          {c.porDia.length > 0 && (
+            <div className="overflow-x-auto">
+              <h4 className="etiqueta mb-2 text-muted-foreground">Día por día</h4>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="etiqueta text-left text-muted-foreground">
+                    <th className="py-1 pr-3">Día</th>
+                    <th className="py-1 pr-3 text-right">Gastó</th>
+                    <th className="py-1 pr-3 text-right">Impresiones</th>
+                    <th className="py-1 pr-3 text-right">Clics</th>
+                    <th className="py-1 text-right">Escribieron</th>
+                  </tr>
+                </thead>
+                <tbody className="cifra">
+                  {c.porDia.map((d) => (
+                    <tr key={d.fecha} className="border-t border-border">
+                      <td className="py-1.5 pr-3">{d.fecha}</td>
+                      <td className="py-1.5 pr-3 text-right">{bs(d.gasto, c.moneda)}</td>
+                      <td className="py-1.5 pr-3 text-right">{d.impresiones}</td>
+                      <td className="py-1.5 pr-3 text-right">{d.clics}</td>
+                      <td className="py-1.5 text-right">{d.conversaciones}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {c.anuncios.length > 0 && (
+            <div className="overflow-x-auto">
+              <h4 className="etiqueta mb-2 text-muted-foreground">Por anuncio</h4>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="etiqueta text-left text-muted-foreground">
+                    <th className="py-1 pr-3">Anuncio</th>
+                    <th className="py-1 pr-3 text-right">Gastó</th>
+                    <th className="py-1 pr-3 text-right">Escribieron</th>
+                    <th className="py-1 text-right">Compraron</th>
+                  </tr>
+                </thead>
+                <tbody className="cifra">
+                  {c.anuncios.map((a) => (
+                    <tr key={a.id} className="border-t border-border">
+                      <td className="max-w-[16rem] truncate py-1.5 pr-3">{a.nombre || a.id}</td>
+                      <td className="py-1.5 pr-3 text-right">{bs(a.gasto, c.moneda)}</td>
+                      <td className="py-1.5 pr-3 text-right">{Math.max(a.conversaciones, a.personas)}</td>
+                      <td className="py-1.5 text-right">{a.compraron}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {c.estimacion && (
+            <div>
+              <h4 className="etiqueta mb-2 text-muted-foreground">Lo que se estimó al armarla</h4>
+              <RangoEstimado e={c.estimacion} compacto />
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}
+
+/** El tablero de los chats que no vinieron por un anuncio. */
+function CanalDirecto() {
+  const { selectedStore } = useStore();
+  const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
+  const puedeChats = useAcceso().puede(PERMISO.GESTIONAR_WHATSAPP);
+  if (!tienda) return <p className="text-sm text-muted-foreground">Elige una tienda arriba.</p>;
+  return (
+    <div className="space-y-5">
+      <Link to="/marketing" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Marketing
+      </Link>
+      <header className="flex items-start gap-4">
+        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#25D366] to-[#128C7E] text-white shadow-sm">
+          <MessageCircle className="h-8 w-8" />
+        </span>
+        <div>
+          <h1 className="titulo-pagina">WhatsApp directo</h1>
+          <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
+            Los que te escribieron sin pasar por un anuncio. El agente los atiende igual y avanzan por el mismo tablero; toca una tarjeta para ver su chat y qué escribirle.
+          </p>
+        </div>
+      </header>
+      <TableroChats storeId={tienda.id} puedeGestionar={puedeChats} filtro={{ origen: "directo" }} />
+    </div>
   );
 }

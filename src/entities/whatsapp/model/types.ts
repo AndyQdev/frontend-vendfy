@@ -24,6 +24,8 @@ export interface WhatsAppKapsoInfo {
   status?: WhatsAppKapsoStatus
   templates_approved?: boolean
   connected_at?: string
+  /** El número tal como lo muestra WhatsApp (ej. «+591 57948481»). */
+  display_phone_number?: string
 }
 
 // === Tipos Meta Cloud API (oficial) ===

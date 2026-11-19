@@ -57,10 +57,10 @@ export function NotificationsBell({ className }: { className?: string }) {
   if (storeId && whatsappKnown && whatsapp?.status !== "connected") {
     items.push({
       icon: IconBrandWhatsapp,
-      title: "Conectá el bot de WhatsApp",
-      detail: "Atiende y vende por vos",
+      title: "Conecta el bot de WhatsApp",
+      detail: "Atiende y vende por ti",
       tone: "info",
-      onClick: () => navigate("/whatsapp"),
+      onClick: () => navigate("/marketing?config=connection"),
     });
   }
 

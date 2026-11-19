@@ -656,7 +656,7 @@ export default function OrdersTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate("/whatsapp?config=notifications")}
+              onClick={() => navigate("/marketing?config=notifications")}
               className="gap-2 text-xs"
             >
               <Bell className="h-3.5 w-3.5" />

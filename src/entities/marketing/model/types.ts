@@ -56,6 +56,39 @@ export interface Lead {
   };
   pedido: { id: string; numero: number | null; estado: string; total: number } | null;
   cliente: { id: string; nombre: string | null } | null;
+  /** Qué tan probable es que compre (0 a 1). Viene en la lista del tablero. */
+  probabilidad?: number | null;
+  nivel?: NivelCompra | null;
+}
+
+export type NivelCompra = "alta" | "media" | "baja";
+
+export interface FactorCompra {
+  clave: string;
+  texto: string;
+  efecto: "sube" | "baja";
+  peso: number;
+}
+
+export interface SugerenciaMensaje {
+  titulo: string;
+  texto: string;
+  motivo: string;
+}
+
+/** La ficha inteligente de un chat. */
+export interface AnalisisLead {
+  probabilidad: number;
+  nivel: NivelCompra;
+  factores: FactorCompra[];
+  modelo: { fuente: "partida" | "entrenado"; muestras: number; compraron: number };
+  ventana: { abierta: boolean; cierraEn: string | null; ultimoMensajeCliente: string | null };
+  cliente: { compras: number; gastado: number; ultimaCompra: string | null };
+  resumen: string | null;
+  siguientePaso: string;
+  sugerencias: SugerenciaMensaje[];
+  generadoCon: "ia" | "reglas";
+  generadoAt: string;
 }
 
 export interface EventoLead {
@@ -228,10 +261,36 @@ export interface Campana {
   estimacion: (Estimacion & { calibracion?: Calibracion }) | null;
   externo: { campaignId: string | null; adIds: string[] };
   metricas: MetricasCampana;
+  chats: { abiertos: number; nuevos: number; porCerrar: number; sinLeer: number; perdidosPorPrecio: number };
+  analisis: { veredicto: Veredicto; titulo: string };
   faltaParaPublicar: string[];
   ultimoSync: string | null;
   ultimoError: string | null;
   creadaAt: string;
+}
+
+export type Veredicto = "sin_datos" | "temprano" | "valio" | "va_bien" | "no_rinde";
+export type AccionSugerida = "pausar" | "subir_presupuesto" | "cambiar_anuncio" | "seguir_chats" | "esperar" | "mantener" | "activar";
+export type Comparacion = "arriba" | "dentro" | "abajo" | null;
+
+/** ¿Valió la pena? La lectura completa de una campaña. */
+export interface AnalisisCampana {
+  veredicto: Veredicto;
+  titulo: string;
+  explicacion: string;
+  indicadores: {
+    costoPorChat: number | null;
+    costoPorVenta: number | null;
+    tasaDeCierre: number | null;
+    retorno: number | null;
+    equilibrio: number | null;
+    ganancia: number | null;
+  };
+  frenteAEstimado: { chats: Comparacion; retorno: Comparacion };
+  cuello: "chats" | "respuesta" | "cierre" | null;
+  recomendaciones: Array<{ texto: string; accion: AccionSugerida }>;
+  embudo: Embudo | null;
+  chats: Campana["chats"];
 }
 
 export interface CampanaDetalle extends Campana {

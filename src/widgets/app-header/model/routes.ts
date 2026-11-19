@@ -11,14 +11,12 @@ import {
   Package,
   ChartColumnBig,
   ReceiptText,
-  Plug,
   Store,
   Tags,
   Truck,
   UserCog,
   Users,
 } from "lucide-react";
-import { IconBrandWhatsapp } from "@tabler/icons-react";
 
 import { PERMISO, type Requisito } from "@/shared/acceso/permisos";
 
@@ -71,11 +69,15 @@ export const NAV_ROUTES: NavRoute[] = [
   { href: "/customers", label: "Clientes", icon: Users, requiere: { permisos: [PERMISO.VER_CLIENTES] } },
   // Leer el negocio, después de las pantallas con las que se opera.
   { href: "/reports", label: "Reportes", icon: ChartColumnBig, match: "/reports", requiere: { permisos: [PERMISO.VER_REPORTES], funcion: "reportes" } },
-  // Los canales por donde llega el cliente, juntos.
-  { href: "/whatsapp", label: "WhatsApp", icon: IconBrandWhatsapp, brandTint: "whatsapp", requiere: { permisos: [PERMISO.VER_WHATSAPP], funcion: "whatsapp" } },
-  { href: "/marketing", label: "Marketing", icon: Megaphone, match: "/marketing", requiere: { permisos: [PERMISO.VER_MARKETING], funcion: "anuncios_meta" } },
+  // Por donde llega el cliente: campañas, sus chats de WhatsApp y las conexiones, en un solo módulo.
+  {
+    href: "/marketing",
+    label: "Marketing",
+    icon: Megaphone,
+    match: "/marketing",
+    requiere: { permisos: [PERMISO.VER_MARKETING, PERMISO.VER_WHATSAPP], funciones: ["anuncios_meta", "whatsapp"] },
+  },
   // Lo que se configura, al final.
-  { href: "/integrations", label: "Integraciones", icon: Plug, requiere: { permisos: [PERMISO.VER_MARKETING], funcion: "anuncios_meta" } },
   { href: "/products/taxonomies", label: "Marcas y categorías", icon: Tags, requiere: { permisos: [PERMISO.VER_CATEGORIAS, PERMISO.VER_MARCAS] } },
   { href: "/stores", label: "Tienda", icon: Store, match: "/stores", requiere: { permisos: [PERMISO.VER_TIENDAS] } },
   // Quién entra al panel, con qué rol y en qué sucursales: solo el dueño.

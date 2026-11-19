@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import McpConnectPage from "@/pages/mcp-connect";
@@ -19,11 +19,9 @@ import CustomersPage from "@/pages/customers";
 import { StoresPage } from "@/pages/stores";
 import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
-import WhatsAppPage from "@/pages/whatsapp";
 import MarketingPage from "@/pages/marketing";
 import CampanaPage from "@/pages/marketing/campana";
 import PromotionsPage from "@/pages/promotions";
-import IntegrationsPage from "@/pages/integrations";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
 import MovementPage from "@/pages/reports/movements";
@@ -51,6 +49,12 @@ function Protected() {
 function RedirigirASesion() {
   const { id } = useParams();
   return <Navigate to={`/live/${id}`} replace />;
+}
+
+/** Las rutas viejas de WhatsApp e Integraciones llevan al módulo de Marketing, con sus parámetros. */
+function AMarketing() {
+  const { search } = useLocation();
+  return <Navigate to={`/marketing${search}`} replace />;
 }
 
 export default function AppRouter() {
@@ -95,12 +99,13 @@ export default function AppRouter() {
             <Route path="/stores/:id" element={<StoreConfigPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/movements" element={<MovementPage />} />
-            <Route path="/whatsapp" element={<WhatsAppPage />} />
+            {/* WhatsApp e Integraciones viven ahora dentro de Marketing (con sus callbacks: ?success, ?meta, ?config). */}
+            <Route path="/whatsapp" element={<AMarketing />} />
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/marketing" element={<MarketingPage />} />
             <Route path="/marketing/campanas/:id" element={<CampanaPage />} />
             <Route path="/campaigns" element={<Navigate to="/marketing" replace />} />
-            <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/integrations" element={<AMarketing />} />
             <Route path="/equipo" element={<EquipoPage />} />
 
             {/* Redirección por defecto: la primera pantalla que puede usar */}

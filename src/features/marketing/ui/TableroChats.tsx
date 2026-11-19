@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { Bot, Hand, Megaphone, Search, ShoppingCart, UserRound } from "lucide-react";
-import { Card } from "@/shared/ui/card";
+import { Bot, Hand, Inbox, Megaphone, Search, ShoppingCart } from "lucide-react";
 import { Input } from "@/shared/ui/input";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
@@ -19,37 +18,39 @@ import { cn } from "@/shared/lib/cn";
 import { useEditarLead, useLeads, useLeadsEnVivo } from "@/entities/marketing/api";
 import { ETAPAS, ETAPA_INFO, MOTIVOS_A_MANO, MOTIVO_PERDIDO, bs, type Etapa, type Lead, type MotivoPerdido } from "@/entities/marketing/model/types";
 import { nombreDelAnuncio, haceCuanto } from "@/features/whatsapp/chat/ui/AnuncioDeOrigen";
-import { FichaLead } from "./FichaLead";
+import { ETAPA_ESTILO, avatarDe } from "../model/etapas-ui";
+import { PildoraProbabilidad } from "./Probabilidad";
+import { EspacioCliente } from "./EspacioCliente";
 
 /**
- * El tablero del CRM de WhatsApp: cada persona que escribió, en la etapa en
- * que está. Cinco etapas se mueven solas con los mensajes, el carrito y los
- * pedidos; también se arrastra a mano (y lo movido a mano no retrocede solo).
+ * El tablero de una campaña (o de «WhatsApp directo»): cada persona que
+ * escribió, en la etapa en que está. Las etapas se mueven solas con los
+ * mensajes, el carrito y los pedidos; también se arrastra a mano (y lo movido
+ * a mano no retrocede solo). Al tocar una tarjeta se abre su chat con la ficha.
  */
 export function TableroChats({
   storeId,
   puedeGestionar,
-  anunciosDeCampana,
-  tituloCampana,
+  filtro,
 }: {
   storeId: string;
   puedeGestionar: boolean;
-  /** Si viene de una campaña: solo los que llegaron por sus anuncios. */
-  anunciosDeCampana?: string[];
-  tituloCampana?: string;
+  /** De qué campaña (sus anuncios) o «directo» (lo que no vino por anuncios). */
+  filtro: { anuncios?: string[]; origen?: "directo" };
 }) {
   const [q, setQ] = useState("");
-  const [origen, setOrigen] = useState<string>("todos");
-  const [dias, setDias] = useState(30);
+  const [dias, setDias] = useState(90);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState<Lead | null>(null);
   const [aPerdido, setAPerdido] = useState<Lead | null>(null);
 
   useLeadsEnVivo(storeId);
+  const sinAnuncios = filtro.anuncios !== undefined && filtro.anuncios.length === 0;
   const { data, isLoading } = useLeads(storeId, {
     q: q.trim() || undefined,
-    origen: origen === "todos" ? undefined : origen,
-    anuncios: anunciosDeCampana,
+    origen: filtro.origen,
+    // Una campaña sin anuncios todavía no tiene chats: se pide algo que no existe.
+    anuncios: sinAnuncios ? ["-"] : filtro.anuncios,
     dias,
   });
   const editar = useEditarLead(storeId);
@@ -57,8 +58,11 @@ export function TableroChats({
   const porEtapa = useMemo(() => {
     const m = Object.fromEntries(ETAPAS.map((e) => [e, [] as Lead[]])) as Record<Etapa, Lead[]>;
     for (const l of data?.leads ?? []) m[l.etapa]?.push(l);
+    // Dentro de cada columna, primero los que más chances tienen de comprar.
+    for (const e of ETAPAS) m[e].sort((a, b) => (b.probabilidad ?? 0) - (a.probabilidad ?? 0));
     return m;
   }, [data]);
+  const total = data?.leads.length ?? 0;
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -86,30 +90,13 @@ export function TableroChats({
 
   return (
     <div className="space-y-3">
-      <Card className="flex flex-wrap items-center gap-3 p-3">
-        {tituloCampana && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
-            <Megaphone className="h-3.5 w-3.5" /> {tituloCampana}
-          </span>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[12rem] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o teléfono…" className="pl-9" aria-label="Buscar" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o teléfono…" className="pl-9" aria-label="Buscar en el tablero" />
         </div>
-        {!anunciosDeCampana && (
-          <Select value={origen} onValueChange={setOrigen}>
-            <SelectTrigger className="w-[12rem]" aria-label="Origen">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los chats</SelectItem>
-              <SelectItem value="anuncio">Vinieron de anuncios</SelectItem>
-              <SelectItem value="organico">Escribieron solos</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
         <Select value={String(dias)} onValueChange={(v) => setDias(Number(v))}>
-          <SelectTrigger className="w-[10rem]" aria-label="Período">
+          <SelectTrigger className="w-[11rem]" aria-label="Período">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -119,12 +106,17 @@ export function TableroChats({
             <SelectItem value="365">Último año</SelectItem>
           </SelectContent>
         </Select>
-      </Card>
+        {!isLoading && (
+          <span className="text-xs text-muted-foreground">
+            {total === 1 ? "1 persona" : `${total} personas`} · los abiertos siempre se ven
+          </span>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="flex gap-3 overflow-hidden">
           {ETAPAS.map((e) => (
-            <Skeleton key={e} className="h-72 w-72 shrink-0 rounded-xl" />
+            <Skeleton key={e} className="h-80 w-72 shrink-0 rounded-2xl" />
           ))}
         </div>
       ) : (
@@ -150,7 +142,7 @@ export function TableroChats({
         </DndContext>
       )}
 
-      <FichaLead storeId={storeId} leadId={abierto} onClose={() => setAbierto(null)} puedeGestionar={puedeGestionar} />
+      <EspacioCliente storeId={storeId} leadId={abierto} onClose={() => setAbierto(null)} puedeGestionar={puedeGestionar} />
 
       <ResponsiveDialog open={!!aPerdido} onOpenChange={(o) => !o && setAPerdido(null)}>
         <ResponsiveDialogContent className="sm:max-w-[440px]">
@@ -159,20 +151,20 @@ export function TableroChats({
             <ResponsiveDialogDescription>Así sabes qué falla en el camino a la venta.</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {MOTIVOS_A_MANO.map((m) => (
-            <Button
-              key={m}
-              variant="outline"
-              onClick={() => {
-                if (aPerdido) void mover(aPerdido, "perdido", m);
-                setAPerdido(null);
-              }}
-            >
-              {MOTIVO_PERDIDO[m]}
-            </Button>
-          ))}
-        </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {MOTIVOS_A_MANO.map((m) => (
+                <Button
+                  key={m}
+                  variant="outline"
+                  onClick={() => {
+                    if (aPerdido) void mover(aPerdido, "perdido", m);
+                    setAPerdido(null);
+                  }}
+                >
+                  {MOTIVO_PERDIDO[m]}
+                </Button>
+              ))}
+            </div>
           </ResponsiveDialogBody>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
@@ -195,30 +187,43 @@ function Columna({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: etapa, disabled: !habilitada });
   const info = ETAPA_INFO[etapa];
-  const valor = etapa === "compro" ? leads.reduce((t, l) => t + (l.valor ?? 0), 0) : 0;
+  const estilo = ETAPA_ESTILO[etapa];
+  const Icono = estilo.icono;
+  const valor = etapa === "compro" ? leads.reduce((t, l) => t + (l.valor ?? l.pedido?.total ?? 0), 0) : 0;
   return (
     <section
       ref={setNodeRef}
       aria-label={`${info.titulo}: ${total}`}
       className={cn(
-        "flex w-72 shrink-0 snap-start flex-col rounded-xl border border-border bg-muted/40 transition-colors",
-        isOver && "border-primary bg-primary-soft/40",
+        "relative flex w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border transition-all",
+        estilo.columna,
+        estilo.borde,
+        isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background",
       )}
     >
-      <header className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
-        <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <span className={cn("h-2 w-2 rounded-full", info.punto)} aria-hidden /> {info.titulo}
-            <span className="cifra text-xs font-medium text-muted-foreground">{total}</span>
+      <div className={cn("h-1 w-full", estilo.acento)} aria-hidden />
+      <header className="flex items-center gap-2.5 px-3 pb-2 pt-3">
+        <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", estilo.chip)}>
+          <Icono className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+            {info.titulo}
+            <span className="cifra rounded-full bg-background/80 px-1.5 text-[11px] font-semibold text-muted-foreground shadow-sm">{total}</span>
           </h3>
-          <p className="truncate text-[11px] text-muted-foreground">{etapa === "compro" && valor ? bs(valor) : info.ayuda}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{etapa === "compro" && valor ? `${bs(valor)} vendidos` : info.ayuda}</p>
         </div>
       </header>
-      <div className="flex min-h-[8rem] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2" style={{ maxHeight: "calc(100vh - 20rem)" }}>
+      <div className="flex min-h-[10rem] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2" style={{ maxHeight: "calc(100dvh - 22rem)" }}>
         {leads.map((l) => (
           <Arrastrable key={l.id} lead={l} habilitado={habilitada} onAbrir={() => onAbrir(l.id)} />
         ))}
-        {!leads.length && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nadie acá</p>}
+        {!leads.length && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/80 px-3 py-8 text-center text-xs text-muted-foreground">
+            <Inbox className="h-5 w-5 opacity-60" />
+            {habilitada ? "Nadie aquí. Arrastra una tarjeta para moverla." : "Nadie aquí."}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -236,26 +241,38 @@ function Arrastrable({ lead, habilitado, onAbrir }: { lead: Lead; habilitado: bo
 function TarjetaLead({ lead, onAbrir, flotando }: { lead: Lead; onAbrir?: () => void; flotando?: boolean }) {
   const c = lead.conversacion;
   const nombre = c.contactName || c.contactPhone;
+  const avatar = avatarDe(c.contactName, c.contactPhone);
+  const abierta = !["compro", "perdido"].includes(lead.etapa);
   return (
     <button
       type="button"
       onClick={onAbrir}
       className={cn(
-        "w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        flotando && "rotate-1 shadow-lg",
+        "group w-full rounded-xl border border-border/70 bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        flotando && "rotate-2 shadow-xl",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <UserRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate text-sm font-semibold">{nombre}</span>
+      <div className="flex items-start gap-2.5">
+        <span className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white", avatar.color)}>
+          {avatar.iniciales}
+          {c.unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground ring-2 ring-card">
+              {c.unreadCount}
+            </span>
+          )}
         </span>
-        <span className="shrink-0 text-[10px] text-muted-foreground">{haceCuanto(c.lastMessageAt ?? lead.etapaAt)}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <span className="truncate text-sm font-semibold leading-tight">{nombre}</span>
+            <span className="shrink-0 text-[10px] text-muted-foreground">{haceCuanto(c.lastMessageAt ?? lead.etapaAt)}</span>
+          </div>
+          {c.lastMessageText && <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground">{c.lastMessageText}</p>}
+        </div>
       </div>
-      {c.lastMessageText && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.lastMessageText}</p>}
-      <div className="mt-2 flex flex-wrap items-center gap-1">
+      <div className="mt-2.5 flex flex-wrap items-center gap-1">
+        {abierta && lead.probabilidad != null && lead.nivel && <PildoraProbabilidad p={lead.probabilidad} nivel={lead.nivel} />}
         {lead.anuncio && (
-          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+          <span className="inline-flex max-w-[9rem] items-center gap-1 rounded-full bg-info-soft px-1.5 py-0.5 text-[10px] font-semibold text-info-soft-foreground">
             <Megaphone className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">{nombreDelAnuncio(lead.anuncio)}</span>
           </span>
@@ -275,11 +292,7 @@ function TarjetaLead({ lead, onAbrir, flotando }: { lead: Lead; onAbrir?: () => 
           {c.aiPaused ? <Hand className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
           {lead.responsable?.nombre?.split(" ")[0] ?? ""}
         </span>
-        {c.unreadCount > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">{c.unreadCount}</span>
-        )}
       </div>
     </button>
   );
 }
-

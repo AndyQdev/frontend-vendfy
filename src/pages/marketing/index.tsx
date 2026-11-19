@@ -1,73 +1,135 @@
-import { useSearchParams } from "react-router-dom";
-import { Megaphone } from "lucide-react";
-import { PageHeader } from "@/shared/ui/page-header";
+import { useState } from "react";
+import { Megaphone, Plus } from "lucide-react";
 import { EmptyState } from "@/shared/ui/empty-state";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useStore } from "@/app/providers/auth";
 import { useAcceso } from "@/app/providers/acceso";
 import { PERMISO } from "@/shared/acceso/permisos";
-import { ResumenMarketing } from "@/features/marketing/ui/ResumenMarketing";
-import { IdeasMarketing } from "@/features/marketing/ui/IdeasMarketing";
-import { CampanasLista } from "@/features/marketing/ui/CampanasLista";
-import { TableroChats } from "@/features/marketing/ui/TableroChats";
-
-const PESTANAS = ["resumen", "ideas", "campanas", "chats"] as const;
-type Pestana = (typeof PESTANAS)[number];
+import { useCampanas } from "@/entities/marketing/api";
+import { WhatsAppConfigModal, type ConfigTab } from "@/features/whatsapp/config/ui/WhatsAppConfigModal";
+import { ChipsConexion, OnboardingModulo, PanelConexiones, useRegresosDeConexion } from "@/features/marketing/ui/Conexiones";
+import { ComoFunciona } from "@/features/marketing/ui/ComoFunciona";
+import { NuevaCampana } from "@/features/marketing/ui/NuevaCampana";
+import { ProbarAgente } from "@/features/marketing/ui/ProbarAgente";
+import { TarjetaCampana, TarjetaDirecto, TarjetaNueva } from "@/features/marketing/ui/TarjetasCampana";
 
 /**
- * Marketing: del dato a la venta, en un solo lugar. Las ideas salen de los
- * datos de la tienda, las campañas se crean en Meta en pausa y se activan con
- * un toque, y el tablero junta a quienes escribieron hasta que compran.
+ * Marketing: campañas, sus chats de WhatsApp y lo que vendieron, en un solo
+ * lugar. Todo gira alrededor de las campañas: se elige una y se ve su tablero
+ * de chats y si valió la pena. Los chats que no vinieron por un anuncio viven
+ * en «WhatsApp directo», con el mismo tablero.
  */
 export default function MarketingPage() {
   const { selectedStore } = useStore();
   const tienda = selectedStore && selectedStore !== "all" ? selectedStore : null;
   const acceso = useAcceso();
+  const conAnuncios = acceso.tiene("anuncios_meta");
+  const conWhatsapp = acceso.tiene("whatsapp");
   const puedeGestionar = acceso.puede(PERMISO.GESTIONAR_MARKETING);
-  const puedeChats = acceso.puede(PERMISO.GESTIONAR_WHATSAPP);
-  const [params, setParams] = useSearchParams();
-  const tab = (PESTANAS as readonly string[]).includes(params.get("tab") ?? "") ? (params.get("tab") as Pestana) : "resumen";
-  const irA = (t: Pestana) => {
-    params.set("tab", t);
-    setParams(params, { replace: true });
-  };
+
+  const [config, setConfig] = useState<ConfigTab | null>(null);
+  const [conexiones, setConexiones] = useState(false);
+  const [nueva, setNueva] = useState(false);
+  const [probar, setProbar] = useState(false);
+
+  useRegresosDeConexion({ storeId: tienda?.id, onConfigWhatsapp: setConfig, onConexiones: () => setConexiones(true) });
+  const { data: campanas = [], isLoading } = useCampanas(conAnuncios ? tienda?.id : undefined);
 
   if (!tienda) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Marketing" description="Ideas de campaña, anuncios en Meta y el tablero de los chats." />
-        <EmptyState
-          icon={Megaphone}
-          title="Elige una tienda"
-          description="Las campañas y los chats son de cada tienda. Elige una arriba, en el selector de tienda."
-        />
+        <Encabezado />
+        <EmptyState icon={Megaphone} title="Elige una tienda" description="Las campañas y los chats son de cada tienda. Elige una arriba, en el selector de tienda." />
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Marketing" description="Del dato a la venta: qué anunciar, cuánto invertir y quién compró." />
-      <Tabs value={tab} onValueChange={(v) => irA(v as Pestana)}>
-        <TabsList>
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="ideas">Ideas</TabsTrigger>
-          <TabsTrigger value="campanas">Campañas</TabsTrigger>
-          <TabsTrigger value="chats">Chats</TabsTrigger>
-        </TabsList>
-        <TabsContent value="resumen" className="mt-4">
-          <ResumenMarketing storeId={tienda.id} dias={30} onIrA={irA} />
-        </TabsContent>
-        <TabsContent value="ideas" className="mt-4">
-          <IdeasMarketing storeId={tienda.id} puedeGestionar={puedeGestionar} />
-        </TabsContent>
-        <TabsContent value="campanas" className="mt-4">
-          <CampanasLista storeId={tienda.id} puedeGestionar={puedeGestionar} onIrAIdeas={() => irA("ideas")} />
-        </TabsContent>
-        <TabsContent value="chats" className="mt-4">
-          <TableroChats storeId={tienda.id} puedeGestionar={puedeChats} />
-        </TabsContent>
-      </Tabs>
+      <Encabezado>
+        <ChipsConexion storeId={tienda.id} onAbrir={() => setConexiones(true)} />
+        {conAnuncios && puedeGestionar && (
+          <Button onClick={() => setNueva(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Nueva campaña
+          </Button>
+        )}
+      </Encabezado>
+
+      <OnboardingModulo
+        storeId={tienda.id}
+        hayCampanas={campanas.length > 0}
+        onConfigWhatsapp={setConfig}
+        onConexiones={() => setConexiones(true)}
+        onNuevaCampana={() => setNueva(true)}
+      />
+
+      <ComoFunciona />
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold">{conAnuncios ? "Tus campañas" : "Tus chats"}</h2>
+          {conAnuncios && campanas.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {campanas.filter((c) => c.estado === "activa").length} activas · {campanas.length} en total
+            </span>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {conAnuncios && puedeGestionar && <TarjetaNueva onClick={() => setNueva(true)} />}
+          {conWhatsapp && <TarjetaDirecto storeId={tienda.id} />}
+          {isLoading
+            ? [0, 1].map((i) => <Skeleton key={i} className="h-[18rem] rounded-2xl" />)
+            : campanas.map((c) => <TarjetaCampana key={c.id} c={c} />)}
+        </div>
+        {conAnuncios && !isLoading && campanas.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Todavía no hay campañas. Toca <b>Nueva campaña</b>: Vendfy te propone qué anunciar con tus datos, cuánto invertir y qué esperar.
+          </p>
+        )}
+      </section>
+
+      <PanelConexiones
+        storeId={tienda.id}
+        open={conexiones}
+        onOpenChange={setConexiones}
+        onConfigWhatsapp={(t) => {
+          setConexiones(false);
+          setConfig(t);
+        }}
+        onProbarAgente={() => {
+          setConexiones(false);
+          setProbar(true);
+        }}
+      />
+      <WhatsAppConfigModal open={!!config} onOpenChange={(o) => !o && setConfig(null)} storeId={tienda.id} initialTab={config ?? "connection"} />
+      {conAnuncios && <NuevaCampana storeId={tienda.id} open={nueva} onOpenChange={setNueva} puedeGestionar={puedeGestionar} />}
+      <ProbarAgente
+        storeId={tienda.id}
+        open={probar}
+        onOpenChange={setProbar}
+        onConfigurarAgente={() => {
+          setProbar(false);
+          setConfig("agent");
+        }}
+      />
     </div>
+  );
+}
+
+function Encabezado({ children }: { children?: React.ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm" style={{ background: "var(--primary-grad)" }}>
+          <Megaphone className="h-6 w-6" />
+        </span>
+        <div>
+          <h1 className="titulo-pagina">Marketing</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Tus campañas, sus chats de WhatsApp y lo que vendieron, en un solo lugar.</p>
+        </div>
+      </div>
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+    </header>
   );
 }

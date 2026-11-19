@@ -72,6 +72,8 @@ export interface Requisito {
   permisos?: readonly string[];
   /** El plan tiene que incluirla. */
   funcion?: Funcion;
+  /** Alcanza con que el plan incluya una de estas. */
+  funciones?: readonly Funcion[];
   /** Solo el dueño (su equipo, abrir tiendas). */
   soloDueno?: boolean;
 }
@@ -88,6 +90,7 @@ export type Motivo = "ok" | "permiso" | "plan" | "dueno";
 export function evaluar(acceso: Acceso | undefined | null, req: Requisito): Motivo {
   if (!acceso || acceso.plataforma) return "ok";
   if (req.funcion && !acceso.funciones.includes(req.funcion)) return "plan";
+  if (req.funciones?.length && !req.funciones.some((f) => acceso.funciones.includes(f))) return "plan";
   if (req.soloDueno && !acceso.esDueno) return "dueno";
   if (!acceso.esDueno && req.permisos?.length && !req.permisos.some((p) => acceso.permisos.includes(p))) {
     return "permiso";

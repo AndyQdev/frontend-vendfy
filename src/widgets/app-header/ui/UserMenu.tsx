@@ -102,7 +102,7 @@ export function UserMenu({
             Tienda de Vendfy
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onSelect={() => navigate("/whatsapp?config=connection")}>
+        <DropdownMenuItem onSelect={() => navigate("/marketing?config=connection")}>
           <MessageCircle />
           Vincular WhatsApp
         </DropdownMenuItem>

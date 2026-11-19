@@ -75,7 +75,7 @@ export function AttentionPanel({
       icon: Bot,
       message: "WhatsApp está desconectado",
       actionLabel: "Conectar",
-      to: "/whatsapp",
+      to: "/marketing?config=connection",
       tone: "warning",
     });
   }
