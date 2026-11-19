@@ -116,7 +116,10 @@ test("mueve un pedido de estado con el sí", async ({ page }) => {
 test("crea un producto llenando el formulario y preguntando lo que falta", async ({ page }) => {
   // Un nombre único y sin números (el asistente toma "56647" como una cantidad, no como nombre).
   const sabores = ["Kiwi", "Mango", "Coco", "Menta", "Ciruela", "Pera", "Higo", "Maracuya", "Lima", "Durazno"];
-  const nombre = `Galletas Piloto ${sabores[Date.now() % sabores.length]} ${sabores[Math.floor(Date.now() / 7) % sabores.length]}`;
+  // Dos sabores distintos: con el mismo dos veces ("Ciruela Ciruela") el asistente deja uno solo.
+  const primero = Date.now() % sabores.length;
+  const segundo = (primero + 1 + (Math.floor(Date.now() / 7) % (sabores.length - 1))) % sabores.length;
+  const nombre = `Galletas Piloto ${sabores[primero]} ${sabores[segundo]}`;
   let creado: { product: { id: string; price: number }; stockQuantity: number } | null = null;
   try {
     await pedirAlPiloto(page, `crea un producto ${nombre.toLowerCase()} a 8 bolivianos`, "¿Cuántas tienes", 90_000);

@@ -900,3 +900,160 @@
     animation: none !important;
   }
 }
+
+/* ─── La bola de Vendfy (features/piloto/ui/OrbeMagico.tsx) ───────────────────
+   Esfera oscura con cuatro luces que giran a distinto ritmo y se mezclan con
+   "screen", un centro blanco que se enciende con la voz, un brillo de vidrio
+   arriba y un halo afuera. El tamaño entra por font-size (1em = 1/10 del
+   diámetro), así los desenfoques escalan con la bola. --orbe-a es el ángulo
+   (lo mueve JS o, en reposo, la animación orbe-gira); --orbe-nivel, la voz. */
+@property --orbe-a {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+.orbe {
+  --orbe-nivel: 0;
+  --orbe-escala: 1;
+  --c1: 52 211 153;
+  --c2: 34 211 238;
+  --c3: 129 140 248;
+  --c4: 232 121 249;
+  position: relative;
+  display: block;
+  flex: none;
+  border-radius: 9999px;
+  isolation: isolate;
+}
+.orbe[data-animo="listo"] {
+  --c1: 52 211 153;
+  --c2: 110 231 183;
+  --c3: 45 212 191;
+  --c4: 167 243 208;
+}
+.orbe[data-animo="error"] {
+  --c1: 248 113 113;
+  --c2: 251 146 60;
+  --c3: 244 63 94;
+  --c4: 251 191 36;
+}
+.orbe[data-motor="css"] {
+  animation: orbe-gira 400s linear infinite;
+  animation-duration: 400s !important;
+}
+@keyframes orbe-gira {
+  from { --orbe-a: 0deg; }
+  to { --orbe-a: 7200deg; }
+}
+.orbe-halo {
+  position: absolute;
+  inset: -38%;
+  z-index: -1;
+  border-radius: 9999px;
+  background:
+    radial-gradient(closest-side at 40% 45%, rgb(var(--c2) / 0.55), transparent 70%),
+    radial-gradient(closest-side at 62% 58%, rgb(var(--c3) / 0.5), transparent 75%);
+  filter: blur(1.2em);
+  opacity: calc(0.5 + var(--orbe-nivel) * 0.5);
+  transform: scale(calc(0.82 + var(--orbe-nivel) * 0.45));
+  pointer-events: none;
+}
+.orbe[data-atento="true"] .orbe-halo {
+  animation: orbe-atento 2.8s ease-in-out infinite;
+  animation-duration: 2.8s !important;
+}
+@keyframes orbe-atento {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 0.95; transform: scale(1.08); }
+}
+.orbe-cuerpo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  transform: scale(var(--orbe-escala));
+  background: radial-gradient(circle at 50% 60%, #16224f 0%, #0a1029 58%, #03050f 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.18),
+    0 0.6em 1.6em -0.5em rgb(2 6 23 / 0.6);
+}
+/* Cuatro lóbulos de color que giran a distinto ritmo y se suman con "screen". */
+.orbe-mancha {
+  position: absolute;
+  inset: -14%;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+  filter: blur(0.55em) saturate(1.2);
+  will-change: transform;
+}
+.orbe-mancha-1 {
+  background: radial-gradient(ellipse 62% 48% at 30% 30%, rgb(var(--c1)) 0%, rgb(var(--c1) / 0.55) 38%, transparent 72%);
+  transform: rotate(var(--orbe-a));
+}
+.orbe-mancha-2 {
+  background: radial-gradient(ellipse 54% 62% at 74% 38%, rgb(var(--c2)) 0%, rgb(var(--c2) / 0.5) 40%, transparent 72%);
+  transform: rotate(calc(var(--orbe-a) * -1.35));
+}
+.orbe-mancha-3 {
+  background: radial-gradient(ellipse 66% 50% at 50% 80%, rgb(var(--c3)) 0%, rgb(var(--c3) / 0.55) 40%, transparent 72%);
+  transform: rotate(calc(var(--orbe-a) * 0.8));
+}
+.orbe-mancha-4 {
+  background: radial-gradient(ellipse 42% 40% at 22% 70%, rgb(var(--c4) / 0.95) 0%, rgb(var(--c4) / 0.4) 40%, transparent 70%);
+  transform: rotate(calc(var(--orbe-a) * -0.55));
+}
+.orbe-nucleo {
+  position: absolute;
+  inset: 22%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0) 70%);
+  mix-blend-mode: screen;
+  filter: blur(0.5em);
+  opacity: calc(0.1 + var(--orbe-nivel) * 0.8);
+  transform: scale(calc(0.65 + var(--orbe-nivel) * 0.7));
+}
+/* Volumen: el borde se oscurece (esfera), una luz de color rebota abajo y un brillo de vidrio arriba. */
+.orbe-brillo {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background:
+    radial-gradient(ellipse 30% 20% at 36% 18%, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0) 100%),
+    radial-gradient(circle at 50% 120%, rgb(var(--c2) / 0.5), transparent 52%),
+    radial-gradient(circle at 50% 46%, transparent 52%, rgb(3 5 15 / 0.5) 100%);
+  box-shadow: inset 0 0 0.9em rgb(var(--c2) / 0.35);
+  pointer-events: none;
+}
+/* Pensando: un hilo de luz le da la vuelta por el borde. */
+.orbe-anillo {
+  position: absolute;
+  inset: -0.18em;
+  border-radius: 9999px;
+  background: conic-gradient(from calc(var(--orbe-a) * 2), transparent 0 62%, rgb(255 255 255 / 0.9) 82%, rgb(var(--c2) / 0.8) 90%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.22em), #000 calc(100% - 0.2em));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.22em), #000 calc(100% - 0.2em));
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.orbe[data-animo="piensa"] .orbe-anillo {
+  opacity: 1;
+}
+
+/* Subtítulos de Vendfy: cada palabra entra con un desenfoque que se aclara. */
+.subtitulo-palabra {
+  display: inline-block;
+  animation: subtitulo-entra 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-duration: 0.42s !important;
+}
+@keyframes subtitulo-entra {
+  from { opacity: 0; filter: blur(6px); transform: translateY(0.25em); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbe[data-motor="css"],
+  .orbe[data-atento="true"] .orbe-halo,
+  .subtitulo-palabra {
+    animation: none !important;
+  }
+}

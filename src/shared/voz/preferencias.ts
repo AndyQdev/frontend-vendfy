@@ -7,7 +7,8 @@ import { useSyncExternalStore } from "react";
  *   asistente  contestar hablando en el asistente
  *   escuchar   al dar de alta un producto escaneado, abrir el micrófono para
  *              dictar nombre, precio y cantidad
- *   voz        quién habla (id de Gemini: "Sulafat" es Sofía)
+ *   voz        quién habla (id de Gemini: "Algieba" es Mateo, "Sulafat" es Sofía)
+ *   vozElegida si la voz la eligió la persona (si no, sigue al valor por defecto)
  *   velocidad  qué tan rápido habla (1 = como sale de Gemini, que es pausado)
  */
 export interface PreferenciasVoz {
@@ -15,10 +16,12 @@ export interface PreferenciasVoz {
   asistente: boolean;
   escuchar: boolean;
   voz: string;
+  vozElegida?: boolean;
   velocidad: number;
 }
 
-export const VOZ_POR_DEFECTO = "Sulafat";
+/** Mateo: voz de hombre, grave y tranquila (la de antes, Sofía, se oía aguda en un mostrador). */
+export const VOZ_POR_DEFECTO = "Algieba";
 /** Las voces de Gemini hablan con calma; en un mostrador se pide más ritmo. */
 export const VELOCIDAD_POR_DEFECTO = 1.2;
 export const VELOCIDADES = [
@@ -35,7 +38,13 @@ function leer(): PreferenciasVoz {
   const base: PreferenciasVoz = { precios: true, asistente: true, escuchar: true, voz: VOZ_POR_DEFECTO, velocidad: VELOCIDAD_POR_DEFECTO };
   try {
     const guardado = localStorage.getItem(CLAVE);
-    if (guardado) return { ...base, ...JSON.parse(guardado) };
+    if (guardado) {
+      const leido = { ...base, ...JSON.parse(guardado) } as PreferenciasVoz;
+      // Lo guardado antes de poder elegir traía la voz por defecto de entonces:
+      // si nadie la eligió, pasa a la de ahora.
+      if (!leido.vozElegida) leido.voz = VOZ_POR_DEFECTO;
+      return leido;
+    }
     if (localStorage.getItem(CLAVE_VIEJA_ASISTENTE) === "no") base.asistente = false;
   } catch {
     // sin almacenamiento: los valores por defecto

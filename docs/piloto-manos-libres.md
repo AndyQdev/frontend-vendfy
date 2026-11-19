@@ -30,7 +30,8 @@ src/features/piloto/
   model/use-piloto.ts    el conductor: escucha, lleva, llena, pregunta, confirma
   model/use-manos-libres.ts  prende/apaga el oído (preferencia del equipo)
   lib/estado.ts          estado + registro de pantallas (registrarPantalla)
-  ui/PilotoVendfy.tsx    botón, tarjeta flotante, F9
+  ui/PilotoVendfy.tsx    la bola: en la esquina cerrada, al centro abierta, subtítulos, F9
+  ui/OrbeMagico.tsx      la bola animada (late con tu voz y con la de Vendfy)
   ui/FocoPiloto.tsx      marco que late + flecha al elemento (data-piloto)
   oido/                  «Oye Vendfy»: detector en un worker (onnxruntime-web),
                          corte de la frase y WAV para el servidor
@@ -41,6 +42,8 @@ herramientas/oye-vendfy/ cómo se entrena el detector
 
 - Cada pantalla se presta al piloto mientras está montada (`registrarPantalla("caja" | "inventario" | "producto", api)`) y marca lo que se puede señalar con `data-piloto="caja:pago"`, `inventario:<productId>`, `pedido:<orderId>`, `producto:precio`…
 - El servidor es el mismo intérprete del asistente (`/omnibox/interpretar` y `/omnibox/voz`). Nuevo en el backend: el ajuste de stock de varios (`entidades.lote`) y la verificación de la palabra (`palabra=1`).
+- **Cómo se ve**: cerrado es una bola en la esquina de abajo a la izquierda (gira sola con CSS; con manos libres, el halo respira). Al abrirse (F9, tocarla o «Oye Vendfy") suena una campana corta (`sonarActivacion`, osciladores en `shared/voz/sonidos.ts`) y la bola vuela al centro de abajo. Ahí late con el nivel del micrófono al escuchar y con el volumen real de la voz al hablar (`nivelVoz()`: la voz pasa por un `AnalyserNode` en `shared/voz/motor.ts`). Lo que dice sale como subtítulo y lo que dijiste, arriba en chico. Si lo que señala quedaría tapado, todo sube arriba. El teclado de la izquierda abre un campo para escribir (las pruebas usan `piloto-teclado` → `piloto-campo`). Al volver a escuchar tras una pregunta suena un toque corto (`sonarTurno`); al cerrar, `sonarCierre`.
+- **Voz por defecto: Mateo** (`Algieba`, de hombre y grave). Lo guardado sin `vozElegida` pasa a Mateo; si la persona elige otra en Ajustes de voz, se respeta.
 - **Manos libres**: nada sale del equipo hasta que el detector oye la palabra. Entonces manda el audio con la palabra adelante; si Whisper no la encuentra, fue falsa alarma y se cierra solo.
 
 ## Las tres apps (como Claude: web, escritorio, celular)

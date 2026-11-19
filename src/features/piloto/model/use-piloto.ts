@@ -9,7 +9,7 @@ import { useEscucha } from "@/features/scanner/model/escucha";
 import { apiFetch } from "@/shared/api/client";
 import { traerAlFrente } from "@/shared/nativo";
 import { formatMoney } from "@/shared/lib/money";
-import { callarVoz, decirFrases, preferenciasVoz, type FraseVoz } from "@/shared/voz";
+import { callarVoz, decirFrases, preferenciasVoz, sonarActivacion, sonarCierre, sonarTurno, type FraseVoz } from "@/shared/voz";
 
 import { entenderTexto, entenderVoz } from "../lib/api";
 import { agregarAlCarrito, cantidadEnCarrito, lineasDeContexto, quitarDelCarrito, vaciarCarrito } from "../lib/carrito";
@@ -135,6 +135,7 @@ export function useConductorPiloto() {
   const escucharRespuesta = (turno: number) => {
     if (!vigente(turno)) return;
     setPiloto({ fase: "escuchando" });
+    sonarTurno();
     void escucha.escuchar(VENTANA_MS);
   };
 
@@ -538,6 +539,7 @@ export function useConductorPiloto() {
         setPiloto({ pregunta: null });
         await decir("Dime.");
         setPiloto({ fase: "escuchando" });
+        sonarTurno();
         void escucha.escuchar(VENTANA_MS);
         return;
       case "no": {
@@ -636,6 +638,9 @@ export function useConductorPiloto() {
     cancelarCierre();
     callarVoz();
     ctx.current.turno++;
+    // Como Siri: un sonido corto al abrirse; si ya estaba preguntando, solo el toque de turno.
+    if (e.abierto && e.pregunta) sonarTurno();
+    else sonarActivacion();
     setPiloto({
       abierto: true,
       fase: "escuchando",
@@ -679,6 +684,7 @@ export function useConductorPiloto() {
     ctx.current.pendiente = null;
     // Con Vendfy minimizado o detrás de otro programa (app de Windows/Android): al frente.
     traerAlFrente();
+    sonarActivacion();
     setPiloto({ abierto: true, fase: "escuchando", dicho: null, linea: "Te escucho…", pregunta: null, foco: null, tabla: null, irAlAsistente: false });
   };
 
@@ -711,6 +717,7 @@ export function useConductorPiloto() {
   };
 
   const detener = () => {
+    if (estadoPiloto().abierto) sonarCierre();
     ctx.current.esperaComando = false;
     ctx.current.turno++;
     ctx.current.quiereCobrar = false;

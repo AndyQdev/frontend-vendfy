@@ -35,7 +35,7 @@ export function AjustesVoz({ className, align = "end" }: { className?: string; a
   const algo = prefs.precios || bips;
 
   const elegir = (v: VozDisponible) => {
-    setPreferenciasVoz({ voz: v.id });
+    setPreferenciasVoz({ voz: v.id, vozElegida: true });
     setProbando(v.id);
     probarVoz(v.id, muestra(v));
     // Los precios del comercio y las frases fijas con la voz nueva, para que suenen al instante.

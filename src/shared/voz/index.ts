@@ -5,6 +5,7 @@ export {
   decirTexto,
   esperarQueCalle,
   idDeFrase,
+  nivelVoz,
   precalentarVoz,
   probarVoz,
   terminoDeHablar,
@@ -20,4 +21,5 @@ export {
   VOZ_POR_DEFECTO,
   type PreferenciasVoz,
 } from "./preferencias";
+export { sonarActivacion, sonarCierre, sonarTurno } from "./sonidos";
 export { useVoces, type EstadoVoces, type VozDisponible } from "./voces";

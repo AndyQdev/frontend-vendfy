@@ -25,7 +25,7 @@ interface Caja {
 }
 
 /** El primer elemento visible que lleva esa marca (la Caja tiene el pie dos veces: escritorio y celular). */
-function buscar(foco: string): HTMLElement | null {
+export function buscarFoco(foco: string): HTMLElement | null {
   const selector = foco.startsWith("cart:")
     ? `[data-cart-item="${CSS.escape(foco.slice(5))}"]`
     : `[data-piloto~="${CSS.escape(foco)}"]`;
@@ -36,15 +36,42 @@ function buscar(foco: string): HTMLElement | null {
   return null;
 }
 
+const pegar = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+/**
+ * La flecha del grupo de la bola al elemento: sale del borde del grupo más
+ * cercano al elemento y llega al borde del elemento más cercano a la salida,
+ * con una curva suave. Sin flecha si están pegados o se tocan.
+ */
+function curva(grupo: Caja, marco: Caja): string | null {
+  const centro = { x: marco.left + marco.width / 2, y: marco.top + marco.height / 2 };
+  const sale = {
+    x: pegar(centro.x, grupo.left + 12, grupo.left + grupo.width - 12),
+    y: pegar(centro.y, grupo.top, grupo.top + grupo.height),
+  };
+  const llega = {
+    x: pegar(sale.x, marco.left, marco.left + marco.width),
+    y: pegar(sale.y, marco.top, marco.top + marco.height),
+  };
+  const dx = llega.x - sale.x;
+  const dy = llega.y - sale.y;
+  const largo = Math.hypot(dx, dy);
+  if (largo < 56) return null;
+  // Se dobla hacia un costado, un 18 % del largo, para que se lea como flecha y no como raya.
+  const control = { x: (sale.x + llega.x) / 2 - (dy / largo) * largo * 0.18, y: (sale.y + llega.y) / 2 + (dx / largo) * largo * 0.18 };
+  const fin = { x: llega.x - (dx / largo) * 4, y: llega.y - (dy / largo) * 4 };
+  return `M ${sale.x} ${sale.y} Q ${control.x} ${control.y} ${fin.x} ${fin.y}`;
+}
+
 /**
  * Lo que el piloto está tocando, marcado en la pantalla: un marco que late
- * alrededor y una flecha punteada desde su tarjeta. Sigue al elemento si la
+ * alrededor y una flecha punteada desde la bola y sus subtítulos. Sigue al elemento si la
  * página se mueve (rAF), y lo trae a la vista cuando cambia.
  */
 export function FocoPiloto() {
   const { foco, fase, abierto } = usePiloto();
   const [marco, setMarco] = useState<Caja | null>(null);
-  const [desde, setDesde] = useState<{ x: number; y: number } | null>(null);
+  const [desde, setDesde] = useState<Caja | null>(null);
   const traido = useRef<string | null>(null);
 
   useEffect(() => {
@@ -57,7 +84,7 @@ export function FocoPiloto() {
     let cuadro = 0;
     const seguir = () => {
       if (!vivo) return;
-      const el = buscar(foco);
+      const el = buscarFoco(foco);
       if (el) {
         if (traido.current !== foco) {
           traido.current = foco;
@@ -74,11 +101,13 @@ export function FocoPiloto() {
       } else {
         setMarco(null);
       }
-      const tarjeta = document.getElementById("piloto-tarjeta")?.getBoundingClientRect();
+      const grupo = document.getElementById("piloto-tarjeta")?.getBoundingClientRect();
       setDesde((prev) => {
-        if (!tarjeta) return null;
-        const nuevo = { x: tarjeta.right, y: tarjeta.top + 28 };
-        return prev && prev.x === nuevo.x && prev.y === nuevo.y ? prev : nuevo;
+        if (!grupo || !grupo.width) return null;
+        const nuevo = { top: grupo.top, left: grupo.left, width: grupo.width, height: grupo.height };
+        return prev && prev.top === nuevo.top && prev.left === nuevo.left && prev.width === nuevo.width && prev.height === nuevo.height
+          ? prev
+          : nuevo;
       });
       cuadro = requestAnimationFrame(seguir);
     };
@@ -92,14 +121,11 @@ export function FocoPiloto() {
   if (!marco || !foco) return null;
 
   const etiqueta = ETIQUETA[foco] ?? null;
-  const hasta = { x: marco.left, y: marco.top + marco.height / 2 };
-  // La flecha solo si la tarjeta queda a la izquierda del elemento (escritorio).
-  const flecha = desde && hasta.x - desde.x > 40;
-  const medio = desde ? (desde.x + hasta.x) / 2 : 0;
+  const trazo = desde ? curva(desde, marco) : null;
 
   return createPortal(
     <div aria-hidden className="pointer-events-none fixed inset-0 z-[75]">
-      {flecha && desde && (
+      {trazo && (
         <svg className="absolute inset-0 h-full w-full overflow-visible">
           <defs>
             <marker id="piloto-punta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -108,7 +134,7 @@ export function FocoPiloto() {
           </defs>
           <path
             className="piloto-flecha"
-            d={`M ${desde.x} ${desde.y} C ${medio} ${desde.y}, ${medio} ${hasta.y}, ${hasta.x - 4} ${hasta.y}`}
+            d={trazo}
             fill="none"
             stroke="hsl(var(--primary))"
             strokeWidth={2}

@@ -3,14 +3,19 @@ import { expect, type Page } from "@playwright/test";
 import { API_URL, TIENDA } from "./env";
 
 /**
- * El piloto ("Vendfy") en las pruebas: se le escribe en su tarjeta (lo mismo
- * que hablarle, sin micrófono) y se espera lo que contesta.
+ * El piloto ("Vendfy") en las pruebas: se abre la bola, se toca el teclado y
+ * se le escribe (lo mismo que hablarle, sin micrófono); se espera lo que
+ * contesta en los subtítulos.
  */
 export async function pedirAlPiloto(page: Page, texto: string, espera: string | RegExp, timeout = 60_000) {
   const campo = page.getByTestId("piloto-campo");
   if (!(await campo.isVisible().catch(() => false))) {
-    await page.getByTestId("piloto-lanzador").click();
-    await expect(page.getByTestId("piloto-tarjeta")).toBeVisible();
+    if (!(await page.getByTestId("piloto-tarjeta").isVisible().catch(() => false))) {
+      await page.getByTestId("piloto-lanzador").click();
+      await expect(page.getByTestId("piloto-tarjeta")).toBeVisible();
+    }
+    await page.getByTestId("piloto-teclado").click();
+    await expect(campo).toBeVisible();
   }
   await campo.fill(texto);
   await campo.press("Enter");

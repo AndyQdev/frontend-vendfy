@@ -279,10 +279,39 @@ export function callarVoz() {
   setHablando(false);
 }
 
+// ─── Volumen de lo que se dice (la bola de Vendfy late con él) ──────────────
+
+let analizador: AnalyserNode | null = null;
+let muestrasNivel: Float32Array<ArrayBuffer> | null = null;
+
+/** La voz pasa por un analizador antes de salir: así se sabe qué tan fuerte suena. */
+function salidaVoz(ctx: AudioContext): AudioNode {
+  if (!analizador || analizador.context !== ctx) {
+    analizador = ctx.createAnalyser();
+    analizador.fftSize = 1024;
+    analizador.connect(ctx.destination);
+    muestrasNivel = new Float32Array(analizador.fftSize);
+  }
+  return analizador;
+}
+
+/**
+ * Qué tan fuerte está hablando la voz ahora mismo, de 0 a 1. Se lee en cada
+ * cuadro de animación; con la voz del navegador (que no pasa por aquí) da 0.
+ */
+export function nivelVoz(): number {
+  if (!hablando || !analizador || !muestrasNivel) return 0;
+  analizador.getFloatTimeDomainData(muestrasNivel);
+  let suma = 0;
+  for (let i = 0; i < muestrasNivel.length; i++) suma += muestrasNivel[i] * muestrasNivel[i];
+  // Una voz normal ronda 0,05-0,2 de RMS: así llega a 1 cuando sube fuerte.
+  return Math.min(1, Math.sqrt(suma / muestrasNivel.length) * 5);
+}
+
 function programar(ctx: AudioContext, buffer: AudioBuffer, cuando: number) {
   const fuente = ctx.createBufferSource();
   fuente.buffer = buffer;
-  fuente.connect(ctx.destination);
+  fuente.connect(salidaVoz(ctx));
   fuente.onended = () => {
     sonando.delete(fuente);
     if (!sonando.size) setHablando(false);
