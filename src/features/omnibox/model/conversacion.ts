@@ -18,8 +18,8 @@ import { COMPRA_VACIA, MESA_INICIAL, VENTA_VACIA, type Mesa } from "./mesa";
 /** Cuánto se espera sin cambios antes de guardar: no se guarda en cada tecla. */
 export const ESPERA_GUARDADO = 700;
 
-export const SIN_RESPUESTA = "No llegó la respuesta: la página se cerró o se recargó antes. Probá de nuevo.";
-export const HERRAMIENTA_CORTADA = "Se cortó mientras se armaba: la página se cerró o se recargó. Pedila de nuevo.";
+export const SIN_RESPUESTA = "No llegó la respuesta: la página se cerró o se recargó antes. Prueba de nuevo.";
+export const HERRAMIENTA_CORTADA = "Se cortó mientras se armaba: la página se cerró o se recargó. Pídela de nuevo.";
 
 /**
  * Lo que estaba en camino no va a llegar a la conversación guardada: una

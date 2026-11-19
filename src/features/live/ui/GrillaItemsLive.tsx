@@ -93,7 +93,7 @@ export function GrillaItemsLive({
   if (activos.length === 0) {
     return (
       <p className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-        Todavía no hay prendas. Agregá la primera con la cámara.
+        Todavía no hay prendas. Agrega la primera con la cámara.
       </p>
     );
   }
@@ -403,7 +403,7 @@ export function GrillaItemsLive({
               {pedidosEnConfirmacion === 1
                 ? "Una persona ya la pidió. "
                 : `${pedidosEnConfirmacion} personas ya las pidieron. `}
-              Si la quitás deja de ofrecerse en el Live, pero{" "}
+              Si la quitas deja de ofrecerse en el Live, pero{" "}
               <strong>sigue en sus cuentas</strong>: vas a tener que entregarla o
               hablar con ellas. El producto no se borra del inventario.
             </AlertDialogDescription>

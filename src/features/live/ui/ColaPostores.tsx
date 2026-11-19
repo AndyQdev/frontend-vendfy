@@ -101,7 +101,7 @@ export function ColaPostores({
           <DialogHeader>
             <DialogTitle>Postores{nombrePrenda ? ` — ${nombrePrenda}` : ""}</DialogTitle>
             <DialogDescription>
-              Si el que tiene la prenda no responde, pasala al siguiente.
+              Si el que tiene la prenda no responde, pásala al siguiente.
             </DialogDescription>
           </DialogHeader>
 

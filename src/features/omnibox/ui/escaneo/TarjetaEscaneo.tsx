@@ -100,7 +100,7 @@ export function TarjetaEscaneo({
       return (
         <Tarjeta estado="aviso" hora={hora}>
           <Estado icono={Info} tono="aviso" titulo={`${e.resultado?.producto?.name ?? "Este producto"} no se vende en esta tienda`}>
-            Está registrado, pero en otra tienda. Sumalo a esta desde Productos.
+            Está registrado, pero en otra tienda. Súmalo a esta desde Productos.
           </Estado>
         </Tarjeta>
       );
@@ -273,8 +273,8 @@ function FormularioNuevo({
         </p>
         <p className="mb-3 pr-10 text-[13px] text-muted-foreground">
           {s
-            ? "No lo tenés en tu tienda. Ya lo completamos: poné el precio y crealo."
-            : "Nadie cargó este código todavía. Ponele nombre y precio y queda creado."}
+            ? "No lo tienes en tu tienda. Ya lo completamos: pon el precio y créalo."
+            : "Nadie cargó este código todavía. Ponle nombre y precio y queda creado."}
         </p>
 
         <div className="flex gap-3">
@@ -324,13 +324,13 @@ function FormularioNuevo({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] text-muted-foreground">Stock que tenés (opcional)</span>
+            <span className="mb-1 block text-[11px] text-muted-foreground">Stock que tienes (opcional)</span>
             <input
               value={stock}
               onChange={(ev) => setStock(ev.target.value.replace(/\D/g, ""))}
               inputMode="numeric"
               placeholder="0"
-              aria-label="Stock que tenés"
+              aria-label="Stock que tienes"
               autoComplete="off"
               className={cn(CAMPO, "cifra border-border")}
             />

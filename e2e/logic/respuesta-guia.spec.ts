@@ -114,14 +114,14 @@ test.describe("contestarle a la Guía", () => {
 test.describe("la Guía en voz alta", () => {
   test("se arregla para el oído: bolivianos en vez de Bs, sin «»", () => {
     expect(paraHablar("Agregado a la venta · 2 × Coca Cola 2L · Bs 24,00")).toBe("Agregado a la venta, 2 Coca Cola 2L, 24,00 bolivianos");
-    expect(paraHablar("Tip: decí «cobrale con QR».")).toBe("Un consejo: decí cobrale con QR.");
+    expect(paraHablar("Tip: di «cóbrale con QR».")).toBe("Un consejo: di cóbrale con QR.");
   });
 
   test("errores siempre; sugerencias solo si se contestan hablando, con la pista de cómo", () => {
     expect(fraseDeGuia(faltaPago)).toBe("Falta el método de pago. ¿Con qué paga?");
-    expect(fraseDeGuia(cuantas)).toBe("No dijiste cuántas de Coca Cola 2L: puse 1. ¿Son más? Decí cuántas.");
-    expect(fraseDeGuia(inusual)).toContain("Decí sí o no.");
-    expect(fraseDeGuia(quedaPoco)).toBe("Después de esta venta te quedan 2 de Coca Cola 2L. ¿Anotar para comprar? Decí sí o no.");
+    expect(fraseDeGuia(cuantas)).toBe("No dijiste cuántas de Coca Cola 2L: puse 1. ¿Son más? Di cuántas.");
+    expect(fraseDeGuia(inusual)).toContain("Di sí o no.");
+    expect(fraseDeGuia(quedaPoco)).toBe("Después de esta venta te quedan 2 de Coca Cola 2L. ¿Anotar para comprar? Di sí o no.");
   });
 
   test("los tips no se dicen (enseñan la pantalla, no sirven a quien dicta)", () => {

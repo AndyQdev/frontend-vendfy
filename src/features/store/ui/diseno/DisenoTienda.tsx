@@ -217,7 +217,7 @@ export function DisenoTienda({
   if (isError || !catalogo) {
     return (
       <Card className="flex items-center gap-2 p-6 text-sm text-destructive">
-        <AlertCircle className="h-4 w-4" /> No se pudieron cargar los temas. Revisá la conexión y recargá la página.
+        <AlertCircle className="h-4 w-4" /> No se pudieron cargar los temas. Revisa la conexión y recarga la página.
       </Card>
     );
   }
@@ -289,14 +289,14 @@ export function DisenoTienda({
       case "promociones": {
         const vigentes = promociones.filter((p) => p.estado !== "inactiva").length;
         return {
-          origen: `Muestra tus promociones vigentes. Tenés ${cuantos(vigentes, "promoción activa", "promociones activas")}.`,
-          falta: vigentes === 0 ? "No tenés promociones activas: esta sección no se ve hasta que crees una." : undefined,
+          origen: `Muestra tus promociones vigentes. Tienes ${cuantos(vigentes, "promoción activa", "promociones activas")}.`,
+          falta: vigentes === 0 ? "No tienes promociones activas: esta sección no se ve hasta que crees una." : undefined,
           enlace: { href: "/promotions", texto: "Ir a Promociones" },
         };
       }
       case "categorias":
         return {
-          origen: `Muestra las categorías principales que tienen productos. Tenés ${cuantos(categorias.length, "categoría", "categorías")} en total, contando subcategorías.`,
+          origen: `Muestra las categorías principales que tienen productos. Tienes ${cuantos(categorias.length, "categoría", "categorías")} en total, contando subcategorías.`,
           falta: categorias.length === 0 ? "Todavía no creaste categorías: esta sección no se ve." : undefined,
           enlace: { href: "/products/taxonomies", texto: "Editar categorías" },
         };
@@ -372,7 +372,7 @@ export function DisenoTienda({
   const agregarImagenAPortada = (d: { imagen: string; destino: string; titulo?: string; boton?: string }) => {
     const actuales = efectiva.portada.diapositivas;
     if (actuales.length >= o.maxDiapositivas) {
-      toast.error(`La portada ya tiene ${o.maxDiapositivas} imágenes. Quitá una para sumar esta.`);
+      toast.error(`La portada ya tiene ${o.maxDiapositivas} imágenes. Quita una para sumar esta.`);
       return false;
     }
     actualizar({ portada: { ...efectiva.portada, diapositivas: [...actuales, d] } });
@@ -397,7 +397,7 @@ export function DisenoTienda({
           ? { imagen: img.url, destino: `producto:${producto.id}`, titulo: producto.name, boton: "Ver el producto" }
           : { imagen: img.url, destino: img.kind === "products" ? "catalogo" : "ninguno", ...(img.kind === "products" ? { boton: "Ver los productos" } : {}) },
     );
-    if (sumada) toast.success("Imagen agregada a la portada. Ajustale el texto y el botón.");
+    if (sumada) toast.success("Imagen agregada a la portada. Ajústale el texto y el botón.");
   };
 
   const promoGuardada = (p: Promocion) => {
@@ -412,7 +412,7 @@ export function DisenoTienda({
   // conservan: subirlas de nuevo cuesta. Se aplica al guardar.
   const restablecer = () => {
     onCambiarApariencia({ portada: { diapositivas: efectiva.portada.diapositivas } });
-    toast.success("Volviste al diseño de la plantilla (tus imágenes de portada quedan). Guardá para publicarlo.");
+    toast.success("Volviste al diseño de la plantilla (tus imágenes de portada quedan). Guarda para publicarlo.");
   };
 
   // ---------------------------------------------------------------- el menú
@@ -495,7 +495,7 @@ export function DisenoTienda({
           id: "organizar",
           icono: ListOrdered,
           titulo: "Organizar secciones",
-          descripcion: "Qué bloques se ven en el inicio y en qué orden. Tocá uno para configurarlo.",
+          descripcion: "Qué bloques se ven en el inicio y en qué orden. Toca uno para configurarlo.",
           resumen: `${secciones.filter((s) => s.activa).length} de ${secciones.length} visibles`,
           soloPersonalizable: true,
         },
@@ -508,7 +508,7 @@ export function DisenoTienda({
               id: `seccion:${s.tipo}`,
               icono: ICONO_DE_SECCION[s.tipo] ?? LayoutList,
               titulo: tituloDeSeccion(s.tipo),
-              descripcion: s.tipo === "portada" ? "La primera impresión de tu tienda. Mirá cómo queda mientras la editás." : def.descripcion,
+              descripcion: s.tipo === "portada" ? "La primera impresión de tu tienda. Mira cómo queda mientras la editas." : def.descripcion,
               resumen: resumenDeSeccion(s),
               soloPersonalizable: true,
               seccion: true,
@@ -563,7 +563,7 @@ export function DisenoTienda({
             type="button"
             onClick={() => {
               aplicarDiseno(e.apariencia);
-              toast.success(`Diseño ${e.nombre} aplicado. Miralo en la vista previa y guardá para publicarlo.`);
+              toast.success(`Diseño ${e.nombre} aplicado. Míralo en la vista previa y guarda para publicarlo.`);
             }}
             className="rounded-xl border border-border p-2.5 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
           >
@@ -611,7 +611,7 @@ export function DisenoTienda({
               donde: "Como título de tu tienda (Marca). Se ve en la tienda cuando guardes.",
               usar: (titulo) => {
                 onCambiarTitulo(titulo);
-                toast.success("Título cambiado. Guardá para verlo en tu tienda.");
+                toast.success("Título cambiado. Guarda para verlo en tu tienda.");
               },
             },
         // Sin imágenes, debajo del título va la descripción de la tienda: no se pisa desde acá.
@@ -631,7 +631,7 @@ export function DisenoTienda({
           donde: "En la sección Nosotros de tu tienda. Se ve cuando guardes.",
           usar: (texto) => {
             onCambiarNosotros(texto);
-            toast.success("Texto de Nosotros cambiado. Guardá para verlo en tu tienda.");
+            toast.success("Texto de Nosotros cambiado. Guarda para verlo en tu tienda.");
           },
         },
       };
@@ -713,7 +713,7 @@ export function DisenoTienda({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-medium">Barra de anuncio</p>
-              <p className="text-xs text-muted-foreground">Una línea arriba de todo. Escribí solo lo que cumplís.</p>
+              <p className="text-xs text-muted-foreground">Una línea arriba de todo. Escribe solo lo que cumples.</p>
             </div>
             <Switch
               checked={efectiva.anuncio.activo}
@@ -805,7 +805,7 @@ export function DisenoTienda({
           })}
         </ul>
         <p className="text-xs text-muted-foreground">
-          Acá solo se ordena y se prende o apaga. Para cambiar cómo se ve una sección, tocala: se abre su pantalla. A una
+          Acá solo se ordena y se prende o apaga. Para cambiar cómo se ve una sección, tócala: se abre su pantalla. A una
           sección sin datos tus clientes no la ven aunque esté prendida; acá, en la vista previa, se muestra con contenido de
           ejemplo.
         </p>
@@ -848,7 +848,7 @@ export function DisenoTienda({
             valor={efectiva.hover}
             onChange={(hover) => {
               actualizar({ hover });
-              if (hover !== "ninguno") enfocar("tarjetas", { ...verTarjetas, aviso: "Pasá el mouse por una tarjeta" });
+              if (hover !== "ninguno") enfocar("tarjetas", { ...verTarjetas, aviso: "Pasa el mouse por una tarjeta" });
             }}
           />
         </Fila>
@@ -915,7 +915,7 @@ export function DisenoTienda({
             onChange={(entrada) => {
               actualizar({ entrada });
               // Se repite con lo que está a la vista; lo demás, al bajar.
-              if (entrada !== "ninguna") enfocar("", { aviso: "Bajá en la vista previa: así aparecen las secciones" });
+              if (entrada !== "ninguna") enfocar("", { aviso: "Baja en la vista previa: así aparecen las secciones" });
             }}
           />
         </Fila>
@@ -950,7 +950,7 @@ export function DisenoTienda({
 
           {pestanaPortada === "diseno" ? (
             <>
-              <Fila etiqueta="Diseño de portada" ayuda="Elegí el formato que mejor presenta tus productos.">
+              <Fila etiqueta="Diseño de portada" ayuda="Elige el formato que mejor presenta tus productos.">
                 <Opciones
                   opciones={defPortada.variantes}
                   valor={portada.variante}
@@ -958,7 +958,7 @@ export function DisenoTienda({
                   bloqueadas={Object.fromEntries(
                     defPortada.variantes
                       .filter((v) => (v.minimoImagenes ?? 0) > imagenesPortada)
-                      .map((v) => [v.id, `Necesita ${v.minimoImagenes} imágenes (tenés ${imagenesPortada})`]),
+                      .map((v) => [v.id, `Necesita ${v.minimoImagenes} imágenes (tienes ${imagenesPortada})`]),
                   )}
                 />
               </Fila>
@@ -966,7 +966,7 @@ export function DisenoTienda({
               {(varianteActual?.minimoImagenes ?? 0) > imagenesPortada && imagenesPortada > 0 && (
                 <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
                   {varianteActual!.nombre} necesita {varianteActual!.minimoImagenes} imágenes. Con {imagenesPortada} tu
-                  tienda muestra otra portada: subí {varianteActual!.minimoImagenes! - imagenesPortada} más o elegí
+                  tienda muestra otra portada: sube {varianteActual!.minimoImagenes! - imagenesPortada} más o elige
                   otro estilo.
                 </p>
               )}
@@ -1107,11 +1107,11 @@ export function DisenoTienda({
         className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] xl:h-[calc(100dvh-var(--alto-header)-1.5rem)] xl:min-h-[640px] xl:grid-rows-[minmax(0,1fr)]">
         <Card className="flex min-h-0 flex-col overflow-hidden">
           <div className="border-b border-border px-5 pb-4 pt-5">
-            <h2 className="text-xl font-semibold tracking-tight">Diseñá tu tienda</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Diseña tu tienda</h2>
             <p className="mt-1 text-xs text-muted-foreground">Tres pasos y listo. Todo se ve en la vista previa antes de guardar.</p>
           </div>
           <div className="min-h-0 flex-1 space-y-8 overflow-y-auto p-5">
-            <Paso numero={1} titulo="Elegí un diseño" ayuda="Un punto de partida armado para tu tipo de negocio.">
+            <Paso numero={1} titulo="Elige un diseño" ayuda="Un punto de partida armado para tu tipo de negocio.">
               {paneles.inicio()}
             </Paso>
             <Paso numero={2} titulo="Colores" ayuda="Armados para que todo se lea bien.">
@@ -1149,8 +1149,8 @@ export function DisenoTienda({
         {/* ---- 1. Qué personalizar */}
         <Card className="flex min-h-0 flex-col p-2 lg:col-span-2 xl:col-span-1 xl:overflow-y-auto xl:p-4">
           <div className="mb-3 hidden border-b border-border px-1 pb-4 xl:block">
-            <h2 className="text-lg font-semibold tracking-tight">Personalizá tu web</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Elegí qué querés modificar</p>
+            <h2 className="text-lg font-semibold tracking-tight">Personaliza tu web</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Elige qué quieres modificar</p>
           </div>
           <button
             type="button"
@@ -1194,9 +1194,9 @@ export function DisenoTienda({
           <div className="mt-auto hidden gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3 xl:mt-6 xl:flex">
             <Info className="mt-0.5 h-4 w-4 flex-none text-primary" />
             <div>
-              <p className="text-xs font-semibold">Editá con confianza</p>
+              <p className="text-xs font-semibold">Edita con confianza</p>
               <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                Los cambios se ven acá antes de guardar. Nada se publica hasta que tocás Guardar cambios.
+                Los cambios se ven acá antes de guardar. Nada se publica hasta que tocas Guardar cambios.
               </p>
             </div>
           </div>

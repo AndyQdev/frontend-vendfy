@@ -91,7 +91,7 @@ export function SelectorCliente({
               {ambiguo && (
                 <p className="flex items-center gap-1.5 bg-warning-soft px-3 py-1.5 text-xs font-medium text-warning-soft-foreground">
                   <AlertTriangle className="size-3.5 shrink-0" />
-                  Hay {ambiguo} parecidos: fijate el teléfono.
+                  Hay {ambiguo} parecidos: fíjate el teléfono.
                 </p>
               )}
 

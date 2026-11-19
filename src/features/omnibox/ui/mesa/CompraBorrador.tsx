@@ -60,7 +60,7 @@ export function CompraBorrador({
     return (
       <Vacio>
         <Truck className="mx-auto mb-3 size-8 text-muted-foreground/50" />
-        Todavía no cargaste nada. Decí “compré 10 cocas a 11”, sacale una foto a la factura o tocá un producto y
+        Todavía no cargaste nada. Di “compré 10 cocas a 11”, sácale una foto a la factura o toca un producto y
         “Agregar a la compra”.
       </Vacio>
     );
@@ -233,7 +233,7 @@ export function CompraBorrador({
           )}
           <span className="text-[13px]">
             <span className="block font-semibold">Factura adjunta</span>
-            <span className="text-muted-foreground">Queda guardada con la compra · tocá para verla</span>
+            <span className="text-muted-foreground">Queda guardada con la compra · toca para verla</span>
           </span>
         </a>
       )}
@@ -245,7 +245,7 @@ export function CompraBorrador({
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           Falta{porResolver === 1 ? "" : "n"} {porResolver} {porResolver === 1 ? "renglón" : "renglones"} de la factura:
-          elegí el producto, crealo o descartalo en el chat. Hasta entonces no se puede registrar.
+          elige el producto, créalo o descártalo en el chat. Hasta entonces no se puede registrar.
         </p>
       )}
 
@@ -275,7 +275,7 @@ export function CompraBorrador({
             <p className="cifra text-xs text-muted-foreground" data-testid="omnibox-total-compra-bs">
               {totalBs != null && dolar
                 ? `= Bs ${dinero(totalBs)} al dólar de ${formatDolar(dolar)}`
-                : "Escribí el dólar para ver cuánto es en Bs"}
+                : "Escribe el dólar para ver cuánto es en Bs"}
             </p>
           )}
         </div>

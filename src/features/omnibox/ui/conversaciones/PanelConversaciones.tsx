@@ -93,7 +93,7 @@ export function PanelConversaciones({
         <SheetContent side="left" className="flex w-[88vw] max-w-sm flex-col gap-0 p-0" data-testid="panel-conversaciones">
           <div className="border-b border-border px-4 pb-3 pt-4">
             <SheetTitle className="text-base">Conversaciones</SheetTitle>
-            <SheetDescription className="sr-only">Abrí una conversación anterior o empezá una nueva.</SheetDescription>
+            <SheetDescription className="sr-only">Abre una conversación anterior o empieza una nueva.</SheetDescription>
             <button
               type="button"
               data-testid="conversacion-nueva"

@@ -508,14 +508,14 @@ export default function Caja() {
         sonar("error");
         if (resultado.motivo === "sin_tienda") {
           toast.error(`«${p.name}» no se vende en esta tienda`, {
-            description: "Agregalo a la tienda desde Productos.",
+            description: "Agrégalo a la tienda desde Productos.",
           });
         } else {
           const stock = resultado.tienda?.stock ?? 0;
           toast.error(resultado.motivo === "agotado" ? `«${p.name}» está agotado` : `No quedan más «${p.name}»`, {
             description:
               resultado.motivo === "agotado"
-                ? "Cargá stock desde Inventario o Compras."
+                ? "Carga stock desde Inventario o Compras."
                 : `Hay ${stock} y ya están todos en la venta.`,
           });
         }
@@ -712,7 +712,7 @@ export default function Caja() {
 
     const enDolares = paymentMethod === 'usd';
     if (enDolares && !dolar.valor) {
-      toast.error("Escribí el tipo de cambio");
+      toast.error("Escribe el tipo de cambio");
       return;
     }
     // Si no escribió cuánto dio, pagó lo justo en dólares.
@@ -741,7 +741,7 @@ export default function Caja() {
         const c = cuentaEnDolares(total, dolar.valor, dio);
         toast.success(`Venta finalizada · cobrado ${formatDolares(dio!)}`, {
           description: c.falta > 0
-            ? `Cobrá ${formatMoney(c.falta)} más en efectivo`
+            ? `Cobra ${formatMoney(c.falta)} más en efectivo`
             : c.vuelto > 0
               ? `Dale de vuelto ${formatMoney(c.vuelto)}`
               : `Total ${formatMoney(total)}`,
@@ -989,12 +989,12 @@ export default function Caja() {
                         variant="secondary"
                         size="icon"
                         className="relative h-10 w-10 sm:h-12 sm:w-12 shrink-0 hidden sm:flex"
-                        aria-label="Escáner listo: apuntá la pistola al código"
-                        title="Escáner listo: apuntá la pistola al código, o escribilo y presioná Enter"
+                        aria-label="Escáner listo: apunta la pistola al código"
+                        title="Escáner listo: apunta la pistola al código, o escríbelo y presiona Enter"
                         onClick={() => {
                           buscadorRef.current?.focus();
                           toast("Escáner listo", {
-                            description: "Apuntá la pistola al código de barras, o escribilo en el buscador y presioná Enter.",
+                            description: "Apunta la pistola al código de barras, o escríbelo en el buscador y presiona Enter.",
                             icon: <ScanLine className="h-4 w-4" />,
                           });
                         }}

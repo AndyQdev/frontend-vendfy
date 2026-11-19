@@ -105,7 +105,7 @@ export function respuestaDeEscaneo(e: EscaneoChat): string | null {
  * búsqueda cortada queda como error y un alta a medias vuelve al formulario.
  */
 export function escaneoGuardable(e: EscaneoChat): EscaneoChat {
-  if (e.estado === "buscando") return { ...e, estado: "error", error: "Se cortó la búsqueda. Escanealo de nuevo." };
+  if (e.estado === "buscando") return { ...e, estado: "error", error: "Se cortó la búsqueda. Escanéalo de nuevo." };
   if (e.estado === "creando") return { ...e, estado: "nuevo" };
   return e;
 }

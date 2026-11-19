@@ -134,7 +134,7 @@ export const MENSAJES = {
       codigo: "VENTA_VACIA",
       nivel: "error",
       mesa: "venta",
-      texto: "No hay nada para cobrar todavía. Decí qué se lleva o tocá un producto.",
+      texto: "No hay nada para cobrar todavía. Di qué se lleva o toca un producto.",
       acciones: [],
       clave: "VENTA_VACIA",
     };
@@ -185,8 +185,8 @@ export const MENSAJES = {
       mesa: "venta",
       texto:
         l.stock <= 0
-          ? `No tenés stock de ${l.nombre} en esta tienda.`
-          : `De ${l.nombre} pedís ${l.cantidad} y tenés ${l.stock}.`,
+          ? `No tienes stock de ${l.nombre} en esta tienda.`
+          : `De ${l.nombre} pides ${l.cantidad} y tienes ${l.stock}.`,
       campo,
       acciones: [{ tipo: "ver", campo, etiqueta: "Ver cantidad" }, ...comprar],
       clave: `SIN_STOCK:${l.productId}`,
@@ -197,7 +197,7 @@ export const MENSAJES = {
       codigo: "COMPRA_VACIA",
       nivel: "error",
       mesa: "compra",
-      texto: "La compra está vacía. Decí qué llegó, por ejemplo “compré 10 cocas a 11”.",
+      texto: "La compra está vacía. Di qué llegó, por ejemplo “compré 10 cocas a 11”.",
       acciones: [],
       clave: "COMPRA_VACIA",
     };
@@ -212,7 +212,7 @@ export const MENSAJES = {
       texto:
         n === 1
           ? "Falta decir a qué producto corresponde un renglón de la factura."
-          : `Faltan ${n} renglones de la factura: decí a qué producto corresponde cada uno.`,
+          : `Faltan ${n} renglones de la factura: di a qué producto corresponde cada uno.`,
       campo,
       acciones: [{ tipo: "ver", campo, etiqueta: n === 1 ? "Ver el renglón" : "Ver el primero" }],
       clave: "RENGLON_SIN_RESOLVER",
@@ -264,13 +264,13 @@ export const MENSAJES = {
     };
   },
   tipDecirCantidad(): MensajeGuia {
-    return tip("TIP_DECIR_CANTIDAD", "Tip: también podés decir «que sean 3» o «sacá la coca», sin tocar nada.");
+    return tip("TIP_DECIR_CANTIDAD", "Tip: también puedes decir «que sean 3» o «saca la coca», sin tocar nada.");
   },
   tipCobrarHablando(): MensajeGuia {
-    return tip("TIP_COBRAR_HABLANDO", "Tip: la próxima, decí «cobrale con QR» y se cobra solo.");
+    return tip("TIP_COBRAR_HABLANDO", "Tip: la próxima, di «cóbrale con QR» y se cobra solo.");
   },
   tipFotoFactura(): MensajeGuia {
-    return tip("TIP_FOTO_FACTURA", "Tip: si tenés la factura, sacale una foto con la cámara de abajo y se carga sola.");
+    return tip("TIP_FOTO_FACTURA", "Tip: si tienes la factura, sácale una foto con la cámara de abajo y se carga sola.");
   },
   servidor(texto: string, mesa: TipoMesa): MensajeGuia {
     return { codigo: "SERVIDOR", nivel: "error", mesa, texto, acciones: [], clave: `SERVIDOR:${texto}` };

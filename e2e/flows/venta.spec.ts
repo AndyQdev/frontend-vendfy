@@ -74,7 +74,7 @@ test("si no hay stock, el motivo aparece al lado del botón y el carrito queda",
   await mesa.getByRole("spinbutton", { name: "Cantidad de Aceite vegetal 1L" }).first().fill("999");
 
   // D3: se avisa en la línea...
-  await expect(mesa.getByRole("alert").first()).toContainText("Pedís 999");
+  await expect(mesa.getByRole("alert").first()).toContainText("Pides 999");
   // ...y no bloquea: el servidor decide y dice por qué.
   await mesa.getByRole("radio", { name: "QR" }).click();
   await mesa.getByTestId("omnibox-cobrar").click();

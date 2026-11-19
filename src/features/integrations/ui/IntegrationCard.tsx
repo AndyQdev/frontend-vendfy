@@ -169,7 +169,7 @@ export function IntegrationCard({ provider, storeId, connection }: Props) {
                     <span className={dias <= 7 ? "text-amber-600" : undefined}>
                       {dias > 0
                         ? `la sesión con Meta vence en ${dias} días`
-                        : "la sesión con Meta venció: reconectá"}
+                        : "la sesión con Meta venció: reconecta"}
                     </span>
                   </>
                 )}
@@ -257,7 +257,7 @@ export function IntegrationCard({ provider, storeId, connection }: Props) {
                 <SelectTrigger>
                   <SelectValue
                     placeholder={
-                      cargandoCuentas ? "Cargando…" : "Elegí una cuenta"
+                      cargandoCuentas ? "Cargando…" : "Elige una cuenta"
                     }
                   />
                 </SelectTrigger>

@@ -40,7 +40,7 @@ export function iniciarServiceWorker() {
 function vigilarActualizaciones(registro: ServiceWorkerRegistration) {
   const ofrecer = (esperando: ServiceWorker) => {
     toast("Hay una versión nueva de Vendfy", {
-      description: "Actualizá cuando termines lo que estás haciendo.",
+      description: "Actualiza cuando termines lo que estás haciendo.",
       duration: Infinity,
       action: {
         label: "Actualizar",

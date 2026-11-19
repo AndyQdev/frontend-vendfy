@@ -37,7 +37,7 @@ export function ImportarEspecificacionesModal({
       open={open}
       onOpenChange={onOpenChange}
       titulo="Importar especificaciones"
-      descripcion="Pegá la lista como la tengas: JSON, una por línea, o copiada de una planilla. Se separa sola en nombre y valor."
+      descripcion="Pega la lista como la tengas: JSON, una por línea, o copiada de una planilla. Se separa sola en nombre y valor."
       placeholder={EJEMPLO}
       ayuda={
         <>

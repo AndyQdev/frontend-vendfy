@@ -346,7 +346,7 @@ export function LocationPicker({
     setBuscandoUbicacion(true)
 
     const sinUbicacion =
-      'No se pudo obtener tu ubicación actual. Buscá la dirección o mové el marcador a mano.'
+      'No se pudo obtener tu ubicación actual. Busca la dirección o mueve el marcador a mano.'
 
     // Un tope propio, aparte del `timeout` del navegador: hay casos en que el
     // navegador no llama a ninguna de las dos funciones y el spinner giraría
@@ -401,7 +401,7 @@ export function LocationPicker({
         // sistema operativo, que es lo que pasa en Windows con los servicios de
         // ubicación apagados.
         const bloqueoDelSitio =
-          'El permiso de ubicación está bloqueado para este sitio. Habilitalo en los permisos del sitio de tu navegador y volvé a tocar el botón.'
+          'El permiso de ubicación está bloqueado para este sitio. Habilítalo en los permisos del sitio de tu navegador y vuelve a tocar el botón.'
         if (!navigator.permissions?.query) {
           setErrorUbicacion(bloqueoDelSitio)
           return
@@ -411,7 +411,7 @@ export function LocationPicker({
           .then((estado) =>
             setErrorUbicacion(
               estado.state === 'granted'
-                ? 'El navegador tiene el permiso para este sitio, pero el dispositivo bloquea la ubicación. Revisá que los servicios de ubicación estén activados en la configuración del dispositivo.'
+                ? 'El navegador tiene el permiso para este sitio, pero el dispositivo bloquea la ubicación. Revisa que los servicios de ubicación estén activados en la configuración del dispositivo.'
                 : bloqueoDelSitio
             )
           )
@@ -499,7 +499,7 @@ export function LocationPicker({
           <p
             role="alert"
             onClick={() => setErrorUbicacion(null)}
-            title="Tocá para cerrar"
+            title="Toca para cerrar"
             className="absolute inset-x-3 bottom-3 z-10 cursor-pointer rounded-md bg-white/95 px-3 py-2 text-xs text-red-600 shadow"
           >
             {errorUbicacion}

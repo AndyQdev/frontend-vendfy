@@ -102,7 +102,7 @@ export function TarjetaPrecios({
         {grandes > 0 ? (
           <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
             <AlertTriangle className="mt-px size-3.5 shrink-0" />
-            {grandes === 1 ? "Un precio cambia" : `${grandes} precios cambian`} más del 50 %. Revisalo antes de confirmar.
+            {grandes === 1 ? "Un precio cambia" : `${grandes} precios cambian`} más del 50 %. Revísalo antes de confirmar.
           </p>
         ) : null}
         {estado === "error" && precios.error ? (

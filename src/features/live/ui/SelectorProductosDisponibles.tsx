@@ -236,7 +236,7 @@ export function SelectorProductosDisponibles({
               peor que no tenerla. */}
           {hayMas && (
             <p className="text-xs text-muted-foreground">
-              Se muestran {productos.length} de {total}. Afiná la búsqueda para
+              Se muestran {productos.length} de {total}. Afina la búsqueda para
               ver el resto.
             </p>
           )}

@@ -81,9 +81,9 @@ export function ConsentimientoBeta() {
             onClick={async () => {
               try {
                 await aceptar.mutateAsync();
-                toast.success("¡Gracias por sumarte a la beta! Si algo falla, usá el botón Reportar de arriba.");
+                toast.success("¡Gracias por sumarte a la beta! Si algo falla, usa el botón Reportar de arriba.");
               } catch (e: any) {
-                toast.error(e?.message ?? "No se pudo guardar. Probá de nuevo.");
+                toast.error(e?.message ?? "No se pudo guardar. Prueba de nuevo.");
               }
             }}
           >

@@ -83,7 +83,7 @@ export function TarjetaProductosNuevos({
             {comprados.length ? (
               <p className="mt-1.5 flex items-center gap-1.5 text-xs">
                 <ShoppingCart className="size-3.5 shrink-0" />
-                {comprados.length === f.creados.length ? "Quedaron cargados" : `${comprados.length} quedaron cargados`} en la compra: revisala y registrala.
+                {comprados.length === f.creados.length ? "Quedaron cargados" : `${comprados.length} quedaron cargados`} en la compra: revísala y regístrala.
               </p>
             ) : null}
           </Estado>
@@ -171,7 +171,7 @@ export function TarjetaProductosNuevos({
                       {b.sugerido ? (
                         <span
                           data-testid="precio-sugerido"
-                          title={`Lo propuse con lo que le ganás habitualmente al costo (+${b.sugerido.margen} %). Cambialo si querés.`}
+                          title={`Lo propuse con lo que le ganas habitualmente al costo (+${b.sugerido.margen} %). Cámbialo si quieres.`}
                           className="inline-flex items-center gap-0.5 rounded-full bg-primary-soft px-1.5 font-medium text-primary"
                         >
                           <Sparkles className="size-3" />
@@ -234,7 +234,7 @@ export function TarjetaProductosNuevos({
                 {b.existente ? (
                   <p className="flex items-start gap-1.5 text-xs font-medium text-warning-soft-foreground">
                     <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning" />
-                    Ya tenés «{b.existente.nombre}». Sacalo de la lista o cambiale el nombre.
+                    Ya tienes «{b.existente.nombre}». Sácalo de la lista o cámbiale el nombre.
                   </p>
                 ) : null}
               </li>
@@ -246,7 +246,7 @@ export function TarjetaProductosNuevos({
           <p data-testid="formulario-falta" className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
             <Mic className="mt-px size-3.5 shrink-0" />
             <span>
-              {textoFaltaProductos(f)} Podés escribirlo acá o decírmelo en el chat («{ejemplo(lista)}»).
+              {textoFaltaProductos(f)} Puedes escribirlo acá o decírmelo en el chat («{ejemplo(lista)}»).
             </span>
           </p>
         ) : null}

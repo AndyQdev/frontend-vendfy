@@ -47,11 +47,11 @@ export function fraseDeGuia(m: MensajeGuia): string | null {
   // La pista de cómo contestar, porque no hay botones a la vista del oído.
   let pista = "";
   if (m.acciones.some((a) => a.tipo === "pago")) pista = "";
-  else if (m.codigo === "CANTIDAD_NO_DICHA") pista = " Decí cuántas.";
-  else if (m.texto.includes("?")) pista = " Decí sí o no.";
+  else if (m.codigo === "CANTIDAD_NO_DICHA") pista = " Di cuántas.";
+  else if (m.texto.includes("?")) pista = " Di sí o no.";
   else {
     const si = respuestaAGuia("sí", m);
-    pista = si && si.tipo !== "descartar" ? ` ¿${si.etiqueta}? Decí sí o no.` : "";
+    pista = si && si.tipo !== "descartar" ? ` ¿${si.etiqueta}? Di sí o no.` : "";
   }
   return paraHablar(m.texto + pista);
 }

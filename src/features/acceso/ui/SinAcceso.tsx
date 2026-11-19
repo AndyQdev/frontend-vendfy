@@ -32,7 +32,7 @@ export function SinAcceso({
       ? {
           icono: Sparkles,
           titulo: "Tu plan no lo incluye",
-          cuerpo: `${requisito?.funcion ? NOMBRE_FUNCION[requisito.funcion] : "Esto"} no está en el plan de tu negocio. Escribinos si querés sumarlo.`,
+          cuerpo: `${requisito?.funcion ? NOMBRE_FUNCION[requisito.funcion] : "Esto"} no está en el plan de tu negocio. Escríbenos si quieres sumarlo.`,
         }
       : motivo === "dueno"
         ? {
@@ -43,7 +43,7 @@ export function SinAcceso({
         : {
             icono: Lock,
             titulo: "Tu rol no tiene acceso",
-            cuerpo: `Para usar ${nombre}, pedile a ${negocio ?? "el dueño del negocio"} que te dé el permiso desde Equipo.`,
+            cuerpo: `Para usar ${nombre}, pídele a ${negocio ?? "el dueño del negocio"} que te dé el permiso desde Equipo.`,
           };
   const Icono = texto.icono;
 

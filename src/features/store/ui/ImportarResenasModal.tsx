@@ -61,8 +61,8 @@ export function ImportarResenasModal({
       titulo="Importar reseñas"
       descripcion={
         deProducto
-          ? "Pegá las reseñas y se crean todas de una, ya asociadas a este producto."
-          : "Pegá las reseñas y se crean todas de una."
+          ? "Pega las reseñas y se crean todas de una, ya asociadas a este producto."
+          : "Pega las reseñas y se crean todas de una."
       }
       placeholder={EJEMPLO}
       ayuda={

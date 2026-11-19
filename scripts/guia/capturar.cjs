@@ -62,7 +62,7 @@ async function ir(page, ruta) {
 async function preparar(page, p) {
   if (!p) return;
   if (p.preguntar) {
-    const caja = page.getByLabel("Qué necesitás").first();
+    const caja = page.getByLabel("Qué necesitas").first();
     await caja.click();
     await caja.fill(p.preguntar);
     await caja.press("Enter");

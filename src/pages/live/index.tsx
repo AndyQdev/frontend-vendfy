@@ -126,7 +126,7 @@ export default function LivePage() {
         <EmptyState
           icon={Radio}
           title="Todavía no hiciste ningún Live"
-          description="Creá uno, sacale foto a lo que vas a vender y compartí el enlace. Las prendas entran al inventario en el momento."
+          description="Crea uno, sácale foto a lo que vas a vender y comparte el enlace. Las prendas entran al inventario en el momento."
           primaryAction={puedeCrear ? { label: "Crear mi primer Live", onClick: () => setCrearAbierto(true) } : undefined}
         />
       )}

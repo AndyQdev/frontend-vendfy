@@ -219,7 +219,7 @@ export default function MovementsView() {
         <div>
           <h1 className="titulo-pagina">Movimientos</h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
-            Registro de ventas y compras de mercadería. Escaneá un producto para ver solo lo suyo.
+            Registro de ventas y compras de mercadería. Escanea un producto para ver solo lo suyo.
           </p>
         </div>
         {!porProducto && <BotonExportar onExportar={exportar} />}

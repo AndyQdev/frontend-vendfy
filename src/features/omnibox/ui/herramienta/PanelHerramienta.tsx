@@ -66,7 +66,7 @@ export function PanelHerramienta({
   async function alFallar(mensaje: string) {
     if (estado.fase !== "lista") return;
     if (estado.corregida || corrigiendo) {
-      onCambio({ fase: "error", error: `Se rompió al usarla (${mensaje}). Probá pidiéndola de otra forma.`, generada: g });
+      onCambio({ fase: "error", error: `Se rompió al usarla (${mensaje}). Prueba pidiéndola de otra forma.`, generada: g });
       return;
     }
     setCorrigiendo(true);
@@ -100,7 +100,7 @@ export function PanelHerramienta({
       )}
       <p className="mt-auto border-t border-border px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
         La armó la IA para esta pregunta, con tus datos {cuando(g.creada)}. No cambia nada por su cuenta: lo que proponga, lo
-        revisás antes.
+        revisas antes.
       </p>
     </div>
   );

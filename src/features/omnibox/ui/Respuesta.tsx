@@ -960,10 +960,10 @@ function SinPermiso({ propuesta: p, tienda, hora: cuando }: { propuesta: Propues
 
   return (
     <Tarjeta estado="sin-permiso" hora={cuando}>
-      <Estado icono={Lock} tono="aviso" titulo="No tenés permiso">
+      <Estado icono={Lock} tono="aviso" titulo="No tienes permiso">
         Solo los administradores pueden {accion}.
         <br />
-        Si necesitás hacerlo, pedile a un administrador de la tienda.
+        Si necesitas hacerlo, pídele a un administrador de la tienda.
       </Estado>
       {soporte ? (
         <div className="mt-3 sm:pl-11">
@@ -991,7 +991,7 @@ function SinEjecutor({ propuesta: p, hora: cuando }: { propuesta: Propuesta; hor
   return (
     <Tarjeta estado="sin-ejecutor" hora={cuando}>
       <Estado icono={Construction} tono="neutro" titulo={`Entendí: ${p.titulo?.toLowerCase() ?? "eso"}`}>
-        No pude prepararlo esta vez. Contámelo con un poco más de detalle y lo armo acá.
+        No pude prepararlo esta vez. Cuéntamelo con un poco más de detalle y lo armo acá.
       </Estado>
     </Tarjeta>
   );
@@ -1010,10 +1010,10 @@ function SinEntender({
 }) {
   return (
     <Tarjeta estado="sin-entender" hora={cuando}>
-      <Estado icono={HelpCircle} tono="neutro" titulo={aviso ?? "No entendí qué querés hacer."} />
+      <Estado icono={HelpCircle} tono="neutro" titulo={aviso ?? "No entendí qué quieres hacer."} />
       {sugerencias.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 sm:pl-11">
-          <span className="text-xs text-muted-foreground">Probá así:</span>
+          <span className="text-xs text-muted-foreground">Prueba así:</span>
           {sugerencias.slice(0, 3).map((s) => (
             <button
               key={s}

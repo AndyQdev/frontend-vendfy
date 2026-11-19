@@ -255,7 +255,7 @@ export function TarjetaPedido({
             ) : it.opciones.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-[13px] font-semibold">
-                  “{it.buscado}” ×{it.cantidad} · <span className="font-normal text-muted-foreground">elegí uno o varios</span>
+                  “{it.buscado}” ×{it.cantidad} · <span className="font-normal text-muted-foreground">elige uno o varios</span>
                 </p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {it.opciones.map((o) => {
@@ -289,7 +289,7 @@ export function TarjetaPedido({
               <div className="space-y-2">
                 <p className="text-[13px] font-semibold">
                   No encontré “{it.noEncontrado ?? it.buscado}” ·{" "}
-                  <span className="font-normal text-muted-foreground">buscalo con otro nombre</span>
+                  <span className="font-normal text-muted-foreground">búscalo con otro nombre</span>
                 </p>
                 {it.agregados?.length ? (
                   <Listo imagen={null}>Agregado</Listo>
@@ -343,7 +343,7 @@ function ClientePendiente({
   if (opciones.length === 0) {
     return (
       <div className="space-y-2">
-        <p className="text-[13px] font-semibold">No tenés a “{titular(dicho)}” como cliente</p>
+        <p className="text-[13px] font-semibold">No tienes a “{titular(dicho)}” como cliente</p>
         <div className="rounded-lg border border-border">
           <NuevoCliente nombreInicial={titular(dicho)} onCreado={(id, n) => onElegir({ id, nombre: n })} onVolver={() => {}} sinVolver />
         </div>

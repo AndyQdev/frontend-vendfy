@@ -40,7 +40,7 @@ export function InstruccionesIOS({
               <Share className="size-4" />
             </span>
             <p className="text-sm">
-              Tocá <strong>Compartir</strong>, el cuadrado con la flecha hacia
+              Toca <strong>Compartir</strong>, el cuadrado con la flecha hacia
               arriba en la barra de Safari.
             </p>
           </li>
@@ -49,7 +49,7 @@ export function InstruccionesIOS({
               <SquarePlus className="size-4" />
             </span>
             <p className="text-sm">
-              Bajá hasta <strong>Agregar a inicio</strong> y confirmá.
+              Baja hasta <strong>Agregar a inicio</strong> y confirma.
             </p>
           </li>
           </ol>

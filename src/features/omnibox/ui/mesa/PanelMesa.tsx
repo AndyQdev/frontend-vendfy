@@ -320,7 +320,7 @@ export function PanelMesa({
               }}
             />
           ) : (
-            <Vacio>Tocá un producto en el chat para verlo acá.</Vacio>
+            <Vacio>Toca un producto en el chat para verlo acá.</Vacio>
           )
         ) : esVenta ? (
           <VentaBorrador

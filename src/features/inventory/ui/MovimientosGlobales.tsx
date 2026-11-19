@@ -163,7 +163,7 @@ export function MovimientosGlobales({ storeId }: { storeId: string }) {
           description={
             tipo === "all"
               ? "Cada compra, ajuste, merma o venta va a quedar registrada acá con su fecha y su motivo."
-              : "Probá con otro tipo o quitá el filtro para ver todo el historial."
+              : "Prueba con otro tipo o quita el filtro para ver todo el historial."
           }
           {...(tipo !== "all" && {
             primaryAction: {

@@ -87,7 +87,7 @@ export function useArmarDisenoConIa() {
   return useMutation({
     mutationFn: async (input: ArmarDisenoInput) => {
       const res = await apiFetch<DisenoIa>("/api/store-design/ai", { method: "POST", body: input });
-      if (!res.data) throw new Error("La IA no devolvió un diseño. Probá de nuevo.");
+      if (!res.data) throw new Error("La IA no devolvió un diseño. Prueba de nuevo.");
       return res.data;
     },
   });

@@ -41,7 +41,7 @@ export default function LayoutShell() {
           <div className="mx-auto mt-2 flex w-full max-w-[var(--ancho-maximo)] items-center gap-2 px-3 sm:px-6">
             <p className="flex w-full items-center gap-2 rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
               <AlertTriangle className="size-4 flex-none" />
-              La suscripción de tu negocio está suspendida: podés ver tus datos, pero no hacer cambios. Escribinos para reactivarla.
+              La suscripción de tu negocio está suspendida: puedes ver tus datos, pero no hacer cambios. Escríbenos para reactivarla.
             </p>
           </div>
         ) : null}

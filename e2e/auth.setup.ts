@@ -32,7 +32,7 @@ setup("entrar como el comerciante de prueba", async ({ page }) => {
   // La tienda se elige por localStorage, como lo hace el selector.
   await page.evaluate((t) => localStorage.setItem("selectedStore", JSON.stringify(t)), TIENDA);
   await page.goto("/omnibox");
-  await expect(page.getByLabel("Qué necesitás")).toBeVisible();
+  await expect(page.getByLabel("Qué necesitas")).toBeVisible();
 
   await page.context().storageState({ path: ARCHIVO_SESION });
 });

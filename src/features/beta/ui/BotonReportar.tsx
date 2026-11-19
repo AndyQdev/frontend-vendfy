@@ -65,7 +65,7 @@ export function BotonReportar({ className }: { className?: string }) {
       toast.success(tipo === "problema" ? "¡Gracias! Ya nos llegó el problema y lo vamos a revisar." : "¡Gracias por la idea! Ya nos llegó.");
       cerrar();
     } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo enviar. Probá de nuevo.");
+      toast.error(e?.message ?? "No se pudo enviar. Prueba de nuevo.");
     }
   };
 
@@ -74,7 +74,7 @@ export function BotonReportar({ className }: { className?: string }) {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        title={`Estás en la ${data.cohorte?.nombre}: contanos un problema o una idea`}
+        title={`Estás en la ${data.cohorte?.nombre}: cuéntanos un problema o una idea`}
         className={cn(
           "flex h-9 flex-none items-center gap-1.5 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground",
           className,
@@ -87,11 +87,11 @@ export function BotonReportar({ className }: { className?: string }) {
       <ResponsiveDialog open={abierto} onOpenChange={(v) => !v && cerrar()}>
         <ResponsiveDialogContent className="sm:max-w-[480px]">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Contanos qué pasó</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>Cuéntanos qué pasó</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>Lo lee el equipo de Vendfy. Sabemos en qué pantalla estabas, no hace falta explicarlo.</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody className="space-y-4">
-            <div role="radiogroup" aria-label="Qué querés contarnos" className="grid grid-cols-2 gap-2">
+            <div role="radiogroup" aria-label="Qué quieres contarnos" className="grid grid-cols-2 gap-2">
               {(
                 [
                   ["problema", "Algo no funciona", Bug],

@@ -43,11 +43,11 @@ export function CrearLiveModal({
     e.preventDefault();
 
     if (!storeId || storeId === "all") {
-      toast.error("Elegí una tienda antes de crear el Live");
+      toast.error("Elige una tienda antes de crear el Live");
       return;
     }
     if (!title.trim()) {
-      toast.error("Ponele un título al Live");
+      toast.error("Ponle un título al Live");
       return;
     }
 
@@ -76,7 +76,7 @@ export function CrearLiveModal({
             Nuevo Live
           </DialogTitle>
           <DialogDescription>
-            Después le agregás las prendas y compartís el enlace.
+            Después le agregas las prendas y compartes el enlace.
           </DialogDescription>
         </DialogHeader>
 

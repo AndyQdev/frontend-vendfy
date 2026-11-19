@@ -58,7 +58,7 @@ export function AvisoInstalar() {
             className="size-10 shrink-0 rounded-lg"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Instalá Vendfy</p>
+            <p className="text-sm font-semibold">Instala Vendfy</p>
             <p className="truncate text-xs text-muted-foreground">
               Se abre como una app, sin la barra del navegador.
             </p>

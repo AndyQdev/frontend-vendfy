@@ -490,7 +490,7 @@ export function OmniboxPage() {
       actualizar(id, (m) => ({
         ...m,
         fase: "error",
-        error: error?.message ?? "No pude procesarlo. Revisá tu conexión.",
+        error: error?.message ?? "No pude procesarlo. Revisa tu conexión.",
       }));
     }
   }
@@ -540,7 +540,7 @@ export function OmniboxPage() {
       const dicho = r?.transcripcion.texto?.trim();
       if (!dicho) {
         setMensajes((prev) => prev.filter((x) => x.id !== m.id));
-        toast.info("No se entendió nada. Probá de nuevo, más cerca del micrófono.");
+        toast.info("No se entendió nada. Prueba de nuevo, más cerca del micrófono.");
         return;
       }
       // "Su teléfono 7189…" completa el formulario que está esperando (G6b).
@@ -563,7 +563,7 @@ export function OmniboxPage() {
       actualizar(m.id, (x) =>
         r!.propuesta
           ? { ...x, texto: dicho, fase: "listo", propuesta: r!.propuesta }
-          : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué querés hacer." },
+          : { ...x, texto: dicho, fase: "error", error: "Te escuché, pero no entendí qué quieres hacer." },
       );
       const p = r!.propuesta;
       if (p?.agente) {
@@ -866,7 +866,7 @@ export function OmniboxPage() {
         if (ancho) despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
         const sinDatos = comprados.filter((c) => !c.compra!.cantidad || !c.compra!.costo).map((c) => c.nombre);
         const resumen = `Cargué en la compra: ${comprados.map((c) => c.nombre).join(", ")}.${
-          sinDatos.length ? ` Revisá cuántos compraste y a cuánto de ${sinDatos.join(", ")}.` : " Revisala y registrala."
+          sinDatos.length ? ` Revisa cuántos compraste y a cuánto de ${sinDatos.join(", ")}.` : " Revísala y regístrala."
         }`;
         setMensajes((prev) => [...prev, { ...mensajeDeAccion(propuestaLocal("agregar_a_compra", { titulo: "Compra" })), desenlace: { tipo: "mesa", resumen } }]);
       }
@@ -1001,7 +1001,7 @@ export function OmniboxPage() {
       if (abierta === null || abierta === "analisis" || abierta === "herramienta") {
         despachar({ tipo: "usarHerramienta", herramienta: { mensajeId: id, titulo: g.titulo } });
       } else {
-        toast.success(`Lista: ${g.titulo}`, { description: "La abrís desde su tarjeta en el chat." });
+        toast.success(`Lista: ${g.titulo}`, { description: "La abres desde su tarjeta en el chat." });
       }
       if (porVoz.current) vozGuia.hablar(paraHablar(`Listo: ${g.titulo}.`));
     } catch (error: any) {
@@ -1297,11 +1297,11 @@ export function OmniboxPage() {
     const esDocumento = !esImagen && (archivo.type === "application/pdf" || DOCUMENTOS.test(archivo.name));
     const esPdf = !esImagen;
     if (!esImagen && !esDocumento) {
-      toast.error("Mandá una foto, un PDF, un Excel o un Word.");
+      toast.error("Manda una foto, un PDF, un Excel o un Word.");
       return;
     }
     if (archivo.size > 10 * 1024 * 1024) {
-      toast.error("El archivo pesa más de 10 MB. Probá con una foto más chica.");
+      toast.error("El archivo pesa más de 10 MB. Prueba con una foto más chica.");
       return;
     }
     const m: Mensaje = {
@@ -1329,7 +1329,7 @@ export function OmniboxPage() {
           ...x,
           fase: "error",
           error:
-            "No reconocí qué es. Mandame una factura, la foto de un producto, la captura de un cliente o una lista de precios; si es una foto, más nítida: entera, derecha y con buena luz.",
+            "No reconocí qué es. Mándame una factura, la foto de un producto, la captura de un cliente o una lista de precios; si es una foto, más nítida: entera, derecha y con buena luz.",
         }));
         return;
       }
@@ -1342,7 +1342,7 @@ export function OmniboxPage() {
       actualizar(id, (x) => ({
         ...x,
         fase: "error",
-        error: error?.message ?? "No pude leer la factura. Revisá tu conexión.",
+        error: error?.message ?? "No pude leer la factura. Revisa tu conexión.",
       }));
     }
   }
@@ -1402,7 +1402,7 @@ export function OmniboxPage() {
 
   /** Lo que se dice en voz alta de una respuesta del servidor: corto, nunca la tarjeta entera. */
   function fraseDeRespuesta(p: Propuesta | null | undefined): string | null {
-    if (!p) return "Te escuché, pero no entendí qué querés hacer.";
+    if (!p) return "Te escuché, pero no entendí qué quieres hacer.";
     const efecto = esDeVenta(p) ? efectoDeVenta(p, compraConDolar()) : null;
     if (efecto?.cobrar) return null; // lo dice el cobro, cuando termine
     if (efecto) return paraHablar(efecto.resumen);
@@ -1411,7 +1411,7 @@ export function OmniboxPage() {
     if (p.resultado) return paraHablar(p.resultado.resumen);
     if (p.aviso) return paraHablar(p.aviso);
     if (p.faltan.length > 0) return paraHablar(p.faltan[0].pregunta);
-    if (p.opciones.length > 0) return "Encontré varios parecidos: elegí uno en la pantalla.";
+    if (p.opciones.length > 0) return "Encontré varios parecidos: elige uno en la pantalla.";
     return null;
   }
 
@@ -1633,7 +1633,7 @@ export function OmniboxPage() {
     const enDolares = (compra0.moneda ?? "BOB") === "USD";
     const dolarCompra = compra0.dolar ?? dolarDelDia;
     if (enDolares && !dolarCompra) {
-      setErrorCompra("Escribí el dólar de la compra: sin él no se puede pasar a Bs.");
+      setErrorCompra("Escribe el dólar de la compra: sin él no se puede pasar a Bs.");
       despachar({ tipo: "abrir", mesa: "compra", pestana: "borrador" });
       return;
     }
@@ -1658,7 +1658,7 @@ export function OmniboxPage() {
       }
       despachar({ tipo: "limpiarCompra" });
     } catch (error: any) {
-      const motivo = error?.message ?? "No se pudo registrar la compra. Revisá tu conexión.";
+      const motivo = error?.message ?? "No se pudo registrar la compra. Revisa tu conexión.";
       setErrorCompra(motivo);
       avisar(MENSAJES.servidor(motivo, "compra"));
     }
@@ -1772,7 +1772,7 @@ export function OmniboxPage() {
       // En dólares: el dólar del cobro (el escrito o el del día) y cuánto dio (vacío = lo justo).
       const dolarCobro = venta0.dolar ?? dolarDelDia;
       if (pago === "dolares" && !dolarCobro) {
-        setErrorCobro("Escribí el tipo de cambio para cobrar en dólares.");
+        setErrorCobro("Escribe el tipo de cambio para cobrar en dólares.");
         if (ancho) despachar({ tipo: "abrir", mesa: "venta", pestana: "borrador" });
         return;
       }
@@ -1806,7 +1806,7 @@ export function OmniboxPage() {
         vozGuia.hablar(`Cobrado: ${venta.total.toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bolivianos.`);
       }
     } catch (error: any) {
-      const motivo = error?.message ?? "No se pudo cobrar. Revisá tu conexión.";
+      const motivo = error?.message ?? "No se pudo cobrar. Revisa tu conexión.";
       // La Guía lo dice y, si nombra un producto del carrito, señala su cantidad.
       avisar(errorDeCobro(motivo, venta0));
       if (opciones.mensajeId) {
@@ -1853,9 +1853,9 @@ export function OmniboxPage() {
           <span className="mx-auto mb-4 grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">
             <Store className="size-5" />
           </span>
-          <p className="font-semibold">Elegí una tienda</p>
+          <p className="font-semibold">Elige una tienda</p>
           <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted-foreground">
-            El asistente trabaja sobre una tienda a la vez. Elegila tocando el bloque de Vendfy, arriba a
+            El asistente trabaja sobre una tienda a la vez. Elígela tocando el bloque de Vendfy, arriba a
             la izquierda: con “todas” no sabe a cuál sumarle el stock.
           </p>
         </div>
@@ -2298,9 +2298,9 @@ function Bienvenida({
         <VendfyMark variant="mono" size={30} />
       </span>
       <div>
-        <h2 className="text-xl font-bold">¿Qué necesitás?</h2>
+        <h2 className="text-xl font-bold">¿Qué necesitas?</h2>
         <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted-foreground">
-          Escribí o dictá como se lo dirías a tu empleado. Lo que toque stock o plata te lo
+          Escribe o dicta como se lo dirías a tu empleado. Lo que toque stock o plata te lo
           muestro antes de hacerlo.
         </p>
       </div>

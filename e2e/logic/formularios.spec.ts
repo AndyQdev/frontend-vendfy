@@ -50,7 +50,7 @@ test.describe("el formulario", () => {
 
   test("lo que se contesta al anotar", () => {
     const f = nuevoFormulario("cliente", { nombre: "Edwin" });
-    expect(resumenCompletado(f, { telefono: "71890031" })).toBe("Anoté teléfono: 71890031. Ya está todo: tocá Crear o decime «crealo».");
+    expect(resumenCompletado(f, { telefono: "71890031" })).toBe("Anoté teléfono: 71890031. Ya está todo: toca Crear o dime «créalo».");
     expect(resumenCompletado(nuevoFormulario("cliente"), { telefono: "71890031" })).toBe("Anoté teléfono: 71890031. Falta nombre.");
   });
 

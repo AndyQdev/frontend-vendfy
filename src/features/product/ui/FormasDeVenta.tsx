@@ -177,10 +177,10 @@ export function FormasDeVenta({ storeProductId, baseUnitCode, contentPerUnit, un
 
   const guardar = async () => {
     const nombre = form.name.trim();
-    if (!nombre) return setError("Ponele un nombre para que el cliente sepa qué elige.");
+    if (!nombre) return setError("Ponle un nombre para que el cliente sepa qué elige.");
 
     if (form.kind !== "VARIABLE_MEASURE" && !(numero(form.baseQuantity) ?? 0)) {
-      return setError("Indicá cuánto lleva esta forma de venta en unidad base.");
+      return setError("Indica cuánto lleva esta forma de venta en unidad base.");
     }
     if (form.kind === "VARIABLE_MEASURE") {
       const min = numero(form.minBaseQuantity) ?? 0;
@@ -191,10 +191,10 @@ export function FormasDeVenta({ storeProductId, baseUnitCode, contentPerUnit, un
       }
     }
     if (form.priceMode === "FIXED" && numero(form.price) === undefined) {
-      return setError("Indicá el precio cerrado de esta forma de venta.");
+      return setError("Indica el precio cerrado de esta forma de venta.");
     }
     if (form.priceMode === "PER_BASE_UNIT" && !(numero(form.pricePerBaseUnit) ?? 0)) {
-      return setError("Indicá el precio por unidad base.");
+      return setError("Indica el precio por unidad base.");
     }
 
     const variable = form.kind === "VARIABLE_MEASURE";

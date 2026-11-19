@@ -59,7 +59,7 @@ test("un cliente que no existe se ofrece crear, con el nombre dicho", async ({ p
   await decir(page, "a nombre de Zacarías Inexistente");
   const tarjeta = ultimaRespuesta(page);
   await expect(tarjeta).toHaveAttribute("data-estado", "elegir-cliente");
-  await expect(tarjeta).toContainText("No tenés a");
+  await expect(tarjeta).toContainText("No tienes a");
   await expect(tarjeta.getByLabel("Nombre del cliente")).toHaveValue("Zacarías Inexistente");
 });
 

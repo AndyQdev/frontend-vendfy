@@ -131,7 +131,7 @@ export function capacidadesDeMeta(c?: IntegrationConnection): Capacidad[] {
         "Trae el gasto de cada anuncio para calcular el retorno real contra tus ventas.",
       listo: Boolean(c?.adAccountId) && puedeLeerAnuncios,
       falta: c?.adAccountId
-        ? "Meta no otorgó permiso para leer anuncios. Reconectá la cuenta."
+        ? "Meta no otorgó permiso para leer anuncios. Reconecta la cuenta."
         : "Falta elegir la cuenta publicitaria.",
     },
   ];

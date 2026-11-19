@@ -69,7 +69,7 @@ export function BrandBlock({ className }: { className?: string }) {
           Vendfy
         </span>
         <span className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-tinta-muted">
-          {sinTiendas ? (esDueno ? "Creá tu tienda" : "Sin sucursal asignada") : subtitle}
+          {sinTiendas ? (esDueno ? "Crea tu tienda" : "Sin sucursal asignada") : subtitle}
         </span>
       </span>
     </>

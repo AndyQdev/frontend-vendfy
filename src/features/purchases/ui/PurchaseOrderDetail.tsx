@@ -105,7 +105,7 @@ export function PurchaseOrderDetail() {
     if (!ya) decirFrases(frasesNoEstabaEnLaCompra(p.name));
     setResaltado({ id: p.id, vez: Date.now() });
     toast.warning(`${p.name} no estaba en la compra`, {
-      description: "Lo sumé aparte. Revisá su costo antes de confirmar.",
+      description: "Lo sumé aparte. Revisa su costo antes de confirmar.",
       duration: 2500,
     });
     if (ya) return;
@@ -330,7 +330,7 @@ export function PurchaseOrderDetail() {
       {enDolares && (
         <Card className="p-4" data-testid="dolar-compra">
           <p className="mb-1 text-xs text-muted-foreground">
-            {pendiente ? "Dólar de la compra · si pagás a otro al recibir, cambialo" : "Dólar de la compra"}
+            {pendiente ? "Dólar de la compra · si pagas a otro al recibir, cámbialo" : "Dólar de la compra"}
           </p>
           {pendiente ? (
             <LineaDolar
@@ -541,7 +541,7 @@ export function PurchaseOrderDetail() {
           <div className="border-b p-4">
             <h3 className="font-semibold">No estaban en la compra</h3>
             <p className="text-[13px] text-muted-foreground">
-              Entran al confirmar. El costo es el de la última vez: corregilo si cambió.
+              Entran al confirmar. El costo es el de la última vez: corrígelo si cambió.
             </p>
           </div>
           <ul className="divide-y">
@@ -658,7 +658,7 @@ function BarraRecepcion({ rec }: { rec: ReturnType<typeof useRecepcion> }) {
         <div className="min-w-[12rem] flex-1">
           <p className="font-medium">¿Llegó la mercadería?</p>
           <p className="text-[13px] text-muted-foreground">
-            Escaneá cada producto para contarlo. Lo que falte o sobre se ajusta al confirmar.
+            Escanea cada producto para contarlo. Lo que falte o sobre se ajusta al confirmar.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={rec.empezarAMano}>

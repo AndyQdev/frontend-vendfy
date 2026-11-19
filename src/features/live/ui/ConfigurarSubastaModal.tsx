@@ -96,7 +96,7 @@ export function ConfigurarSubastaModal({
             Subastar {item?.name}
           </DialogTitle>
           <DialogDescription>
-            Queda preparada. La abrís cuando la tengas en la mano.
+            Queda preparada. La abres cuando la tengas en la mano.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,8 +152,8 @@ export function ConfigurarSubastaModal({
             </div>
             <p className="text-xs text-muted-foreground">
               {duracion
-                ? "El tiempo corre desde que la abrís. Al llegar a cero se cierra sola y la prenda va al mejor postor."
-                : "Sin tiempo: la cerrás vos desde el control del Live."}
+                ? "El tiempo corre desde que la abres. Al llegar a cero se cierra sola y la prenda va al mejor postor."
+                : "Sin tiempo: la cierras tú desde el control del Live."}
             </p>
           </div>
 

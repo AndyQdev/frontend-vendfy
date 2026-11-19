@@ -283,7 +283,7 @@ export function PurchaseOrdersTable() {
           <ButtonMagic
             onClick={() => setIaAbierto(true)}
             disabled={!storeId}
-            title={storeId ? "Cargar la compra desde la nota o factura del proveedor" : "Elegí una tienda para usar Crear con IA"}
+            title={storeId ? "Cargar la compra desde la nota o factura del proveedor" : "Elige una tienda para usar Crear con IA"}
             alwaysActive
           >
             <Sparkles />

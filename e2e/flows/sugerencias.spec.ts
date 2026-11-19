@@ -117,7 +117,7 @@ test.describe("sugerencias del servidor", () => {
     await decir(page, "vendé un aceite");
     await expect(franja(page)).toHaveAttribute("data-codigo", "QUEDA_POCO", { timeout: 6000 });
 
-    const campo = page.getByLabel("Qué necesitás");
+    const campo = page.getByLabel("Qué necesitas");
     await campo.fill("sumá");
     await expect(franja(page)).toHaveCount(0);
     await campo.fill("");

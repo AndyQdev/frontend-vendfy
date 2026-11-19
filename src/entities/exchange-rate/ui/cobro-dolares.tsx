@@ -129,7 +129,7 @@ export function FilasDolares({
         >
           {c.falta > 0 ? (
             <>
-              Cobrá <span className="cifra font-semibold">{formatMoney(c.falta)}</span> más en efectivo
+              Cobra <span className="cifra font-semibold">{formatMoney(c.falta)}</span> más en efectivo
             </>
           ) : (
             <>

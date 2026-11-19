@@ -34,7 +34,7 @@ export function ImportarEtiquetasModal({
       open={open}
       onOpenChange={onOpenChange}
       titulo="Importar etiquetas"
-      descripcion="Pegá las etiquetas como las tengas: un arreglo JSON, separadas por comas, una por línea o como hashtags."
+      descripcion="Pega las etiquetas como las tengas: un arreglo JSON, separadas por comas, una por línea o como hashtags."
       placeholder={EJEMPLO}
       ayuda={
         <>

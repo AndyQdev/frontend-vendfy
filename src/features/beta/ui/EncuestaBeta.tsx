@@ -72,7 +72,7 @@ export function EncuestaBeta() {
       });
       toast.success("¡Gracias! Tus respuestas nos ayudan a mejorar Vendfy.");
     } catch (e: any) {
-      toast.error(e?.message ?? "No se pudo enviar. Probá de nuevo.");
+      toast.error(e?.message ?? "No se pudo enviar. Prueba de nuevo.");
     }
   };
 

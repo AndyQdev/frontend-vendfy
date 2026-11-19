@@ -344,7 +344,7 @@ export function AjusteStockDialog({
 
           {/* Qué hacer: solo cuando lo abrió la pistola (en la tabla ya se tocó + o −). */}
           {escaneo && (
-            <div role="radiogroup" aria-label="Qué querés hacer" className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1">
+            <div role="radiogroup" aria-label="Qué quieres hacer" className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1">
               {MODOS.map(({ id, label, icono: Icono }) => (
                 <button
                   key={id}
@@ -412,7 +412,7 @@ export function AjusteStockDialog({
                 <Label htmlFor="ajuste-concepto">¿Qué pasó?</Label>
                 <Select value={conceptoId} onValueChange={setConceptoId}>
                   <SelectTrigger id="ajuste-concepto">
-                    <SelectValue placeholder="Elegí un motivo" />
+                    <SelectValue placeholder="Elige un motivo" />
                   </SelectTrigger>
                   <SelectContent>
                     {conceptos.map((c) => (
@@ -497,8 +497,8 @@ export function AjusteStockDialog({
                     placeholder="Ej: 180.00"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Se usa para el costo promedio y el margen. Si no lo sabés,
-                    dejalo vacío.
+                    Se usa para el costo promedio y el margen. Si no lo sabes,
+                    déjalo vacío.
                   </p>
                 </div>
               )}
@@ -508,7 +508,7 @@ export function AjusteStockDialog({
           {escaneo && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ScanBarcode className="h-3.5 w-3.5 shrink-0" />
-              Escaneá el mismo producto otra vez para sumar uno.
+              Escanea el mismo producto otra vez para sumar uno.
             </p>
           )}
 

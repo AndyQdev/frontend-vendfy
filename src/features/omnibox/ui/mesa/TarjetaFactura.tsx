@@ -78,7 +78,7 @@ export function TarjetaFactura({
         <p className="mb-3 flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-[13px] font-medium text-warning-soft-foreground">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           La suma de los renglones (Bs {dinero(Number(e.suma))}) no da el total de la factura (Bs{" "}
-          {dinero(Number(e.totalImpreso))}). Revisá cantidades y costos antes de registrar.
+          {dinero(Number(e.totalImpreso))}). Revisa cantidades y costos antes de registrar.
         </p>
       )}
 
@@ -321,7 +321,7 @@ function CrearProducto({
       </div>
       {bajoCosto && (
         <p className="text-xs font-medium text-warning-soft-foreground">
-          Lo vendés a lo mismo o menos de lo que te costó (Bs {dinero(costo!)}).
+          Lo vendes a lo mismo o menos de lo que te costó (Bs {dinero(costo!)}).
         </p>
       )}
       <BotonCta type="submit" data-testid="omnibox-crear-producto-factura" disabled={!valido || crear.isPending} className="w-full sm:w-auto">

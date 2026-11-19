@@ -134,7 +134,7 @@ export function VistaPreviaTienda({
         const enOtraPagina = rutaActual.current && nombreDePagina(rutaActual.current, slugActual.current);
         toast.info(
           enOtraPagina
-            ? `${nombre} está en el inicio de la tienda: tocá "Volver al inicio" para verlo.`
+            ? `${nombre} está en el inicio de la tienda: toca "Volver al inicio" para verlo.`
             : `${nombre} no aparece en tu tienda: una sección sin datos no se muestra (por ejemplo, Destacados sin productos destacados).`,
         );
         return;

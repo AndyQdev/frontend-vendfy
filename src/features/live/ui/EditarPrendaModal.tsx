@@ -100,7 +100,7 @@ export function EditarPrendaModal({
 
     const precio = Number(price);
     if (!Number.isFinite(precio) || precio <= 0) return toast.error("Precio inválido");
-    if (subiendo) return toast.error("Esperá a que termine de subir la foto");
+    if (subiendo) return toast.error("Espera a que termine de subir la foto");
 
     try {
       await editar.mutateAsync({
@@ -135,7 +135,7 @@ export function EditarPrendaModal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar prenda</DialogTitle>
-            <DialogDescription>Tocá la foto para cambiarla.</DialogDescription>
+            <DialogDescription>Toca la foto para cambiarla.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
@@ -214,7 +214,7 @@ export function EditarPrendaModal({
                 disabled={eliminar.isPending || (item?.pedidos ?? 0) > 0}
                 title={
                   (item?.pedidos ?? 0) > 0
-                    ? "Ya hay pedidos de esta prenda: quitala del Live en vez de borrarla"
+                    ? "Ya hay pedidos de esta prenda: quítala del Live en vez de borrarla"
                     : undefined
                 }
               >

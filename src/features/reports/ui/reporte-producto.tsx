@@ -111,7 +111,7 @@ function Cifras({ r }: { r: Reporte }) {
         detalle={
           ganancia == null
             ? p.unidades > 0
-              ? "Sin costo registrado: cargá una compra"
+              ? "Sin costo registrado: carga una compra"
               : "Sin ventas en el período"
             : `Margen ${margen} %${p.costoCompleto ? "" : " · aprox."}`
         }
@@ -122,7 +122,7 @@ function Cifras({ r }: { r: Reporte }) {
         valor={libre != null ? libre.toLocaleString("es-BO") : "—"}
         detalle={
           libre == null
-            ? "No lo tenés en esta tienda"
+            ? "No lo tienes en esta tienda"
             : libre === 0
               ? "Sin stock"
               : alcanza != null

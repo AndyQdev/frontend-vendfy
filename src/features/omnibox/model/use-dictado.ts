@@ -129,7 +129,7 @@ export function useDictado(alTerminar: (audio: Blob) => void): Dictado {
       setEstado("inactivo");
       setError(
         e?.name === "NotAllowedError"
-          ? "No diste permiso para usar el micrófono. Habilitalo en el candado de la barra de direcciones."
+          ? "No diste permiso para usar el micrófono. Habilítalo en el candado de la barra de direcciones."
           : e?.name === "NotFoundError"
             ? "No encontramos ningún micrófono conectado."
             : "No se pudo acceder al micrófono.",
@@ -188,7 +188,7 @@ export function useDictado(alTerminar: (audio: Blob) => void): Dictado {
       }
       if (duracion < MINIMO_MS || audio.size < 2000) {
         setEstado("inactivo");
-        setError("Mantené apretado un momento y hablá.");
+        setError("Mantén apretado un momento y habla.");
         return;
       }
 

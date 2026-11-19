@@ -44,7 +44,7 @@ export function WebConTuIa({
   // El pedido es corto a propósito: la IA ya trae instrucciones para preguntar
   // lo que falte (color, logo, frase de inicio) y para elegir la tecnología.
   // Un prompt largo compite con esa guía en vez de ayudar.
-  const pedido = `Usando el conector de Vendfy, creá la web de mi tienda "${nombreTienda}".`;
+  const pedido = `Usando el conector de Vendfy, crea la web de mi tienda "${nombreTienda}".`;
 
   return (
     <Card className="space-y-6 p-6">
@@ -53,9 +53,9 @@ export function WebConTuIa({
           <Globe className="size-5" />
         </span>
         <div>
-          <h3 className="text-lg font-semibold">¿Querés una web con tu propio diseño? Hacela con tu IA</h3>
+          <h3 className="text-lg font-semibold">¿Quieres una web con tu propio diseño? Hazla con tu IA</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            El “Tema de Vendfy” sirve para empezar rápido. Si querés una web única, conectá tu propia IA a Vendfy y pedile
+            El “Tema de Vendfy” sirve para empezar rápido. Si quieres una web única, conecta tu propia IA a Vendfy y pídele
             el diseño que imagines. Ella usa tus productos, precios, stock, envíos y reseñas de verdad, y los pedidos
             que entren por esa web llegan a <strong className="text-foreground">Pedidos</strong> como siempre.
           </p>
@@ -67,7 +67,7 @@ export function WebConTuIa({
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4">
         <Palette className="mt-0.5 size-5 shrink-0 text-primary" />
         <div className="space-y-1 text-sm">
-          <p className="font-semibold">Antes de empezar, cargá tu marca</p>
+          <p className="font-semibold">Antes de empezar, carga tu marca</p>
           <p className="text-muted-foreground">
             Mientras más completa esté tu tienda, mejor sale la web y menos preguntas te hace la IA. Lo que más
             importa: tu <strong className="text-foreground">color</strong>, tu{" "}
@@ -82,12 +82,12 @@ export function WebConTuIa({
 
       <ol className="space-y-5">
         {/* 1 */}
-        <Paso numero={1} icono={PlugZap} titulo="Copiá la dirección del conector de Vendfy">
+        <Paso numero={1} icono={PlugZap} titulo="Copia la dirección del conector de Vendfy">
           <Copiable valor={MCP_URL} etiqueta="Dirección del conector" />
         </Paso>
 
         {/* 2 */}
-        <Paso numero={2} icono={MessageSquareText} titulo="Agregala a tu IA">
+        <Paso numero={2} icono={MessageSquareText} titulo="Agrégala a tu IA">
           <div role="tablist" className="mb-3 flex flex-wrap gap-1.5">
             {HERRAMIENTAS.map((h) => (
               <button
@@ -111,16 +111,16 @@ export function WebConTuIa({
         </Paso>
 
         {/* 3 */}
-        <Paso numero={3} icono={LogIn} titulo="Entrá con tu cuenta de Vendfy">
+        <Paso numero={3} icono={LogIn} titulo="Entra con tu cuenta de Vendfy">
           <p className="text-sm text-muted-foreground">
-            La primera vez, tu IA abre una ventana de Vendfy. Entrá con el mismo correo y contraseña de este panel y
-            tocá <strong className="text-foreground">Conectar</strong>. Si tenés varias tiendas, la IA te va a
+            La primera vez, tu IA abre una ventana de Vendfy. Entra con el mismo correo y contraseña de este panel y
+            toca <strong className="text-foreground">Conectar</strong>. Si tienes varias tiendas, la IA te va a
             preguntar para cuál es la web.
           </p>
         </Paso>
 
         {/* 4 */}
-        <Paso numero={4} icono={MessageSquareText} titulo="Pedile la web">
+        <Paso numero={4} icono={MessageSquareText} titulo="Pídele la web">
           <p className="mb-2 text-sm text-muted-foreground">
             Con esta frase alcanza. No hace falta que expliques el diseño: la IA te va a preguntar lo que necesite.
           </p>
@@ -129,8 +129,8 @@ export function WebConTuIa({
             <p className="font-semibold">Trabaja en tres pasos y te pide permiso dos veces</p>
             <ol className="list-decimal space-y-1 pl-5 text-muted-foreground marker:text-foreground">
               <li>
-                <strong className="text-foreground">Te pregunta.</strong> Tu color, tu logo, qué frase querés al
-                entrar. Si no tenés algo, te propone una alternativa; nunca se lo inventa.
+                <strong className="text-foreground">Te pregunta.</strong> Tu color, tu logo, qué frase quieres al
+                entrar. Si no tienes algo, te propone una alternativa; nunca se lo inventa.
               </li>
               <li>
                 <strong className="text-foreground">Te muestra el plan.</strong> Qué pantallas va a hacer y cómo se
@@ -142,17 +142,17 @@ export function WebConTuIa({
               </li>
             </ol>
             <p className="text-muted-foreground">
-              Si se pone a programar sin preguntarte nada, pedile que use primero la herramienta{" "}
+              Si se pone a programar sin preguntarte nada, pídele que use primero la herramienta{" "}
               <code className="rounded bg-muted px-1">describe_storefront_flow</code> del conector.
             </p>
           </div>
         </Paso>
 
         {/* 5 */}
-        <Paso numero={5} icono={Rocket} titulo="Publicala">
+        <Paso numero={5} icono={Rocket} titulo="Publícala">
           <p className="text-sm text-muted-foreground">
-            Cuando te guste, pedile a tu IA que te ayude a publicarla (por ejemplo en Vercel o Netlify, que tienen plan
-            gratis) o subila a tu propio dominio. Como la web lee todo de Vendfy, cuando cambies un precio o se
+            Cuando te guste, pídele a tu IA que te ayude a publicarla (por ejemplo en Vercel o Netlify, que tienen plan
+            gratis) o súbela a tu propio dominio. Como la web lee todo de Vendfy, cuando cambies un precio o se
             acabe un producto, la web se actualiza sola.
           </p>
         </Paso>
@@ -165,7 +165,7 @@ export function WebConTuIa({
           <p className="text-muted-foreground">
             El conector es de solo lectura: ve el catálogo, los precios, el stock, las categorías, las reseñas y la
             configuración de envío de tus tiendas. No puede modificar productos ni ver tus clientes, ventas o caja.
-            Los pedidos de la web entran como <em>pendientes</em> para que los confirmes vos.
+            Los pedidos de la web entran como <em>pendientes</em> para que los confirmes tú.
           </p>
         </div>
       </div>
@@ -179,9 +179,9 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
       return (
         <Pasos
           items={[
-            <>En claude.ai, entrá a <strong>Configuración → Conectores</strong>.</>,
-            <>Tocá <strong>Agregar conector personalizado</strong>, ponele de nombre “Vendfy” y pegá la dirección del paso 1.</>,
-            <>Tocá <strong>Conectar</strong>. En un chat nuevo, activá el conector Vendfy desde el menú de herramientas.</>,
+            <>En claude.ai, entra a <strong>Configuración → Conectores</strong>.</>,
+            <>Toca <strong>Agregar conector personalizado</strong>, ponle de nombre “Vendfy” y pega la dirección del paso 1.</>,
+            <>Toca <strong>Conectar</strong>. En un chat nuevo, activa el conector Vendfy desde el menú de herramientas.</>,
           ]}
         />
       );
@@ -189,9 +189,9 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
       return (
         <Pasos
           items={[
-            <>En ChatGPT, entrá a <strong>Configuración → Aplicaciones y conectores</strong> y activá el <strong>modo desarrollador</strong> (en opciones avanzadas).</>,
-            <>Creá un conector nuevo: nombre “Vendfy”, pegá la dirección del paso 1 y elegí autenticación <strong>OAuth</strong>.</>,
-            <>En un chat nuevo, elegí el conector Vendfy desde el botón <strong>+</strong>. Necesita un plan que incluya conectores personalizados.</>,
+            <>En ChatGPT, entra a <strong>Configuración → Aplicaciones y conectores</strong> y activa el <strong>modo desarrollador</strong> (en opciones avanzadas).</>,
+            <>Crea un conector nuevo: nombre “Vendfy”, pega la dirección del paso 1 y elige autenticación <strong>OAuth</strong>.</>,
+            <>En un chat nuevo, elige el conector Vendfy desde el botón <strong>+</strong>. Necesita un plan que incluya conectores personalizados.</>,
           ]}
         />
       );
@@ -205,9 +205,9 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
           <Copiable valor={`claude mcp add --transport http --scope user vendfy ${MCP_URL}`} etiqueta="Comando" codigo />
           <Pasos
             items={[
-              <>Abrí <code className="rounded bg-muted px-1">claude</code> en la carpeta donde va a vivir tu web.</>,
-              <>Escribí <code className="rounded bg-muted px-1">/mcp</code>, elegí <strong>vendfy</strong> y tocá <strong>Authenticate</strong>.</>,
-              <>Se abre el navegador: entrá con tu cuenta de Vendfy y tocá <strong>Conectar</strong>. Al volver, “vendfy” aparece como conectado.</>,
+              <>Abre <code className="rounded bg-muted px-1">claude</code> en la carpeta donde va a vivir tu web.</>,
+              <>Escribe <code className="rounded bg-muted px-1">/mcp</code>, elige <strong>vendfy</strong> y toca <strong>Authenticate</strong>.</>,
+              <>Se abre el navegador: entra con tu cuenta de Vendfy y toca <strong>Conectar</strong>. Al volver, “vendfy” aparece como conectado.</>,
             ]}
           />
         </div>
@@ -217,9 +217,9 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
         <div className="space-y-2">
           <Pasos
             items={[
-              <>En Antigravity, abrí el panel del agente y tocá el menú <strong>⋯ → MCP Servers</strong>.</>,
-              <>Entrá a <strong>Manage MCP Servers → View raw config</strong>: se abre el archivo <code className="rounded bg-muted px-1">mcp_config.json</code>.</>,
-              <>Agregá esto (si ya tenés otros servidores, sumá solo el bloque <code className="rounded bg-muted px-1">"vendfy"</code> dentro de <code className="rounded bg-muted px-1">mcpServers</code>), guardá y tocá <strong>Refresh</strong>:</>,
+              <>En Antigravity, abre el panel del agente y toca el menú <strong>⋯ → MCP Servers</strong>.</>,
+              <>Entra a <strong>Manage MCP Servers → View raw config</strong>: se abre el archivo <code className="rounded bg-muted px-1">mcp_config.json</code>.</>,
+              <>Agrega esto (si ya tienes otros servidores, suma solo el bloque <code className="rounded bg-muted px-1">"vendfy"</code> dentro de <code className="rounded bg-muted px-1">mcpServers</code>), guarda y toca <strong>Refresh</strong>:</>,
             ]}
           />
           <Copiable
@@ -229,7 +229,7 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
             multilinea
           />
           <p className="text-sm text-muted-foreground">
-            Al usarlo por primera vez te pide entrar con tu cuenta de Vendfy. Después pedíselo al agente en el chat,
+            Al usarlo por primera vez te pide entrar con tu cuenta de Vendfy. Después pídeselo al agente en el chat,
             como en el paso 4.
           </p>
         </div>
@@ -238,7 +238,7 @@ function InstruccionesDe({ herramienta }: { herramienta: Herramienta }) {
       return (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            En Cursor, entrá a <strong>Settings → MCP → Add new MCP server</strong> y pegá esto (queda en{" "}
+            En Cursor, entra a <strong>Settings → MCP → Add new MCP server</strong> y pega esto (queda en{" "}
             <code className="rounded bg-muted px-1">.cursor/mcp.json</code>):
           </p>
           <Copiable
@@ -310,7 +310,7 @@ function Copiable({
       toast.success("Copiado");
       setTimeout(() => setCopiado(false), 2000);
     } catch {
-      toast.error("No se pudo copiar. Seleccioná el texto y copialo a mano.");
+      toast.error("No se pudo copiar. Selecciona el texto y cópialo a mano.");
     }
   }
 
@@ -371,8 +371,8 @@ function WebPublicada({
         <div className="space-y-1">
           <p className="text-sm font-semibold">¿Ya publicaste tu web?</p>
           <p className="text-sm text-muted-foreground">
-            Pegá su dirección y el botón de “tienda online” del encabezado va a abrir la tuya en vez de la de Vendfy.
-            Dejalo vacío si todavía no la tenés.
+            Pega su dirección y el botón de “tienda online” del encabezado va a abrir la tuya en vez de la de Vendfy.
+            Déjalo vacío si todavía no la tienes.
           </p>
         </div>
       </div>

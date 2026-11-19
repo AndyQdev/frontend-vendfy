@@ -162,8 +162,8 @@ export function SelectorFormaDeVentaCaja({ producto, onCerrar, onAgregar }: Prop
           <DialogTitle>{producto?.name ?? "Agregar a la venta"}</DialogTitle>
           <DialogDescription>
             {fraccionado
-              ? `Hay ${producto?.stock ?? 0} ${simbolo} en stock. Elegí cómo se lo lleva.`
-              : "Elegí cuántas unidades van a la venta."}
+              ? `Hay ${producto?.stock ?? 0} ${simbolo} en stock. Elige cómo se lo lleva.`
+              : "Elige cuántas unidades van a la venta."}
           </DialogDescription>
         </DialogHeader>
 
@@ -287,7 +287,7 @@ export function SelectorFormaDeVentaCaja({ producto, onCerrar, onAgregar }: Prop
               </p>
             ) : !medidaValida ? (
               <p className="text-xs text-destructive">
-                Elegí una medida válida, de a {elegida?.presentacion?.stepBaseQuantity ?? 1} {simbolo}.
+                Elige una medida válida, de a {elegida?.presentacion?.stepBaseQuantity ?? 1} {simbolo}.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">

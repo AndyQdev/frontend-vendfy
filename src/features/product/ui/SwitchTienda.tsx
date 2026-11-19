@@ -42,7 +42,7 @@ const TEXTOS: Record<
     avisoOff: (n) => `"${n}" dejó de verse en tu tienda web`,
     accionOn: (n) => `Mostrar ${n} en la tienda web`,
     accionOff: (n) => `Ocultar ${n} de la tienda web`,
-    ayudaTodas: "La visibilidad es de cada tienda. Elegí una arriba para cambiarla.",
+    ayudaTodas: "La visibilidad es de cada tienda. Elige una arriba para cambiarla.",
   },
   sellWithoutStock: {
     encendido: "A pedido: se puede comprar aunque no haya stock",
@@ -51,7 +51,7 @@ const TEXTOS: Record<
     avisoOff: (n) => `"${n}" solo se vende con stock`,
     accionOn: (n) => `Permitir pedir ${n} sin stock`,
     accionOff: (n) => `Dejar de vender ${n} sin stock`,
-    ayudaTodas: "Se configura por tienda. Elegí una arriba para cambiarlo.",
+    ayudaTodas: "Se configura por tienda. Elige una arriba para cambiarlo.",
   },
 };
 

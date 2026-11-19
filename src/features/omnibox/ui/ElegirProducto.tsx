@@ -70,7 +70,7 @@ export function ElegirProducto({
           autoFocus={autoFoco}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Buscá el producto en tu catálogo…"
+          placeholder="Busca el producto en tu catálogo…"
           aria-label="Buscar el producto"
           className="pl-9"
         />
@@ -111,10 +111,10 @@ export function ElegirProducto({
         >
           <div className="min-w-[180px] flex-1">
             <p className="text-[13px] font-semibold">
-              No tenés “{consulta}” en tu catálogo
+              No tienes “{consulta}” en tu catálogo
             </p>
             <p className="text-xs text-muted-foreground">
-              Probá con otro nombre, o crealo acá mismo.
+              Prueba con otro nombre, o créalo acá mismo.
             </p>
           </div>
           {crearEnChat ? (

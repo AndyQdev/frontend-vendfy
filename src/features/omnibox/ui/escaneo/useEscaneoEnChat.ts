@@ -81,7 +81,7 @@ export function useEscaneoEnChat({
       cambiar(id, (e) => ({
         ...e,
         estado: "error",
-        error: error instanceof ApiError ? error.message : "No pude buscar el código. Revisá la conexión.",
+        error: error instanceof ApiError ? error.message : "No pude buscar el código. Revisa la conexión.",
       }));
       return;
     }
@@ -140,7 +140,7 @@ export function useEscaneoEnChat({
       cambiar(id, (x) => ({
         ...x,
         estado: "nuevo",
-        error: error instanceof ApiError ? error.message : "No se pudo crear. Probá de nuevo.",
+        error: error instanceof ApiError ? error.message : "No se pudo crear. Prueba de nuevo.",
       }));
     }
   }

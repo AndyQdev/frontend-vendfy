@@ -85,7 +85,7 @@ export function AltaRapidaProducto({
     if (!name.trim()) return toast.error("Falta el nombre");
     const precio = Number(price);
     if (!Number.isFinite(precio) || precio <= 0) return toast.error("Precio inválido");
-    if (subiendo) return toast.error("Esperá a que termine de subir la foto");
+    if (subiendo) return toast.error("Espera a que termine de subir la foto");
 
     try {
       await agregar.mutateAsync({

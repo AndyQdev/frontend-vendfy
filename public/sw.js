@@ -93,7 +93,7 @@ self.addEventListener("fetch", (event) => {
           return (
             offline ??
             new Response(
-              "<h1>Sin conexión</h1><p>Volvé a intentarlo cuando tengas internet.</p>",
+              "<h1>Sin conexión</h1><p>Vuelve a intentarlo cuando tengas internet.</p>",
               {
                 headers: { "Content-Type": "text/html; charset=utf-8" },
                 status: 503,

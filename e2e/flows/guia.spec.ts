@@ -135,7 +135,7 @@ test.describe("avisos desde el chat", () => {
     await expect(guia(page)).toHaveAttribute("data-nivel", "advertencia");
     await expect(guia(page)).toHaveAttribute("role", "status");
     // Una advertencia no señala sola: el foco sigue en el campo del chat.
-    await expect(page.getByLabel("Qué necesitás")).toBeFocused();
+    await expect(page.getByLabel("Qué necesitas")).toBeFocused();
 
     await guia(page).getByTestId("omnibox-guia-accion").filter({ hasText: "Ver cantidad" }).click();
     await brilla(page, `[data-campo="cantidad:${aceite.productId}"]`);

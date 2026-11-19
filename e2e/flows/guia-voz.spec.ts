@@ -104,7 +104,7 @@ test.describe("la Guía habla cuando se le habla", () => {
     await expect.poll(() => dichas(page)).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^Agregado a la venta, 1 .+bolivianos$/),
-        `No dijiste cuántas de ${coca.nombre}: puse 1. ¿Son más? Decí cuántas.`,
+        `No dijiste cuántas de ${coca.nombre}: puse 1. ¿Son más? Di cuántas.`,
       ]),
     );
     await expect(page.getByTestId("omnibox-voz-respuestas")).toContainText("Te contesto hablando");

@@ -96,7 +96,7 @@ export const Compositor = forwardRef<
               ))}
             </span>
             <span className="min-w-0 flex-1 truncate text-[13px] text-destructive">
-              Escuchando… tocá el cuadrado para terminar
+              Escuchando… toca el cuadrado para terminar
             </span>
             <button
               type="button"
@@ -124,8 +124,8 @@ export const Compositor = forwardRef<
               ref={ref}
               value={texto}
               onChange={(e) => onTexto(e.target.value)}
-              placeholder={procesando ? "Transcribiendo…" : "Escribí o dictá lo que necesitás"}
-              aria-label="Qué necesitás"
+              placeholder={procesando ? "Transcribiendo…" : "Escribe o dicta lo que necesitas"}
+              aria-label="Qué necesitas"
               disabled={procesando}
               enterKeyHint="send"
               // 16 px en el teléfono: con menos, iOS hace zoom al enfocar.
@@ -147,7 +147,7 @@ export const Compositor = forwardRef<
                 : !vozDisponible
                   ? "El dictado no está configurado en el servidor"
                   : grabando
-                    ? "Tocá para terminar"
+                    ? "Toca para terminar"
                     : "Dictar"
           }
           className={cn(

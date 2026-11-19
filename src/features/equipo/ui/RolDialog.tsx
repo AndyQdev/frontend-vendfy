@@ -91,7 +91,7 @@ export function RolDialog({
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>{rol ? `Editar «${rol.name}»` : "Nuevo rol"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
-            Marcá lo que puede hacer quien tenga este rol. Lo que no marques, no lo ve en el panel.
+            Marca lo que puede hacer quien tenga este rol. Lo que no marques, no lo ve en el panel.
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 

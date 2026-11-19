@@ -131,7 +131,7 @@ export function PanelLista({
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">Sin filtros. Pedime los que quieras: «solo las de septiembre», «las de QR»…</p>
+          <p className="text-xs text-muted-foreground">Sin filtros. Pídeme los que quieras: «solo las de septiembre», «las de QR»…</p>
         )}
         {datos.ignorados?.length ? (
           <p className="flex items-start gap-1.5 text-xs text-warning-soft-foreground">
@@ -249,7 +249,7 @@ export function PanelLista({
                   Ver más
                 </button>
               ) : (
-                <span>Para ver otras, pedímelas con un filtro.</span>
+                <span>Para ver otras, pídemelas con un filtro.</span>
               )}
             </div>
           ) : null}

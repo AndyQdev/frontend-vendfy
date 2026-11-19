@@ -109,7 +109,7 @@ export function CompraConIaModal({
     if (nueva === moneda) return;
     if (lineas?.length) {
       if (!dolar.valor) {
-        toast.error("Escribí el dólar para pasar los costos");
+        toast.error("Escribe el dólar para pasar los costos");
         return;
       }
       setLineas((prev) => prev!.map((l) => ({ ...l, costo: convertir(l.costo, moneda, nueva, dolar.valor) ?? l.costo })));
@@ -123,7 +123,7 @@ export function CompraConIaModal({
     try {
       const p = await leer.mutateAsync({ archivo, storeId });
       if (!p.items?.length) {
-        toast.error("No encontré productos en ese documento. Probá con otro archivo o una foto más nítida.");
+        toast.error("No encontré productos en ese documento. Prueba con otro archivo o una foto más nítida.");
         return;
       }
       const e = p.entidades as Record<string, any>;
@@ -201,7 +201,7 @@ export function CompraConIaModal({
             Crear compra con IA
           </DialogTitle>
           <DialogDescription>
-            Subí la nota de compra o la factura del proveedor (PDF, Word, Excel o foto). La IA reconoce los
+            Sube la nota de compra o la factura del proveedor (PDF, Word, Excel o foto). La IA reconoce los
             productos, cantidades y costos, y arma la compra para que la revises.
           </DialogDescription>
         </DialogHeader>
@@ -225,7 +225,7 @@ export function CompraConIaModal({
                 <span className="text-sm font-medium">{archivo.name}</span>
               ) : (
                 <>
-                  <span className="text-sm font-medium">Tocá o arrastrá el archivo acá</span>
+                  <span className="text-sm font-medium">Toca o arrastra el archivo acá</span>
                   <span className="text-xs text-muted-foreground">PDF, Word, Excel, TXT o imagen · hasta 10 MB</span>
                 </>
               )}
@@ -338,7 +338,7 @@ export function CompraConIaModal({
                               </button>
                             )}
                             <p className="text-xs text-amber-700">
-                              Elegí a qué producto corresponde, o omití el renglón. Si es nuevo, crealo antes en Productos.
+                              Elige a qué producto corresponde, o omite el renglón. Si es nuevo, créalo antes en Productos.
                             </p>
                           </div>
                         )}
@@ -394,7 +394,7 @@ export function CompraConIaModal({
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {totalBs != null && dolar.valor
                       ? `= Bs ${dinero(totalBs)} al dólar de ${formatDolar(dolar.valor)}`
-                      : "Escribí el dólar para registrarla"}
+                      : "Escribe el dólar para registrarla"}
                   </p>
                 )}
                 {pendientes > 0 && (

@@ -267,7 +267,7 @@ export default function CreateProduct() {
         } else {
           const reemplaza = anterior && anterior !== codigo;
           toast.success(reemplaza ? "Código reemplazado" : "Código cargado", {
-            description: "Tocá Actualizar para guardarlo.",
+            description: "Toca Actualizar para guardarlo.",
             ...(reemplaza
               ? { action: { label: "Deshacer", onClick: () => setFormData((prev) => ({ ...prev, barcode: anterior })) } }
               : {}),
@@ -281,7 +281,7 @@ export default function CreateProduct() {
         sonar("sugerido");
         setDelCatalogo(r);
         llenarDesdeCatalogo(r.sugerencia);
-        toast.success("Lo completamos con el catálogo", { description: "Revisá los datos y poné el precio." });
+        toast.success("Lo completamos con el catálogo", { description: "Revisa los datos y pon el precio." });
         enfocar("price");
       } else {
         sonar("nuevo");
@@ -292,7 +292,7 @@ export default function CreateProduct() {
           setCategoriaSugerida("");
         }
         setDelCatalogo(null);
-        toast.info("Código nuevo", { description: "Nadie lo cargó todavía: completá el nombre y el precio." });
+        toast.info("Código nuevo", { description: "Nadie lo cargó todavía: completa el nombre y el precio." });
         enfocar("name");
       }
       return true;
@@ -621,7 +621,7 @@ export default function CreateProduct() {
         >
           <ScanBarcode className="h-4 w-4 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1">
-            {isEditMode ? "Ese código ya es de " : "Ya tenés "}
+            {isEditMode ? "Ese código ya es de " : "Ya tienes "}
             <span className="font-semibold">«{codigoAjeno.nombre}»</span>
             {isEditMode ? ": un código no puede ser de dos productos." : " con este código: no hace falta crearlo de nuevo."}
           </span>
@@ -671,7 +671,7 @@ export default function CreateProduct() {
                 <div className="flex items-center gap-2 mb-1">
                   <Label htmlFor="barcode">Código de barras</Label>
                   <HintIcon>
-                    El que viene impreso en el envase. Hacé clic acá y escanealo con la pistola. Con esto, al escanear el producto en cualquier pantalla aparece solo, y en Caja va directo a la venta.
+                    El que viene impreso en el envase. Haz clic acá y escanéalo con la pistola. Con esto, al escanear el producto en cualquier pantalla aparece solo, y en Caja va directo a la venta.
                   </HintIcon>
                 </div>
                 <div className="relative">
@@ -683,7 +683,7 @@ export default function CreateProduct() {
                     data-scanner="input"
                     value={formData.barcode ?? ""}
                     onChange={handleInputChange}
-                    placeholder="Escaneá o escribí el código"
+                    placeholder="Escanea o escribe el código"
                     className="pl-9 font-mono"
                     autoComplete="off"
                   />
@@ -711,7 +711,7 @@ export default function CreateProduct() {
               <div className="space-y-1">
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-                  Completado con el catálogo de productos. Revisalo y poné el precio.
+                  Completado con el catálogo de productos. Revísalo y pon el precio.
                 </p>
                 {delCatalogo.sugerencia.ia?.estado === "generando" && (
                   <SeguirIa

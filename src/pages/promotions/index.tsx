@@ -69,8 +69,8 @@ export default function PromotionsPage() {
         <PageHeader title="Promociones" description="Campañas con descuento, cada una con su página." />
         <EmptyState
           icon={BadgePercent}
-          title="Elegí una tienda"
-          description="Las promociones son de cada tienda. Elegí una arriba, en el selector de tienda."
+          title="Elige una tienda"
+          description="Las promociones son de cada tienda. Elige una arriba, en el selector de tienda."
         />
       </div>
     );
@@ -82,7 +82,7 @@ export default function PromotionsPage() {
       await navigator.clipboard.writeText(enlace(p));
       toast.success("Enlace copiado");
     } catch {
-      toast.error("No se pudo copiar. Copialo a mano desde la barra de la página.");
+      toast.error("No se pudo copiar. Cópialo a mano desde la barra de la página.");
     }
   };
   const alternar = async (p: Promocion, activa: boolean) => {
@@ -166,8 +166,8 @@ export default function PromotionsPage() {
       {!isLoading && promociones.length === 0 && (
         <EmptyState
           icon={BadgePercent}
-          title="Todavía no tenés promociones"
-          description="Elegí uno o varios productos, ponele un descuento y una fecha, y compartí su página. El precio rebajado se ve en la tienda y se cobra en el carrito."
+          title="Todavía no tienes promociones"
+          description="Elige uno o varios productos, ponle un descuento y una fecha, y comparte su página. El precio rebajado se ve en la tienda y se cobra en el carrito."
           primaryAction={puedeGestionar ? { label: "Crear mi primera promoción", onClick: () => setFormulario({ abierto: true }) } : undefined}
         />
       )}

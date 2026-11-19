@@ -125,7 +125,7 @@ export function PromocionForm({
     tipo === "none"
       ? null
       : !(numero > 0)
-        ? "Poné cuánto se descuenta."
+        ? "Pon cuánto se descuenta."
         : tipo === "percent" && numero > 95
           ? "El porcentaje no puede pasar de 95."
           : null;
@@ -134,9 +134,9 @@ export function PromocionForm({
 
   const falta =
     nombre.trim().length < 2
-      ? "Ponele un nombre."
+      ? "Ponle un nombre."
       : productos.length === 0
-        ? "Elegí al menos un producto."
+        ? "Elige al menos un producto."
         : errorDeDescuento || errorDeFechas;
 
   const guardando = crear.isPending || editar.isPending;
@@ -182,7 +182,7 @@ export function PromocionForm({
     try {
       setImagen(await subirImagenDeTienda(f));
     } catch {
-      toast.error("No se pudo subir la imagen. Probá con un JPG, PNG o WebP de hasta 5 MB.");
+      toast.error("No se pudo subir la imagen. Prueba con un JPG, PNG o WebP de hasta 5 MB.");
     } finally {
       setSubiendo(false);
     }
@@ -204,7 +204,7 @@ export function PromocionForm({
           <DialogHeader>
             <DialogTitle>{promocion ? "Editar promoción" : "Nueva promoción"}</DialogTitle>
             <DialogDescription>
-              Una campaña con su propia página en la tienda: la compartís en redes y tus clientes ven todos sus productos a la vez.
+              Una campaña con su propia página en la tienda: la compartes en redes y tus clientes ven todos sus productos a la vez.
             </DialogDescription>
           </DialogHeader>
 

@@ -245,7 +245,7 @@ export function OnboardingChecklist() {
 
           <div className="flex items-center justify-between border-t border-border bg-muted/50 px-4 py-3">
             <p className="text-[11px] text-muted-foreground">
-              Lo abrís cuando quieras desde la campana, arriba.
+              Lo abres cuando quieras desde la campana, arriba.
             </p>
             <p className="text-[10px] text-muted-foreground">A tu ritmo</p>
           </div>

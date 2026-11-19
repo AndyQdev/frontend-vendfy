@@ -150,7 +150,7 @@ export function LineaDolar({
             }}
             className="cifra h-8 w-24 rounded-md border border-input bg-card px-2 text-base font-semibold outline-none focus:border-primary aria-[invalid=true]:border-destructive md:text-sm"
           />
-          {sinDolar && <span className="text-xs text-warning">No se pudo traer el dólar de hoy: escribilo</span>}
+          {sinDolar && <span className="text-xs text-warning">No se pudo traer el dólar de hoy: escríbelo</span>}
         </label>
       ) : (
         <>
@@ -187,7 +187,7 @@ export function LineaDolar({
       {lejos && !editando && (
         <span className="flex w-full items-center gap-1 text-xs text-warning">
           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-          Está lejos del dólar de hoy (Bs {formatDolar(delDia!.valor)}). Revisalo antes de guardar.
+          Está lejos del dólar de hoy (Bs {formatDolar(delDia!.valor)}). Revísalo antes de guardar.
         </span>
       )}
     </div>

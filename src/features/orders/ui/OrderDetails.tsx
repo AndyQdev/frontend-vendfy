@@ -425,7 +425,7 @@ function BarraArmado({
       <div className="mb-3 flex items-center gap-3 rounded-lg border border-dashed p-3" data-testid="armado">
         <ScanBarcode className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
         <p className="text-[13px] text-muted-foreground">
-          Escaneá cada producto al ponerlo en la bolsa para armarlo. Avisa si algo no es de este pedido.
+          Escanea cada producto al ponerlo en la bolsa para armarlo. Avisa si algo no es de este pedido.
         </p>
       </div>
     );

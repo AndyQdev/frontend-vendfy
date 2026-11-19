@@ -138,8 +138,8 @@ export function EquipoView() {
       />
       {lleno ? (
         <p className="rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
-          Tu plan ({equipo?.plan.nombre}) permite {equipo?.limiteUsuarios} usuarios, contándote a vos. Para sumar a alguien,
-          desactivá a otra persona o cambiá de plan.
+          Tu plan ({equipo?.plan.nombre}) permite {equipo?.limiteUsuarios} usuarios, contándote a ti. Para sumar a alguien,
+          desactiva a otra persona o cambia de plan.
         </p>
       ) : null}
 
@@ -266,7 +266,7 @@ function Personas({ miembros, lleno, onEditar }: { miembros: Miembro[]; lleno: b
 
       {soloDueno ? (
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          Por ahora solo estás vos. Sumá a tu cajera o a quien te ayuda con el inventario: cada uno entra con su usuario y ve
+          Por ahora solo estás tú. Suma a tu cajera o a quien te ayuda con el inventario: cada uno entra con su usuario y ve
           solo lo que le corresponde.
         </p>
       ) : null}
@@ -276,7 +276,7 @@ function Personas({ miembros, lleno, onEditar }: { miembros: Miembro[]; lleno: b
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar a {aEliminar?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ya no va a poder entrar y desaparece del equipo. Si solo querés que deje de entrar por un tiempo, desactivalo.
+              Ya no va a poder entrar y desaparece del equipo. Si solo quieres que deje de entrar por un tiempo, desactívalo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -306,15 +306,15 @@ function Personas({ miembros, lleno, onEditar }: { miembros: Miembro[]; lleno: b
 /** Después de dar de alta (o de cambiarle la contraseña): lo que el dueño le tiene que pasar. */
 function DatosDeIngreso({ credenciales, onClose }: { credenciales: Credenciales | null; onClose: () => void }) {
   const texto = credenciales
-    ? `Hola ${credenciales.nombre.split(" ")[0]}, ya podés entrar a Vendfy en ${window.location.origin}\nCorreo: ${credenciales.email}\nContraseña: ${credenciales.password}\nLa primera vez te va a pedir que elijas una propia.`
+    ? `Hola ${credenciales.nombre.split(" ")[0]}, ya puedes entrar a Vendfy en ${window.location.origin}\nCorreo: ${credenciales.email}\nContraseña: ${credenciales.password}\nLa primera vez te va a pedir que elijas una propia.`
     : "";
   return (
     <ResponsiveDialog open={!!credenciales} onOpenChange={(v) => !v && onClose()}>
       <ResponsiveDialogContent className="sm:max-w-[440px]">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Pasale estos datos a {credenciales?.nombre.split(" ")[0]}</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle>Pásale estos datos a {credenciales?.nombre.split(" ")[0]}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
-            La contraseña no se vuelve a mostrar. Si se pierde, le ponés una nueva desde Editar.
+            La contraseña no se vuelve a mostrar. Si se pierde, le pones una nueva desde Editar.
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         <ResponsiveDialogBody>
@@ -324,7 +324,7 @@ function DatosDeIngreso({ credenciales, onClose }: { credenciales: Credenciales 
           <Button
             variant="outline"
             className="gap-1.5"
-            onClick={() => navigator.clipboard?.writeText(texto).then(() => toast.success("Copiado: pegalo en WhatsApp"))}
+            onClick={() => navigator.clipboard?.writeText(texto).then(() => toast.success("Copiado: pégalo en WhatsApp"))}
           >
             <Copy className="size-4" /> Copiar
           </Button>
@@ -368,7 +368,7 @@ function Roles({ roles }: { roles: RolEquipo[] }) {
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Los roles de Vendfy sirven para empezar. Si necesitás otra combinación, duplicá uno o creá el tuyo.
+          Los roles de Vendfy sirven para empezar. Si necesitas otra combinación, duplica uno o crea el tuyo.
         </p>
         <Button
           variant="outline"
@@ -422,7 +422,7 @@ function Roles({ roles }: { roles: RolEquipo[] }) {
                     size="sm"
                     className="gap-1.5 text-destructive"
                     disabled={r.usuarios > 0 || eliminar.isPending}
-                    title={r.usuarios > 0 ? "Cambiales el rol a quienes lo tienen antes de eliminarlo" : undefined}
+                    title={r.usuarios > 0 ? "Cámbiales el rol a quienes lo tienen antes de eliminarlo" : undefined}
                     onClick={() => borrar(r)}
                   >
                     <Trash2 className="size-4" /> Eliminar

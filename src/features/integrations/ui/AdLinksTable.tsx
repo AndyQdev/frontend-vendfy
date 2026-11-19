@@ -129,7 +129,7 @@ function QueVende({
       {esSugerencia && (
         <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
           <Sparkles className="h-3 w-3 shrink-0" />
-          Sugerido — confirmalo para que sea exacto
+          Sugerido — confírmalo para que sea exacto
         </p>
       )}
     </>

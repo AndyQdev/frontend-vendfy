@@ -39,7 +39,7 @@ export function AccionesAnalisis({ analisis, storeId, tienda }: { analisis: Anal
         toast.success("Fijada: la vas a encontrar al entrar al asistente, con los datos al día");
       }
     } catch (error: any) {
-      toast.error(error?.message ?? "No pude guardarla. Probá de nuevo.");
+      toast.error(error?.message ?? "No pude guardarla. Prueba de nuevo.");
     }
   }
 
@@ -48,7 +48,7 @@ export function AccionesAnalisis({ analisis, storeId, tienda }: { analisis: Anal
     try {
       await exportar.excel(analisis);
     } catch {
-      toast.error("No pude armar el Excel. Probá de nuevo.");
+      toast.error("No pude armar el Excel. Prueba de nuevo.");
     } finally {
       setExportando(false);
     }
@@ -58,7 +58,7 @@ export function AccionesAnalisis({ analisis, storeId, tienda }: { analisis: Anal
     const vista = document.querySelector<HTMLElement>('[data-testid="omnibox-vista"]');
     if (!vista) return;
     if (!exportar.pdf(vista, analisis.vista.titulo)) {
-      toast.error("El navegador bloqueó la ventana para imprimir. Permití las ventanas emergentes de Vendfy.");
+      toast.error("El navegador bloqueó la ventana para imprimir. Permite las ventanas emergentes de Vendfy.");
     }
   }
 

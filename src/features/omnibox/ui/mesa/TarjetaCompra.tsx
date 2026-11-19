@@ -76,7 +76,7 @@ export function TarjetaCompra({ evento, cuando }: { evento: EventoCompra; cuando
       )}
 
       <p className="text-xs text-muted-foreground">
-        Una compra recibida no se anula: si algo vino mal, corregilo con un ajuste de stock (“quedan 8 cocas no 12”).
+        Una compra recibida no se anula: si algo vino mal, corrígelo con un ajuste de stock (“quedan 8 cocas no 12”).
       </p>
     </article>
   );

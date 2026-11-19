@@ -68,7 +68,7 @@ export function FormularioCliente({
         <p data-testid="formulario-falta" className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Mic className="mt-px size-3.5 shrink-0" />
           <span>
-            Falta {falta.map((c) => c.etiqueta).join(" y ")}. Podés escribirlo acá o decírmelo en el chat («su teléfono es…»).
+            Falta {falta.map((c) => c.etiqueta).join(" y ")}. Puedes escribirlo acá o decírmelo en el chat («su teléfono es…»).
           </span>
         </p>
       ) : null}

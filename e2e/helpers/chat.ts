@@ -8,7 +8,7 @@ import { expect, type Page } from "@playwright/test";
  * haría la suite lenta cuando va rápido y frágil cuando va lento.
  */
 export async function decir(page: Page, texto: string) {
-  const campo = page.getByLabel("Qué necesitás");
+  const campo = page.getByLabel("Qué necesitas");
   await campo.fill(texto);
   await campo.press("Enter");
   await expect(page.getByTestId("omnibox-pensando")).toHaveCount(0, { timeout: 30_000 });

@@ -409,7 +409,7 @@ export function PurchaseOrderCreate() {
     for (const item of items) {
       if (item.quantity <= 0) { toast.error(`Cantidad inválida en "${item.productName}"`); return; }
     }
-    if (enDolares && !dolar.valor) { toast.error("Escribí el dólar de la compra"); return; }
+    if (enDolares && !dolar.valor) { toast.error("Escribe el dólar de la compra"); return; }
 
     try {
       const created = await createMutation.mutateAsync({
@@ -444,7 +444,7 @@ export function PurchaseOrderCreate() {
         </Button>
         <div>
           <h1 className="titulo-pagina">Nueva compra</h1>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">Escaneá los productos o elegilos de la lista, y registrá la compra</p>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">Escanea los productos o elígelos de la lista, y registra la compra</p>
         </div>
       </div>
 
@@ -767,7 +767,7 @@ export function PurchaseOrderCreate() {
               <ScanBarcode className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">Sin productos todavía</p>
               <p className="text-sm mt-1">
-                Pasá los productos por el escáner: se van cargando acá. También podés elegirlos de la lista.
+                Pasa los productos por el escáner: se van cargando acá. También puedes elegirlos de la lista.
               </p>
             </Card>
           )}

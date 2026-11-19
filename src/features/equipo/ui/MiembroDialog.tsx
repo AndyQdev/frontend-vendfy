@@ -119,7 +119,7 @@ export function MiembroDialog({
           <ResponsiveDialogTitle>{esAlta ? "Agregar a alguien del equipo" : `Editar a ${miembro!.name}`}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
             {esAlta
-              ? "Entra con su correo y una contraseña que le pasás vos. La primera vez elige la suya."
+              ? "Entra con su correo y una contraseña que le pasas tú. La primera vez elige la suya."
               : "Lo que cambies se aplica la próxima vez que use el panel."}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
@@ -168,7 +168,7 @@ export function MiembroDialog({
                 <span className="text-xs text-muted-foreground">@{t.slug}</span>
               </label>
             ))}
-            {sucursales.length === 0 ? <p className="text-xs text-destructive">Elegí al menos una</p> : null}
+            {sucursales.length === 0 ? <p className="text-xs text-destructive">Elige al menos una</p> : null}
           </fieldset>
 
           <div className="space-y-1.5">
@@ -178,7 +178,7 @@ export function MiembroDialog({
                 id="eq-clave"
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
-                placeholder={esAlta ? "" : "Dejala vacía para no cambiarla"}
+                placeholder={esAlta ? "" : "Déjala vacía para no cambiarla"}
                 className="font-mono"
               />
               <Button type="button" variant="outline" size="icon" title="Generar otra" onClick={() => setClave(claveAlAzar())}>

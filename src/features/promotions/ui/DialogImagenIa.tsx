@@ -117,13 +117,13 @@ export function DialogImagenIa({
   const maxProductos = modo === "product" ? 1 : 4;
   const faltaAlgo =
     brief.trim().length < 3
-      ? "Contanos qué querés ver en la imagen."
+      ? "Cuéntanos qué quieres ver en la imagen."
       : modo === "product" && productos.length !== 1
-        ? "Elegí un producto."
+        ? "Elige un producto."
         : modo === "products" && (productos.length < 2 || productos.length > 4)
-          ? "Elegí entre 2 y 4 productos."
+          ? "Elige entre 2 y 4 productos."
           : modo === "promotion" && !promotionId
-            ? "Elegí una promoción."
+            ? "Elige una promoción."
             : null;
 
   const noDisponible = estado.data && !estado.data.disponible;
@@ -170,7 +170,7 @@ export function DialogImagenIa({
             <Sparkles className="h-4 w-4 text-purple-600" /> Crear una imagen con IA
           </DialogTitle>
           <DialogDescription>
-            La IA hace el arte; el título, el texto y el botón los ponés vos en la portada, así se leen bien. Lo que
+            La IA hace el arte; el título, el texto y el botón los pones tú en la portada, así se leen bien. Lo que
             generes queda guardado para reusarlo.
           </DialogDescription>
         </DialogHeader>
@@ -178,7 +178,7 @@ export function DialogImagenIa({
         <DialogBody className="space-y-5">
           {noDisponible && (
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-              La IA todavía no está conectada en este servidor. Podés reusar las imágenes que ya hiciste.
+              La IA todavía no está conectada en este servidor. Puedes reusar las imágenes que ya hiciste.
             </p>
           )}
 
@@ -230,7 +230,7 @@ export function DialogImagenIa({
                   <Label className="text-xs">La promoción</Label>
                   <Select value={promotionId} onValueChange={setPromotionId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={promociones.length ? "Elegí una promoción" : "Todavía no hay promociones"} />
+                      <SelectValue placeholder={promociones.length ? "Elige una promoción" : "Todavía no hay promociones"} />
                     </SelectTrigger>
                     <SelectContent>
                       {promociones
@@ -247,7 +247,7 @@ export function DialogImagenIa({
               )}
 
               <div className="space-y-1.5">
-                <Label className="text-xs">¿Cómo la querés?</Label>
+                <Label className="text-xs">¿Cómo la quieres?</Label>
                 <Textarea
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
@@ -377,7 +377,7 @@ function Resultado({
         <img src={imagen.url} alt="La imagen que hizo la IA" className="mx-auto max-h-[420px] w-auto max-w-full object-contain" />
       </div>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <ImageIcon className="h-3.5 w-3.5" /> Ya quedó en tu historial. Si no te gusta, descartala o hacé otra.
+        <ImageIcon className="h-3.5 w-3.5" /> Ya quedó en tu historial. Si no te gusta, descártala o haz otra.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={onUsar}>

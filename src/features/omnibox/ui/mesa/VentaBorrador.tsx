@@ -88,7 +88,7 @@ export function VentaBorrador({
     return (
       <Vacio>
         <ShoppingCart className="mx-auto mb-3 size-8 text-muted-foreground/50" />
-        Todavía no hay nada en la venta. Tocá un producto en el chat y “Agregar a la venta”.
+        Todavía no hay nada en la venta. Toca un producto en el chat y “Agregar a la venta”.
       </Vacio>
     );
   }
@@ -159,7 +159,7 @@ export function VentaBorrador({
                   )}
                 >
                   <AlertTriangle className="size-3.5 shrink-0" />
-                  Pedís {l.cantidad} y hay {l.stock} en esta tienda.
+                  Pides {l.cantidad} y hay {l.stock} en esta tienda.
                 </p>
               )}
             </li>
@@ -181,7 +181,7 @@ export function VentaBorrador({
         <div data-campo="pago">
           <p className="mb-1 text-xs font-medium text-muted-foreground">
             Método de pago
-            {!venta.pago && <span className="ml-1 font-normal">· elegí cómo paga</span>}
+            {!venta.pago && <span className="ml-1 font-normal">· elige cómo paga</span>}
           </p>
           {/* Dólares solo en la venta en el momento y en tiendas en Bs, como en la Caja. */}
           <div role="radiogroup" aria-label="Método de pago" className="grid grid-cols-2 gap-2">

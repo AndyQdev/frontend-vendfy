@@ -211,7 +211,7 @@ export function BoliviaSalesMap({
       {/* La lista es el dato: nunca hay que interpretar el relieve del mapa. */}
       {ranked.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Aquí vas a ver en qué departamentos vendés más.
+          Aquí vas a ver en qué departamentos vendes más.
         </p>
       ) : (
         <ul className="grid gap-1.5 sm:grid-cols-2">

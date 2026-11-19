@@ -66,7 +66,7 @@ test.describe("revisar la venta", () => {
     const ms = revisarVenta(m.venta);
     expect(errores(ms)).toEqual([]);
     expect(ms[0]).toMatchObject({ codigo: "SIN_STOCK", nivel: "advertencia", campo: "cantidad:coca" });
-    expect(ms[0].texto).toContain("No tenés stock de Coca Cola 2L");
+    expect(ms[0].texto).toContain("No tienes stock de Coca Cola 2L");
   });
 
   test("con stock de sobra: no dice nada", () => {

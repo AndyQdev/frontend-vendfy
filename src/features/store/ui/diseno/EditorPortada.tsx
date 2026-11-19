@@ -184,7 +184,7 @@ export function EditorPortada({
     try {
       alTerminar(await subirImagen(archivo));
     } catch {
-      toast.error("No se pudo subir la imagen. Probá con un JPG, PNG o WebP de hasta 5 MB.");
+      toast.error("No se pudo subir la imagen. Prueba con un JPG, PNG o WebP de hasta 5 MB.");
     } finally {
       setSubiendo(null);
     }
@@ -615,7 +615,7 @@ function Encuadre({
         {recorta && (
           <div className="flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Crosshair className="h-3.5 w-3.5 flex-none" /> Tocá lo importante
+              <Crosshair className="h-3.5 w-3.5 flex-none" /> Toca lo importante
             </p>
             {!mismoPunto(enfoque, CENTRO) && (
               <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onChange({ enfoque: CENTRO })}>
@@ -719,7 +719,7 @@ function DestinoDelBoton({
         {tipo === "categoria" && (
           <Select value={valor} onValueChange={(v) => onChange(`categoria:${v}`)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Elegí la categoría" />
+              <SelectValue placeholder="Elige la categoría" />
             </SelectTrigger>
             <SelectContent>
               {destinos.categorias.map((c) => (
@@ -733,7 +733,7 @@ function DestinoDelBoton({
         {tipo === "producto" && (
           <Select value={valor} onValueChange={(v) => onChange(`producto:${v}`)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Elegí el producto" />
+              <SelectValue placeholder="Elige el producto" />
             </SelectTrigger>
             <SelectContent>
               {/* Uno elegido que ya no está en la lista (hay más de los que se traen) no se pierde. */}
@@ -749,7 +749,7 @@ function DestinoDelBoton({
         {tipo === "promo" && (
           <Select value={valor} onValueChange={(v) => onChange(`promo:${v}`)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Elegí la promoción" />
+              <SelectValue placeholder="Elige la promoción" />
             </SelectTrigger>
             <SelectContent>
               {valor && !destinos.promociones.some((p) => p.slug === valor) && <SelectItem value={valor}>Una promoción que ya no existe</SelectItem>}

@@ -314,7 +314,7 @@ export function HojaEscaneo() {
               />
             ) : !puedeDarDeAlta ? (
               <p key={`sin-alta-${hoja.clave}`} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                Ese código no está en los productos del negocio. Pedile a quien carga el inventario que lo agregue.
+                Ese código no está en los productos del negocio. Pídele a quien carga el inventario que lo agregue.
               </p>
             ) : (
               <VistaAlta

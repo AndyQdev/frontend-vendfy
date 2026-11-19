@@ -356,14 +356,14 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
         <Card className="flex flex-wrap items-center gap-3 border-amber-500/40 bg-amber-500/10 p-4">
           <History className="h-5 w-5 flex-none text-amber-600" />
           <p className="min-w-0 flex-1 text-sm">
-            Tenés cambios de diseño sin guardar (
+            Tienes cambios de diseño sin guardar (
             {new Date(borradorDiseno.pendiente.fecha).toLocaleString("es-BO", {
               day: "numeric",
               month: "long",
               hour: "numeric",
               minute: "2-digit",
             })}
-            ). ¿Los recuperás para seguir?
+            ). ¿Los recuperas para seguir?
           </p>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={borradorDiseno.descartar}>
@@ -471,7 +471,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
                 onValueChange={(value) => handleConfigFieldChange("category", value)}
               >
                 <SelectTrigger id="rubro">
-                  <SelectValue placeholder="Elegí el rubro de tu tienda" />
+                  <SelectValue placeholder="Elige el rubro de tu tienda" />
                 </SelectTrigger>
                 <SelectContent>
                   {RUBROS.map((r) => (
@@ -621,7 +621,7 @@ export function StoreConfigForm({ store, mode = "edit", onUpdate }: StoreConfigF
           {/* Dos caminos para la web: el tema de Vendfy (lo que viene por
               defecto) o una web a medida hecha con la IA del dueño (MCP). */}
           {mode === "edit" && store?.id && (
-            <div role="tablist" aria-label="Cómo querés tu web" className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            <div role="tablist" aria-label="Cómo quieres tu web" className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
               {([
                 { id: "temas", label: "Tema de Vendfy", icon: Palette },
                 { id: "ia", label: "Tu web con IA (MCP)", icon: Sparkles },

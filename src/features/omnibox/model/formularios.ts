@@ -202,14 +202,14 @@ export function formularioActivo<T extends { id: string; formulario?: Formulario
 export function resumenCompletado(f: Formulario, nuevos: Record<string, string>): string {
   if (f.tipo === "productos") {
     const resto = faltan(f);
-    return resto.length ? `Anoté el precio. Falta ${resto.map((c) => c.etiqueta).join(", ")}.` : "Anoté el precio. Ya está todo: tocá Crear o decime «crealo».";
+    return resto.length ? `Anoté el precio. Falta ${resto.map((c) => c.etiqueta).join(", ")}.` : "Anoté el precio. Ya está todo: toca Crear o dime «créalo».";
   }
   const partes = CAMPOS[f.tipo]
     .filter((c) => nuevos[c.clave])
     .map((c) => `${c.etiqueta}: ${nuevos[c.clave]}`);
   const resto = faltan({ ...f, campos: { ...f.campos, ...nuevos } });
   return `Anoté ${partes.join(" y ")}.${
-    resto.length ? ` Falta ${resto.map((c) => c.etiqueta).join(" y ")}.` : " Ya está todo: tocá Crear o decime «crealo»."
+    resto.length ? ` Falta ${resto.map((c) => c.etiqueta).join(" y ")}.` : " Ya está todo: toca Crear o dime «créalo»."
   }`;
 }
 

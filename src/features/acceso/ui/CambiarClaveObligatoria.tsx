@@ -37,10 +37,10 @@ export function CambiarClaveObligatoria() {
     setEnviando(true);
     try {
       await apiFetch("/api/auth/cambiar-clave", { method: "POST", body: { actual, nueva } });
-      toast.success("Listo: ya tenés tu propia contraseña");
+      toast.success("Listo: ya tienes tu propia contraseña");
       await refreshUser();
     } catch (err: any) {
-      toast.error(err?.message ?? "No se pudo cambiar. Probá de nuevo.");
+      toast.error(err?.message ?? "No se pudo cambiar. Prueba de nuevo.");
     } finally {
       setEnviando(false);
     }
@@ -55,10 +55,10 @@ export function CambiarClaveObligatoria() {
               <KeyRound className="size-6" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold tracking-tight">Elegí tu contraseña</h1>
+              <h1 className="font-display text-xl font-bold tracking-tight">Elige tu contraseña</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Entraste con la contraseña que te dio {negocio ?? "el dueño del negocio"}. Elegí una
-                que solo sepas vos para seguir.
+                Entraste con la contraseña que te dio {negocio ?? "el dueño del negocio"}. Elige una
+                que solo sepas tú para seguir.
               </p>
             </div>
           </div>
@@ -72,7 +72,7 @@ export function CambiarClaveObligatoria() {
             <Input id="clave-nueva" type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="clave-repetida">Repetila</Label>
+            <Label htmlFor="clave-repetida">Repítela</Label>
             <Input id="clave-repetida" type="password" autoComplete="new-password" value={repetida} onChange={(e) => setRepetida(e.target.value)} />
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>

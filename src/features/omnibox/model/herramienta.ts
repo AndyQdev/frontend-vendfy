@@ -75,7 +75,7 @@ export function validarPropuesta(
     const grande = prod.precio !== null && prod.precio > 0 && Math.abs(nuevo - prod.precio) / prod.precio > CAMBIO_GRANDE;
     cambios.push({ productId: id, producto: prod.producto, antes: prod.precio, precio: nuevo, grande });
   }
-  if (cambios.length === 0) return { error: "Los precios propuestos son los mismos que ya tenés." };
+  if (cambios.length === 0) return { error: "Los precios propuestos son los mismos que ya tienes." };
   const motivo = typeof a.motivo === "string" ? a.motivo.replace(/\s+/g, " ").trim().slice(0, 200) : "";
   return { propuesta: { tipo: "precios", cambios, motivo } };
 }

@@ -118,7 +118,7 @@ export function parsearEtiquetas(texto: string): ResultadoParseo<string> {
     return {
       items: [],
       formato: "",
-      error: "No se reconoció ninguna etiqueta. Poné una por línea, separadas por comas o como un arreglo JSON.",
+      error: "No se reconoció ninguna etiqueta. Pon una por línea, separadas por comas o como un arreglo JSON.",
     };
   }
 

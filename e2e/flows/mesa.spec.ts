@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("sin conversación el campo está al centro, y baja con el primer mensaje", async ({ page }) => {
-  const campo = page.getByLabel("Qué necesitás");
+  const campo = page.getByLabel("Qué necesitas");
   const alto = page.viewportSize()!.height;
 
   const antes = await campo.boundingBox();
@@ -85,8 +85,8 @@ test("ampliar esconde el chat y achicar lo devuelve", async ({ page }) => {
 
   const mesa = page.getByTestId("omnibox-mesa");
   await mesa.getByRole("button", { name: "Ampliar el panel" }).click();
-  await expect(page.getByLabel("Qué necesitás")).toBeHidden();
+  await expect(page.getByLabel("Qué necesitas")).toBeHidden();
 
   await mesa.getByRole("button", { name: "Achicar el panel" }).click();
-  await expect(page.getByLabel("Qué necesitás")).toBeVisible();
+  await expect(page.getByLabel("Qué necesitas")).toBeVisible();
 });

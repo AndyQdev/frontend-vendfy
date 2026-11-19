@@ -443,7 +443,7 @@ export function alertaDe(fuente: string, tabla: TablaVista): Alerta | null {
       const quietos = filas.filter((f) => num(f.vendidas) === 0);
       if (quietos.length === 0) {
         return filas.length > 0
-          ? { nivel: "bien", texto: "Todo lo que tenés en stock se vendió en este período" }
+          ? { nivel: "bien", texto: "Todo lo que tienes en stock se vendió en este período" }
           : { nivel: "bien", texto: "No hay productos con stock para revisar" };
       }
       const parado = quietos.reduce((s, f) => s + (f.parado == null ? 0 : num(f.parado)), 0);

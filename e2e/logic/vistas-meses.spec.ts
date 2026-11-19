@@ -46,7 +46,7 @@ test.describe("lo que no se vende", () => {
 
   test("si todo se movió, se dice", () => {
     expect(alertaDe("sin_ventas", tabla([{ producto: "Coca", vendidas: 3, stock: 2, parado: null }]))?.texto).toBe(
-      "Todo lo que tenés en stock se vendió en este período",
+      "Todo lo que tienes en stock se vendió en este período",
     );
   });
 });

@@ -41,11 +41,11 @@ function mensajeDeError(error: unknown): string {
   if (error instanceof ApiError) {
     // El del límite diario y el de "no disponible" ya vienen escritos para el comerciante.
     if (error.statusCode === 429 || error.statusCode === 503 || error.statusCode === 502) return error.message;
-    if (error.statusCode === 0) return "No pudimos conectarnos. Revisá tu conexión y probá de nuevo.";
-    if (error.statusCode === 401 || error.statusCode === 403) return "No tenés permiso para armar el diseño de esta tienda.";
-    if (error.statusCode === 404) return "No encontramos la tienda. Recargá la página y probá de nuevo.";
+    if (error.statusCode === 0) return "No pudimos conectarnos. Revisa tu conexión y prueba de nuevo.";
+    if (error.statusCode === 401 || error.statusCode === 403) return "No tienes permiso para armar el diseño de esta tienda.";
+    if (error.statusCode === 404) return "No encontramos la tienda. Recarga la página y prueba de nuevo.";
   }
-  return "No pudimos armar el diseño esta vez. Probá de nuevo en un momento.";
+  return "No pudimos armar el diseño esta vez. Prueba de nuevo en un momento.";
 }
 
 /**
@@ -106,12 +106,12 @@ export function AsistenteIa({
           <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" /> Armar con IA
         </p>
         <p className="text-xs text-muted-foreground">
-          Contanos cómo es tu tienda y qué estilo buscás. La IA elige los colores, la letra, la portada y las secciones por vos.
+          Cuéntanos cómo es tu tienda y qué estilo buscas. La IA elige los colores, la letra, la portada y las secciones por ti.
         </p>
       </div>
 
       {!storeId ? (
-        <p className="text-xs text-muted-foreground">Guardá la tienda primero y vas a poder armar el diseño con IA.</p>
+        <p className="text-xs text-muted-foreground">Guarda la tienda primero y vas a poder armar el diseño con IA.</p>
       ) : (
         <>
           <div className="space-y-1">
@@ -121,7 +121,7 @@ export function AsistenteIa({
               maxLength={MAX_DESCRIPCION_IA}
               rows={3}
               disabled={armar.isPending}
-              aria-label="Contanos cómo es tu tienda y qué estilo buscás"
+              aria-label="Cuéntanos cómo es tu tienda y qué estilo buscas"
               placeholder="Ej.: Vendo ropa de bebé hecha a mano. Quiero algo tierno, claro y prolijo, con fotos grandes."
               className="bg-background md:text-xs"
             />
@@ -156,7 +156,7 @@ export function AsistenteIa({
                 </p>
                 <p className="text-xs text-foreground">{resultado.explicacion}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Tus imágenes y tu anuncio quedan. Nada se publica hasta que guardes; después podés retocar cada parte desde el menú.
+                  Tus imágenes y tu anuncio quedan. Nada se publica hasta que guardes; después puedes retocar cada parte desde el menú.
                 </p>
               </div>
 
@@ -201,18 +201,18 @@ export function AsistenteIa({
                 </Button>
                 <p className="text-center text-[11px] text-muted-foreground">
                   {corto
-                    ? "Contanos un poco más para armar otro."
+                    ? "Cuéntanos un poco más para armar otro."
                     : typeof resultado.restantesHoy === "number"
                       ? resultado.restantesHoy > 0
-                        ? `Podés cambiar el texto de arriba antes de probar. Te ${resultado.restantesHoy === 1 ? "queda 1 armado" : `quedan ${resultado.restantesHoy} armados`} hoy.`
+                        ? `Puedes cambiar el texto de arriba antes de probar. Te ${resultado.restantesHoy === 1 ? "queda 1 armado" : `quedan ${resultado.restantesHoy} armados`} hoy.`
                         : "Ya usaste todos los armados de hoy."
-                      : "Podés cambiar el texto de arriba antes de probar."}
+                      : "Puedes cambiar el texto de arriba antes de probar."}
                 </p>
               </div>
             </div>
           )}
           {!resultado && corto && texto.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">Contanos un poco más: qué vendés y cómo te gustaría que se vea.</p>
+            <p className="text-[11px] text-muted-foreground">Cuéntanos un poco más: qué vendes y cómo te gustaría que se vea.</p>
           )}
         </>
       )}
