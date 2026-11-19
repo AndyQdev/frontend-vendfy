@@ -31,6 +31,11 @@ export function contextoAudio(): AudioContext | null {
   return ctx;
 }
 
+/** El contexto si ya existe, sin crearlo ni despertarlo (para leer la hora 60 veces por segundo). */
+export function audioActual(): AudioContext | null {
+  return contexto;
+}
+
 /** Engancha el despertar al primer gesto. Se llama una vez al montar el panel. */
 export function prepararAudio() {
   if (preparado || typeof window === "undefined") return;

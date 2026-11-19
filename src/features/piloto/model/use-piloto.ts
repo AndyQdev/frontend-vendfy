@@ -110,9 +110,13 @@ export function useConductorPiloto() {
 
   /** Lo muestra y lo dice. Resuelve cuando terminó de sonar (para abrir el micrófono después). */
   const decir = async (linea: string, frases?: FraseVoz[]) => {
+    // Primero la voz (deja anotado el subtítulo) y después la línea: así la
+    // pantalla muestra las palabras a medida que suenan, no todo de golpe.
+    const voz = preferenciasVoz().asistente
+      ? decirFrases(frases ?? [{ tipo: "texto", texto: linea }], { forzar: true, esperaMs: 8_000, subtitulo: linea })
+      : null;
     setPiloto({ linea, fase: "hablando" });
-    if (!preferenciasVoz().asistente) return;
-    await decirFrases(frases ?? [{ tipo: "texto", texto: linea }], { forzar: true, esperaMs: 8_000 });
+    if (voz) await voz;
   };
 
   /** Terminó: queda el mensaje un rato y la tarjeta se cierra sola. */

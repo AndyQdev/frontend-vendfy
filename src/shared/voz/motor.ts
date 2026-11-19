@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { API_URL, apiFetch } from "@/shared/api/client";
 
 import { Acelerador, acelerarMuestras } from "./acelerar";
-import { contextoAudio } from "./audio";
+import { audioActual, contextoAudio } from "./audio";
 import { callarNavegador, decirConNavegador } from "./navegador";
 import { preferenciasVoz } from "./preferencias";
 
@@ -279,6 +279,50 @@ export function callarVoz() {
   setHablando(false);
 }
 
+// ─── Subtítulos: cuándo empezó a sonar lo dicho y cuánto dura ──────────────
+
+/**
+ * Lo que se está diciendo con un texto para mostrar (los subtítulos de
+ * Vendfy). El texto puede no ser letra por letra lo que suena ("27" se dice
+ * "veintisiete"): la pantalla reparte el tiempo entre las palabras.
+ */
+export interface Locucion {
+  /** El turno del motor: si cambia, la cortaron. */
+  id: number;
+  texto: string;
+  /** Cuándo empezó a sonar, en el reloj de `relojDeLocucion`. Null: todavía no llega. */
+  inicio: number | null;
+  /** Hasta cuándo hay audio programado. */
+  fin: number;
+  /** Ya se programó todo: `fin` es el final de verdad. */
+  completa: boolean;
+  /** No va a sonar (sin voz, error): mostrar todo el texto. */
+  fallida: boolean;
+  /** "audio": el reloj del AudioContext; "pagina": performance.now (la voz del navegador). */
+  reloj: "audio" | "pagina";
+}
+
+let locucion: Locucion | null = null;
+
+export function locucionActual(): Locucion | null {
+  return locucion;
+}
+
+export function turnoVoz(): number {
+  return turno;
+}
+
+export function relojDeLocucion(l: Locucion): number {
+  const ctx = l.reloj === "audio" ? audioActual() : null;
+  return ctx ? ctx.currentTime : performance.now() / 1000;
+}
+
+function marcarSonido(mio: number, desde: number, hasta: number) {
+  if (!locucion || locucion.id !== mio) return;
+  if (locucion.inicio === null) locucion.inicio = desde;
+  locucion.fin = hasta;
+}
+
 // ─── Volumen de lo que se dice (la bola de Vendfy late con él) ──────────────
 
 let analizador: AnalyserNode | null = null;
@@ -462,6 +506,7 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
 
   if (ctx && piezas.some((p) => p.tipo === "navegador")) {
     cancelarFlujos();
+    if (locucion?.id === mio) locucion.fallida = true;
     return;
   }
   if (!ctx) {
@@ -470,7 +515,15 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
     if (espera > 0) await dormir(espera);
     if (mio !== turno) return;
     setHablando(true);
+    if (locucion?.id === mio) {
+      locucion.reloj = "pagina";
+      locucion.inicio = performance.now() / 1000;
+    }
     await decirConNavegador(respaldos.join(" "), v);
+    if (locucion?.id === mio) {
+      locucion.fin = performance.now() / 1000;
+      locucion.completa = true;
+    }
     if (mio === turno) setHablando(sonando.size > 0);
     return;
   }
@@ -488,6 +541,7 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
       t = Math.max(t, ctx.currentTime + 0.01);
       const buffer = acelerado(ctx, pieza.buffer);
       programar(ctx, buffer, t);
+      marcarSonido(mio, t, t + buffer.duration);
       t += buffer.duration + pausa;
       finProgramado = t;
       continue;
@@ -506,6 +560,7 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
       // Si la red se atrasó, se retoma con un respiro mínimo en vez de amontonar.
       if (t < ctx.currentTime) t = ctx.currentTime + 0.03;
       programar(ctx, b, t);
+      marcarSonido(mio, t, t + b.duration);
       t += b.duration;
       finProgramado = t;
     };
@@ -542,6 +597,10 @@ async function reproducir(pedidas: Array<Promise<Pieza>>, ids: string[], respald
     t += pausa;
     finProgramado = t;
   }
+  if (locucion?.id === mio) {
+    if (locucion.inicio === null) locucion.fallida = true;
+    else locucion.completa = true;
+  }
   // Resuelve cuando termina de sonar (o si otra cosa la cortó).
   while (mio === turno && ctx.currentTime < finProgramado - pausa) {
     await dormir(Math.max(30, (finProgramado - pausa - ctx.currentTime) * 1000));
@@ -576,13 +635,17 @@ function paraTexto(voz: string, texto: string, esperaMs: number): QueDecir {
  */
 export function decirFrases(
   frases: FraseVoz[],
-  { forzar = false, esperaMs }: { forzar?: boolean; esperaMs?: number } = {},
+  { forzar = false, esperaMs, subtitulo }: { forzar?: boolean; esperaMs?: number; subtitulo?: string } = {},
 ): Promise<void> {
   const { precios, voz } = preferenciasVoz();
   // `forzar`: lo pidió con un botón ("decir el precio otra vez"), aunque esté apagada.
   if ((!precios && !forzar) || !frases.length) return Promise.resolve();
   callarVoz();
   const mio = turno;
+  // `subtitulo`: el texto que se muestra mientras suena (los subtítulos de Vendfy).
+  locucion = subtitulo
+    ? { id: mio, texto: subtitulo, inicio: null, fin: 0, completa: false, fallida: false, reloj: "audio" }
+    : null;
   const pedidos = frases.map((f) => paraFrase(voz, f, esperaMs));
   // Resuelve cuando terminó de decirlo (o se decidió no decirlo): quien
   // escucha después, abre el micrófono recién ahí.
@@ -591,7 +654,11 @@ export function decirFrases(
     pedidos.map((p) => p.id),
     pedidos.map((p) => p.respaldo),
     mio,
-  ).catch(() => undefined));
+  )
+    .catch(() => undefined)
+    .finally(() => {
+      if (locucion?.id === mio && locucion.inicio === null) locucion.fallida = true;
+    }));
 }
 
 let ultimaFrase: Promise<void> = Promise.resolve();

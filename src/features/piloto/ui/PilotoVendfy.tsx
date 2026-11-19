@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { ArrowRight, ArrowUp, ArrowUpRight, Ear, EarOff, Keyboard, Loader2, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { useConductorPiloto } from "../model/use-piloto";
 import { useManosLibres } from "../model/use-manos-libres";
 import { buscarFoco, FocoPiloto } from "./FocoPiloto";
 import { OrbeMagico } from "./OrbeMagico";
+import { SubtituloVendfy } from "./SubtituloVendfy";
 
 /** Lo que se lee debajo de la bola (cuando dice algo que los subtítulos no dicen ya). */
 const ESTADO: Record<FasePiloto, string> = {
@@ -24,31 +25,11 @@ const ESTADO: Record<FasePiloto, string> = {
   error: "No se pudo",
 };
 
-/** Botón redondo de vidrio oscuro, a los lados de la bola. */
-const CRISTAL =
-  "pointer-events-auto grid size-10 place-items-center rounded-full bg-slate-950/75 text-white/85 shadow-float ring-1 ring-white/10 backdrop-blur-md transition hover:bg-slate-900/90 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 dark:bg-slate-700/80 dark:ring-white/20 dark:hover:bg-slate-600/90";
+/** Vidrio claro (oscuro en el tema oscuro): deja ver la pantalla de atrás. */
+const VIDRIO = "bg-white/80 ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-900/75 dark:ring-white/10";
 
-/** Lo que dice Vendfy, como subtítulo: cada palabra entra con un desenfoque que se aclara. */
-function Subtitulo({ texto }: { texto: string }) {
-  const palabras = texto.split(/\s+/).filter(Boolean);
-  return (
-    <p
-      data-testid="piloto-linea"
-      className="max-w-[min(40rem,calc(100vw-2rem))] text-balance text-center text-[17px] font-medium leading-[1.9] text-white sm:text-xl sm:leading-[1.85]"
-    >
-      <span className="rounded-lg bg-slate-950/85 px-3 py-1.5 shadow-float ring-1 ring-white/10 [-webkit-box-decoration-break:clone] [box-decoration-break:clone]">
-        {palabras.map((p, i) => (
-          <Fragment key={i}>
-            {i > 0 && " "}
-            <span className="subtitulo-palabra" style={{ animationDelay: `${Math.min(i * 45, 1400)}ms` }}>
-              {p}
-            </span>
-          </Fragment>
-        ))}
-      </span>
-    </p>
-  );
-}
+/** Botón redondo de vidrio, a los lados de la bola. */
+const CRISTAL = `pointer-events-auto grid size-10 place-items-center rounded-full ${VIDRIO} text-slate-700 shadow-float transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-white/85 dark:hover:bg-slate-800 dark:hover:text-white`;
 
 /**
  * "Vendfy": el piloto que maneja el panel hablando. Cerrado es una bola en la
@@ -228,17 +209,17 @@ export function PilotoVendfy() {
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="pointer-events-auto w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-slate-950/85 text-white shadow-float ring-1 ring-white/10 backdrop-blur-xl"
+                    className={cn("pointer-events-auto w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl text-slate-900 shadow-float dark:text-white", VIDRIO)}
                     data-testid="piloto-tabla"
                   >
-                    <p className="border-b border-white/10 px-3.5 py-2 text-xs font-semibold text-white/60">{e.tabla.titulo}</p>
-                    <ul className="max-h-44 divide-y divide-white/10 overflow-y-auto">
+                    <p className="border-b border-black/5 px-3.5 py-2 text-xs font-semibold text-slate-500 dark:border-white/10 dark:text-white/60">{e.tabla.titulo}</p>
+                    <ul className="max-h-44 divide-y divide-black/5 overflow-y-auto dark:divide-white/10">
                       {e.tabla.filas.map((f) => (
                         <li key={f.nombre} className="flex items-center gap-2 px-3.5 py-1.5 text-sm">
-                          <span className="min-w-0 flex-1 truncate text-white/90">{f.nombre}</span>
-                          <span className={cn("text-white/55", /^[\d—]/.test(f.antes) && "cifra")}>{f.antes}</span>
-                          <ArrowRight className="size-3.5 flex-none text-white/40" aria-label="pasa a" />
-                          <span className={cn("font-semibold text-emerald-300", /^\d/.test(f.despues) && "cifra")}>{f.despues}</span>
+                          <span className="min-w-0 flex-1 truncate">{f.nombre}</span>
+                          <span className={cn("text-slate-500 dark:text-white/55", /^[\d—]/.test(f.antes) && "cifra")}>{f.antes}</span>
+                          <ArrowRight className="size-3.5 flex-none text-slate-400 dark:text-white/40" aria-label="pasa a" />
+                          <span className={cn("font-semibold text-emerald-600 dark:text-emerald-300", /^\d/.test(f.despues) && "cifra")}>{f.despues}</span>
                         </li>
                       ))}
                     </ul>
@@ -248,13 +229,13 @@ export function PilotoVendfy() {
                 <div aria-live="polite" className="flex flex-col items-center gap-2">
                   {e.dicho && (
                     <p
-                      className="max-w-[min(34rem,calc(100vw-2rem))] truncate rounded-full bg-slate-950/60 px-3 py-1 text-sm text-white/70 backdrop-blur-md"
+                      className={cn("max-w-[min(30rem,calc(100vw-2rem))] truncate rounded-full px-3 py-0.5 text-[13px] text-slate-600 dark:text-white/70", VIDRIO)}
                       data-testid="piloto-dicho"
                     >
                       «{e.dicho}»
                     </p>
                   )}
-                  {e.linea && <Subtitulo key={e.linea} texto={e.linea} />}
+                  {e.linea && <SubtituloVendfy key={e.linea} texto={e.linea} />}
                 </div>
 
                 {e.irAlAsistente && (
@@ -264,7 +245,7 @@ export function PilotoVendfy() {
                       detener();
                       navigate("/omnibox");
                     }}
-                    className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-slate-900 shadow-float transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white shadow-float transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
                   >
                     Abrir el asistente <ArrowUpRight className="size-4" aria-hidden />
                   </button>
@@ -273,7 +254,7 @@ export function PilotoVendfy() {
                 {teclado && (
                   <form
                     onSubmit={enviar}
-                    className="pointer-events-auto flex w-[min(28rem,calc(100vw-2rem))] items-center gap-2 rounded-full bg-slate-950/85 p-1.5 pl-4 shadow-float ring-1 ring-white/10 backdrop-blur-xl"
+                    className={cn("pointer-events-auto flex w-[min(28rem,calc(100vw-2rem))] items-center gap-2 rounded-full p-1.5 pl-4 shadow-float", VIDRIO)}
                   >
                     <input
                       ref={campo}
@@ -282,13 +263,13 @@ export function PilotoVendfy() {
                       placeholder={e.pregunta ? "Contesta aquí o con F9…" : "Escríbele a Vendfy…"}
                       aria-label="Escribirle a Vendfy"
                       data-testid="piloto-campo"
-                      className="h-8 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
+                      className="h-8 min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:text-white dark:placeholder:text-white/45"
                     />
                     <button
                       type="submit"
                       disabled={!texto.trim()}
                       aria-label="Enviar"
-                      className="grid size-8 flex-none place-items-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                      className="grid size-8 flex-none place-items-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-600 disabled:bg-slate-900/10 disabled:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:disabled:bg-white/10 dark:disabled:text-white/40"
                     >
                       <ArrowUp className="size-4" aria-hidden />
                     </button>
@@ -302,7 +283,7 @@ export function PilotoVendfy() {
                     aria-pressed={teclado}
                     aria-label={teclado ? "Ocultar el teclado" : "Escribir en vez de hablar"}
                     data-testid="piloto-teclado"
-                    className={cn(CRISTAL, teclado && "bg-white text-slate-900 hover:bg-white hover:text-slate-900")}
+                    className={cn(CRISTAL, teclado && "bg-slate-900 text-white ring-slate-900 hover:bg-slate-900 hover:text-white dark:bg-white dark:text-slate-900 dark:hover:bg-white dark:hover:text-slate-900")}
                   >
                     <Keyboard className="size-4" aria-hidden />
                   </button>
@@ -326,7 +307,8 @@ export function PilotoVendfy() {
                 <p
                   data-testid="piloto-estado"
                   className={cn(
-                    "rounded-full bg-slate-950/70 px-2.5 py-0.5 text-[11px] font-medium text-white/80 backdrop-blur-md transition-opacity",
+                    "rounded-full px-2.5 py-0.5 text-[11px] font-medium text-slate-600 transition-opacity dark:text-white/75",
+                    VIDRIO,
                     !estado && "invisible",
                   )}
                 >

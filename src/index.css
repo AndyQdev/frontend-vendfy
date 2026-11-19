@@ -1040,20 +1040,37 @@
   opacity: 1;
 }
 
-/* Subtítulos de Vendfy: cada palabra entra con un desenfoque que se aclara. */
+/* Subtítulos de Vendfy: cada palabra entra cuando suena, con un desenfoque
+   corto que se aclara (sin moverse: así no "salta" el renglón). */
 .subtitulo-palabra {
-  display: inline-block;
-  animation: subtitulo-entra 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-duration: 0.42s !important;
+  animation: subtitulo-entra 0.3s ease-out both;
+  animation-duration: 0.3s !important;
 }
 @keyframes subtitulo-entra {
-  from { opacity: 0; filter: blur(6px); transform: translateY(0.25em); }
-  to { opacity: 1; filter: blur(0); transform: none; }
+  from { opacity: 0; filter: blur(4px); }
+  to { opacity: 1; filter: blur(0); }
+}
+/* Mientras llega la voz: tres puntos que respiran. */
+.subtitulo-espera > span {
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: subtitulo-punto 1.2s ease-in-out infinite;
+  animation-duration: 1.2s !important;
+}
+.subtitulo-espera > span:nth-child(2) { animation-delay: 0.15s; }
+.subtitulo-espera > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes subtitulo-punto {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  40% { opacity: 0.8; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .orbe[data-motor="css"],
   .orbe[data-atento="true"] .orbe-halo,
-  .subtitulo-palabra {
+  .subtitulo-palabra,
+  .subtitulo-espera > span {
     animation: none !important;
   }
 }
