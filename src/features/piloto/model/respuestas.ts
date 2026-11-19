@@ -19,6 +19,8 @@ export type RespuestaPiloto =
   | { tipo: "no" }
   | { tipo: "cobrar" }
   | { tipo: "numero"; valor: number }
+  /** Contestó al precio o a la cantidad sin el número («Bolivianos.»: el número se cortó). */
+  | { tipo: "sin_dato" }
   | { tipo: "parar" };
 
 /** Una respuesta tiene pocas palabras: "sí, con QR, cóbrale" ya es el tope. */
@@ -70,6 +72,10 @@ export function leerRespuesta(texto: string, pregunta: PreguntaPiloto | null): R
     if (pregunta === "cantidad" && NINGUNA.test(t)) return { tipo: "numero", valor: 0 };
     const valor = numeroDe(texto);
     if (valor != null && t.split(" ").length <= PALABRAS_MAXIMAS) return { tipo: "numero", valor };
+    // Dos o tres palabras sin número («Bolivianos.», «a ver…»): no es un pedido
+    // nuevo, es la respuesta sin el dato. Antes iba al servidor como pedido, se
+    // contestaba cualquier cosa y el producto quedaba a medio llenar.
+    if (valor == null && t.split(" ").length <= 3 && !SI.test(t) && !NO.test(t) && !PREGUNTA.test(t)) return { tipo: "sin_dato" };
   }
   if (t.split(" ").length > PALABRAS_MAXIMAS) return null;
   if (PREGUNTA.test(t) || texto.includes("?")) return null;

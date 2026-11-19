@@ -44,6 +44,18 @@ export function PilotoVendfy() {
   // Manos libres: el oído escucha "Oye Vendfy" sin mandar nada hasta oírla.
   const manos = useManosLibres(conductor);
   const esperaPalabra = manos.activo && manos.estado === "escuchando";
+  // La bola late con la voz: el detector de las respuestas o, con manos libres,
+  // el micrófono del oído (que es el que graba el pedido después de «Oye Vendfy»).
+  const nivelManos = manos.nivel;
+  const activoManos = useRef(manos.activo);
+  activoManos.current = manos.activo;
+  const nivelOrbe = useRef<{ current: number } | null>(null);
+  nivelOrbe.current ??= {
+    get current() {
+      return Math.max(nivel.current, activoManos.current ? nivelManos.current : 0);
+    },
+    set current(_v: number) {},
+  };
   const location = useLocation();
   const navigate = useNavigate();
   const [texto, setTexto] = useState("");
@@ -59,11 +71,11 @@ export function PilotoVendfy() {
     const tecla = (ev: KeyboardEvent) => {
       if (ev.key !== "F9" || ev.repeat) return;
       ev.preventDefault();
-      atajo.current();
+      atajo.current("atajo");
     };
     window.addEventListener("keydown", tecla);
     // En la app de Windows, F9 llega también desde cualquier otro programa.
-    const quitar = alAtajoGlobal(() => atajo.current());
+    const quitar = alAtajoGlobal(() => atajo.current("atajo"));
     return () => {
       window.removeEventListener("keydown", tecla);
       quitar();
@@ -137,7 +149,7 @@ export function PilotoVendfy() {
             >
               <button
                 type="button"
-                onClick={activar}
+                onClick={() => activar("boton")}
                 aria-label="Hablarle a Vendfy (F9)"
                 data-testid="piloto-lanzador"
                 className="rounded-full transition-transform hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -290,13 +302,13 @@ export function PilotoVendfy() {
                   <button
                     type="button"
                     id="piloto-orbe"
-                    onClick={activar}
+                    onClick={() => activar("boton")}
                     disabled={ocupado}
                     aria-label={e.fase === "escuchando" ? "Ya terminé de hablar" : "Hablar (F9)"}
                     className="pointer-events-auto rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-default"
                   >
                     <motion.span layoutId="orbe-vendfy" className="block" transition={{ type: "spring", stiffness: 260, damping: 26 }}>
-                      <OrbeMagico fase={e.fase} tam={76} nivel={nivel} />
+                      <OrbeMagico fase={e.fase} tam={76} nivel={nivelOrbe.current} />
                     </motion.span>
                   </button>
                   <button type="button" onClick={detener} aria-label="Cerrar Vendfy" className={CRISTAL}>

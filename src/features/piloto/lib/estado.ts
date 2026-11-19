@@ -2,6 +2,8 @@ import { useSyncExternalStore } from "react";
 
 import type { PagoPiloto, PreguntaPiloto } from "../model/respuestas";
 
+import { cerrarSesion } from "./bitacora";
+
 /**
  * El estado del piloto ("Oye Vendfy"): qué está haciendo, qué dijo cada uno y
  * qué está señalando en la pantalla. Vive fuera de React para que la Caja y la
@@ -66,6 +68,8 @@ export function setPiloto(cambio: Partial<EstadoPiloto>) {
 }
 
 export function cerrarPiloto() {
+  // Toda sesión termina acá (lo cierre quien lo cierre): su bitácora viaja al servidor.
+  if (estado.abierto) cerrarSesion();
   estado = INICIAL;
   oyentes.forEach((f) => f());
 }
@@ -110,6 +114,8 @@ export type ResultadoGuardar = { ok: true } | { ok: false; error: string };
 export interface ProductoPiloto {
   escribir: (campo: CampoProducto, valor: string | number | { id?: string | null; nombre: string }) => Promise<void>;
   guardar: () => Promise<ResultadoGuardar>;
+  /** Lo que tiene ahora (lo llenó el piloto o la persona a mano): viaja con la frase siguiente. */
+  leer: () => { nombre: string; precio: number | null; stock: number | null };
 }
 
 /** Lo que cada pantalla le presta al piloto mientras está montada. */

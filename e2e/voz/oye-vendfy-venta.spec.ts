@@ -11,9 +11,23 @@ import { conManosLibres, microfonoCon } from "./oido";
 test.use(microfonoCon("positiva.wav"));
 
 test("oye «Oye Vendfy» y vende sin tocar nada", async ({ page }) => {
+  // Mientras se dice el pedido, la bola late con la voz (antes quedaba quieta con manos libres).
+  await page.addInitScript(() => {
+    (window as any).__nivelMaximo = 0;
+    const medir = () => {
+      for (const el of document.querySelectorAll<HTMLElement>("[style*='--orbe-nivel']")) {
+        const fase = el.closest("[data-fase]")?.getAttribute("data-fase");
+        const n = Number(el.style.getPropertyValue("--orbe-nivel")) || 0;
+        if (fase === "escuchando") (window as any).__nivelMaximo = Math.max((window as any).__nivelMaximo, n);
+      }
+      requestAnimationFrame(medir);
+    };
+    requestAnimationFrame(medir);
+  });
   await conManosLibres(page);
   await expect(page.getByTestId("piloto-tarjeta")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("piloto-linea")).toContainText("¿Algo más?", { timeout: 45_000 });
+  expect(await page.evaluate(() => (window as any).__nivelMaximo)).toBeGreaterThan(0.15);
   // Lo que se entendió ya no trae la palabra.
   await expect(page.getByTestId("piloto-dicho")).toContainText(/vende (2|dos) ?sprite/i);
   await expect(page.getByTestId("piloto-dicho")).not.toContainText(/vendfy/i);

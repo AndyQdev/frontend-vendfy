@@ -40,6 +40,8 @@ export function useManosLibres(conductor: ConductorConOido) {
   const [activo, setActivo] = useState(leer);
   const [estado, setEstado] = useState<EstadoOido>("apagado");
   const oido = useRef<ControlOido | null>(null);
+  /** El volumen del micrófono del oído: con él late la bola mientras dices el pedido. */
+  const nivel = useRef(0);
   const actual = useRef(conductor);
   actual.current = conductor;
 
@@ -55,6 +57,9 @@ export function useManosLibres(conductor: ConductorConOido) {
         palabra: () => actual.current.alOirPalabra(),
         comando: (wav) => void actual.current.oirConPalabra(wav),
         estado: (e) => setEstado(e),
+        nivel: (n) => {
+          nivel.current = nivel.current * 0.5 + n * 0.5;
+        },
         // El «Apagar» de la notificación del teléfono apaga también la preferencia.
         apagadoAfuera: () => {
           guardar(false);
@@ -76,5 +81,5 @@ export function useManosLibres(conductor: ConductorConOido) {
     setActivo(valor);
   };
 
-  return { activo, estado, alternar };
+  return { activo, estado, alternar, nivel };
 }

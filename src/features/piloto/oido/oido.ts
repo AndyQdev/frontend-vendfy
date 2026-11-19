@@ -21,6 +21,8 @@ export interface EventosOido {
   palabra?: (p: number) => void;
   comando?: (wav: Blob, hablo: boolean) => void;
   puntaje?: (p: number) => void;
+  /** Cuánto suena el micrófono (0 a 1), 12 veces por segundo: para que la bola lata con la voz. */
+  nivel?: (n: number) => void;
   estado?: (e: EstadoOido, detalle?: string) => void;
   /** Lo apagaron desde afuera (el «Apagar» de la notificación del teléfono). */
   apagadoAfuera?: () => void;
@@ -151,7 +153,10 @@ export class Oido implements ControlOido {
     URL.revokeObjectURL(url);
     const fuente = this.ctx.createMediaStreamSource(this.stream);
     this.nodo = new AudioWorkletNode(this.ctx, "captura-vendfy", { numberOfInputs: 1, numberOfOutputs: 0 });
-    this.nodo.port.onmessage = (e: MessageEvent<Float32Array>) => this.mandar({ tipo: "audio", paso: e.data }, [e.data.buffer]);
+    this.nodo.port.onmessage = (e: MessageEvent<Float32Array>) => {
+      if (this.eventos.nivel) this.eventos.nivel(nivelDe(e.data));
+      this.mandar({ tipo: "audio", paso: e.data }, [e.data.buffer]);
+    };
     fuente.connect(this.nodo);
     if (this.ctx.state === "suspended") await this.ctx.resume().catch(() => undefined);
     this.cambiar("escuchando");
@@ -186,4 +191,16 @@ export class Oido implements ControlOido {
     this.worker = null;
     this.listo = null;
   }
+}
+
+/**
+ * Volumen de un paso de 80 ms, de 0 a 1: la raíz del promedio de los
+ * cuadrados, sin el ruido de fondo de una tienda y estirado para que la voz
+ * normal (0,02–0,15) mueva la bola de verdad.
+ */
+function nivelDe(paso: Float32Array): number {
+  let suma = 0;
+  for (let i = 0; i < paso.length; i++) suma += paso[i] * paso[i];
+  const rms = Math.sqrt(suma / Math.max(1, paso.length));
+  return Math.max(0, Math.min(1, (rms - 0.006) * 9));
 }

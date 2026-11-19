@@ -128,7 +128,8 @@ export function planDe(p: Propuesta): PlanPiloto {
   }
 
   // Un producto nuevo: de a uno en el formulario; varios, en el asistente.
-  if (p.intencion === "crear_producto" && Array.isArray(e.productos) && e.productos.length === 1) {
+  // «Termina de llenarlo, ponle 50» (completar_formulario) es el mismo formulario.
+  if ((p.intencion === "crear_producto" || p.intencion === "completar_formulario") && Array.isArray(e.productos) && e.productos.length === 1) {
     const b = e.productos[0] ?? {};
     return {
       tipo: "producto",

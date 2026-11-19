@@ -25,6 +25,8 @@ export async function pedirAlPiloto(page: Page, texto: string, espera: string | 
 export async function cerrarPiloto(page: Page) {
   if (await page.getByTestId("piloto-tarjeta").isVisible().catch(() => false)) {
     await page.getByRole("button", { name: "Cerrar Vendfy" }).click();
+    // Que termine de irse: mientras se va, el campo sigue a la vista y lo que se escribe se pierde.
+    await expect(page.getByTestId("piloto-tarjeta")).toBeHidden();
   }
 }
 

@@ -1,6 +1,8 @@
 import { ApiError, apiFetch } from "@/shared/api/client";
 import type { RespuestaVoz } from "@/entities/omnibox/api";
-import type { LineaContexto, Propuesta } from "@/entities/omnibox/model/types";
+import type { Propuesta } from "@/entities/omnibox/model/types";
+
+import type { ContextoPiloto } from "./contexto";
 
 /**
  * Lo más que se espera al servidor. Sin tope, una respuesta que se perdía en el
@@ -33,13 +35,13 @@ async function conTope<T>(ms: number, pedir: (signal: AbortSignal) => Promise<T>
 export async function entenderVoz(
   wav: Blob,
   storeId: string,
-  lineas: LineaContexto[],
+  contexto: ContextoPiloto,
   conPalabra = false,
 ): Promise<RespuestaVoz & { palabra?: boolean }> {
   const forma = new FormData();
   forma.append("audio", wav, "piloto.wav");
   forma.append("storeId", storeId);
-  forma.append("contexto", JSON.stringify({ venta: { lineas } }));
+  forma.append("contexto", JSON.stringify(contexto));
   // Viene del oído: el audio empieza con "Oye Vendfy" y el servidor la verifica.
   if (conPalabra) forma.append("palabra", "1");
   const r = await conTope(TOPE_VOZ_MS, (signal) =>
@@ -49,11 +51,11 @@ export async function entenderVoz(
 }
 
 /** Lo mismo, escrito: para probar sin micrófono o en una tienda con mucho ruido. */
-export async function entenderTexto(texto: string, storeId: string, lineas: LineaContexto[]): Promise<Propuesta> {
+export async function entenderTexto(texto: string, storeId: string, contexto: ContextoPiloto): Promise<Propuesta> {
   const r = await conTope(TOPE_TEXTO_MS, (signal) =>
     apiFetch<Propuesta>("/api/omnibox/interpretar", {
       method: "POST",
-      body: { texto, storeId, contexto: { venta: { lineas } } },
+      body: { texto, storeId, contexto },
       signal,
     }),
   );

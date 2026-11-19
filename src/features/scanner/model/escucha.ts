@@ -41,6 +41,63 @@ const VERSION_ONNX = "1.30.0";
 
 let instancia: Promise<MicVAD> | null = null;
 
+/**
+ * El micrófono queda abierto un rato entre una pregunta y la respuesta.
+ *
+ * Abrirlo de nuevo tarda medio segundo (más en la app de Windows), y en ese
+ * medio segundo se perdía lo primero que se decía: «50 bolivianos» llegaba
+ * como «Bolivianos.» y el piloto no tenía el precio. Ahora pausar al detector
+ * solo deja de escuchar; el micrófono se suelta pasado este rato sin usarlo.
+ */
+const MICROFONO_ABIERTO_MS = 20_000;
+const RESTRICCIONES: MediaStreamConstraints = {
+  audio: { channelCount: 1, echoCancellation: true, autoGainControl: true, noiseSuppression: true },
+};
+let microfono: MediaStream | null = null;
+let abriendo: Promise<MediaStream> | null = null;
+let soltarLuego: ReturnType<typeof setTimeout> | null = null;
+
+function vivo(m: MediaStream | null): m is MediaStream {
+  return Boolean(m?.getAudioTracks().some((t) => t.readyState === "live"));
+}
+
+async function abrirMicrofono(): Promise<MediaStream> {
+  if (soltarLuego) clearTimeout(soltarLuego);
+  soltarLuego = null;
+  if (vivo(microfono)) return microfono;
+  abriendo ??= navigator.mediaDevices
+    .getUserMedia(RESTRICCIONES)
+    .then((m) => (microfono = m))
+    .finally(() => {
+      abriendo = null;
+    });
+  return abriendo;
+}
+
+function soltarMicrofonoLuego() {
+  if (soltarLuego) clearTimeout(soltarLuego);
+  soltarLuego = setTimeout(soltarMicrofono, MICROFONO_ABIERTO_MS);
+}
+
+/** Suelta el micrófono ya (el indicador del navegador se apaga). */
+export function soltarMicrofono() {
+  if (soltarLuego) clearTimeout(soltarLuego);
+  soltarLuego = null;
+  microfono?.getTracks().forEach((t) => t.stop());
+  microfono = null;
+}
+
+/**
+ * Abre el micrófono antes de que haga falta (al abrirse el piloto): así la
+ * primera respuesta tampoco pierde su comienzo. Se suelta solo si no se usa.
+ */
+export function calentarMicrofono() {
+  if (!escuchaSoportada()) return;
+  void abrirMicrofono()
+    .then(() => soltarMicrofonoLuego())
+    .catch(() => undefined);
+}
+
 /** Quién recibe los avisos del detector: hay uno solo para todo el panel. */
 interface Oyente {
   inicio: () => void;
@@ -58,6 +115,9 @@ function cargar(): Promise<MicVAD> {
       onnxWASMBasePath: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${VERSION_ONNX}/dist/`,
       audioContext: contextoAudio() ?? undefined,
       startOnLoad: false,
+      getStream: abrirMicrofono,
+      resumeStream: abrirMicrofono,
+      pauseStream: async () => soltarMicrofonoLuego(),
       // Los umbrales por defecto del modelo v5. Más altos, un "sí" corto no
       // juntaba suficientes cuadros "seguro que es voz" y se descartaba
       // (medido el 14/10/2026: la persona decía "sí" y no pasaba nada).

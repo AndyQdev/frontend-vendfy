@@ -139,6 +139,24 @@ test("crea un producto llenando el formulario y preguntando lo que falta", async
   }
 });
 
+test("producto a medio llenar: «Bolivianos.» vuelve a preguntar y «termina de llenarlo» sigue en el formulario", async ({ page }) => {
+  test.setTimeout(240_000);
+  // La sesión real del 19/11 (Zenn): el número se cortó, el piloto se cerró, y
+  // «termina de completar el formulario» terminaba en el Asistente.
+  const nombre = `Refresco Piloto ${["Kiwi", "Mango", "Coco", "Menta", "Lima"][Date.now() % 5]}`;
+  await pedirAlPiloto(page, `crea un producto ${nombre.toLowerCase()}`, "¿A cuánto lo vendes?", 90_000);
+  await expect(page).toHaveURL(/\/products\/create/);
+  await pedirAlPiloto(page, "Bolivianos.", "No escuché el número");
+  await cerrarPiloto(page);
+  await pedirAlPiloto(page, "termina de llenar el formulario, ponle 9 bolivianos", /¿Cuántas tienes|¿Lo creo\?/, 90_000);
+  await expect(page).toHaveURL(/\/products\/create/);
+  await expect(page.locator("#price")).toHaveValue("9");
+  await expect(page.locator("#name")).toHaveValue(new RegExp(nombre, "i"));
+  // No se crea: "no" a la cantidad es cero y "no" a "¿Lo creo?" lo deja como está.
+  if (/Cuántas/.test((await page.getByTestId("piloto-linea").textContent()) ?? "")) await pedirAlPiloto(page, "ninguna", "¿Lo creo?");
+  await pedirAlPiloto(page, "no", "no lo hago");
+});
+
 test("una consulta se dice sin tocar la pantalla; lo que no existe, también", async ({ page }) => {
   await pedirAlPiloto(page, "¿a cuánto está el dólar?", /dólar/i);
   await expect(page).toHaveURL(/\/inventory/);

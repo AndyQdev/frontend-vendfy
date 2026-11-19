@@ -546,6 +546,8 @@ export default function CreateProduct() {
   // letra por letra) y lo guarda solo cuando dice "sí".
   const guardarRef = useRef(handleSubmit);
   guardarRef.current = handleSubmit;
+  const datosRef = useRef(formData);
+  datosRef.current = formData;
   useEffect(() => {
     if (isEditMode) return;
     return registrarPantalla("producto", {
@@ -565,6 +567,14 @@ export default function CreateProduct() {
       guardar: async () => {
         const ok = await guardarRef.current({ preventDefault() {} } as React.FormEvent);
         return ok ? { ok: true } : { ok: false, error: "No se pudo guardar: revisa los campos marcados en rojo." };
+      },
+      leer: () => {
+        const d = datosRef.current;
+        return {
+          nombre: String(d.name ?? ""),
+          precio: Number(d.price) > 0 ? Number(d.price) : null,
+          stock: Number(d.initialStock) > 0 ? Number(d.initialStock) : null,
+        };
       },
     });
   }, [isEditMode]);

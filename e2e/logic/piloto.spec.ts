@@ -247,6 +247,29 @@ test.describe("Oye Vendfy: lo pedido y el Asistente", () => {
     expect(cuantasPalabras(pedidoTrasLaPalabra("Gracias."))).toBe(0);
   });
 
+  test("«Bolivianos.» al precio (el número se cortó): se vuelve a preguntar, no es un pedido nuevo", () => {
+    expect(leerRespuesta("Bolivianos.", "precio")).toEqual({ tipo: "sin_dato" });
+    expect(leerRespuesta("a ver", "cantidad")).toEqual({ tipo: "sin_dato" });
+    expect(leerRespuesta("50 bolivianos", "precio")).toEqual({ tipo: "numero", valor: 50 });
+    expect(leerRespuesta("cincuenta", "precio")).toEqual({ tipo: "numero", valor: 50 });
+    // "Sí" y "no" siguen siendo lo que eran; una frase larga sigue siendo un pedido.
+    expect(leerRespuesta("sí", "precio")).toEqual({ tipo: "si" });
+    expect(leerRespuesta("no", "precio")).toEqual({ tipo: "no" });
+    expect(leerRespuesta("mejor créalo sin precio por ahora", "precio")).toBeNull();
+  });
+
+  test("«termina de llenar el formulario, ponle 50» llena el mismo formulario, no va al Asistente", () => {
+    const completar = propuesta({
+      intencion: "agente",
+      agente: {
+        texto: "Agregué Coca-Cola. Ya está todo.",
+        motivo: "formulario",
+        acciones: [propuesta({ intencion: "completar_formulario", entidades: { productos: [{ nombre: "Coca-Cola", precio: 50, stock: null, categoria: null }] } })],
+      },
+    } as any);
+    expect(planDe(completar)).toEqual({ tipo: "producto", borrador: { nombre: "Coca-Cola", precio: 50, stock: null, categoria: null } });
+  });
+
   test("un análisis («¿cómo vamos este mes?») va al Asistente", () => {
     const analisis = propuesta({ intencion: "analizar", vista: { titulo: "Este mes", piezas: [] } as any });
     expect(planDe(analisis)).toMatchObject({ tipo: "asistente" });
