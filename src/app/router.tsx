@@ -22,6 +22,7 @@ import { StoreConfigPage } from "@/pages/stores/config";
 import ReportsPage from "@/pages/reports";
 import MarketingPage from "@/pages/marketing";
 import CampanaPage from "@/pages/marketing/campana";
+import AgentePage from "@/pages/marketing/agente";
 import PromotionsPage from "@/pages/promotions";
 import LayoutShell from "@/widgets/layout/LayoutShell";
 import { useAuth } from "./providers/auth";
@@ -106,6 +107,7 @@ export default function AppRouter() {
             <Route path="/whatsapp" element={<AMarketing />} />
             <Route path="/promotions" element={<PromotionsPage />} />
             <Route path="/marketing" element={<MarketingPage />} />
+            <Route path="/marketing/agente" element={<AgentePage />} />
             <Route path="/marketing/campanas/:id" element={<CampanaPage />} />
             <Route path="/campaigns" element={<Navigate to="/marketing" replace />} />
             <Route path="/integrations" element={<AMarketing />} />

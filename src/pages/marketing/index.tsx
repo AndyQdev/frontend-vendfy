@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Megaphone, Plus } from "lucide-react";
+import { Bot, Megaphone, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -49,6 +50,13 @@ export default function MarketingPage() {
     <div className="space-y-5">
       <Encabezado>
         <ChipsConexion storeId={tienda.id} onAbrir={() => setConexiones(true)} />
+        {conWhatsapp && (
+          <Button variant="outline" asChild>
+            <Link to="/marketing/agente">
+              <Bot className="mr-1.5 h-4 w-4" /> Tu vendedor IA
+            </Link>
+          </Button>
+        )}
         {conAnuncios && puedeGestionar && (
           <Button onClick={() => setNueva(true)}>
             <Plus className="mr-1.5 h-4 w-4" /> Nueva campaña

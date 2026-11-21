@@ -21,6 +21,7 @@ const RUBROS = [
   { value: "hogar", label: "Hogar" },
   { value: "abarrotes", label: "Abarrotes" },
   { value: "belleza", label: "Belleza" },
+  { value: "perfumeria", label: "Perfumería" },
   { value: "deportes", label: "Deportes" },
   { value: "arte", label: "Arte" },
 ];
